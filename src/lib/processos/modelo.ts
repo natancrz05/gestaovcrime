@@ -149,9 +149,11 @@ export function diasEntre(inicioISO: string, fimISO: string): number {
 
 export function ultimaMovimentacao(p: ProcessoCompleto): Movimentacao | null {
   if (p.movimentacoes.length === 0) return null;
-  return [...p.movimentacoes].sort(
-    (a, b) => b.data.localeCompare(a.data) || b.criado_em.localeCompare(a.criado_em),
-  )[0];
+  return (
+    [...p.movimentacoes].sort(
+      (a, b) => b.data.localeCompare(a.data) || b.criado_em.localeCompare(a.criado_em),
+    )[0] ?? null
+  );
 }
 
 /** "X dias sem movimentação" — calculado a partir da última movimentação e da data atual. */
