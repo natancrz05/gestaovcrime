@@ -13,17 +13,17 @@ import {
   Scale,
 } from "lucide-react";
 
-const ITENS = [
+export const ITENS_NAV = [
   { para: "/", rotulo: "Dashboard", icone: LayoutDashboard, exato: true },
-  { para: "/processos", rotulo: "Processos", icone: FolderOpen },
-  { para: "/prioridades", rotulo: "Prioridades", icone: AlertTriangle },
-  { para: "/reus-presos", rotulo: "Réus Presos", icone: Lock },
-  { para: "/prisoes-temporarias", rotulo: "Prisões Temporárias", icone: Timer },
-  { para: "/sem-movimentacao", rotulo: "Sem Movimentação", icone: PauseCircle },
-  { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays },
-  { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList },
-  { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2 },
-  { para: "/configuracoes", rotulo: "Configurações", icone: Settings },
+  { para: "/processos", rotulo: "Processos", icone: FolderOpen, exato: false },
+  { para: "/prioridades", rotulo: "Prioridades", icone: AlertTriangle, exato: false },
+  { para: "/reus-presos", rotulo: "Réus Presos", icone: Lock, exato: false },
+  { para: "/prisoes-temporarias", rotulo: "Prisões Temporárias", icone: Timer, exato: false },
+  { para: "/sem-movimentacao", rotulo: "Sem Movimentação", icone: PauseCircle, exato: false },
+  { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
+  { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList, exato: false },
+  { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2, exato: false },
+  { para: "/configuracoes", rotulo: "Configurações", icone: Settings, exato: false },
 ] as const;
 
 export function BarraLateral() {

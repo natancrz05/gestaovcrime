@@ -10,15 +10,34 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AudienciasRouteImport } from './routes/audiencias'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as PendenciasRouteImport } from './routes/pendencias'
 import { Route as PrioridadesRouteImport } from './routes/prioridades'
 import { Route as PrisoesTemporariasRouteImport } from './routes/prisoes-temporarias'
 import { Route as ProcessosRouteImport } from './routes/processos'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ReusPresosRouteImport } from './routes/reus-presos'
 import { Route as SemMovimentacaoRouteImport } from './routes/sem-movimentacao'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AudienciasRoute = AudienciasRouteImport.update({
+  id: '/audiencias',
+  path: '/audiencias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PendenciasRoute = PendenciasRouteImport.update({
+  id: '/pendencias',
+  path: '/pendencias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrioridadesRoute = PrioridadesRouteImport.update({
@@ -36,6 +55,11 @@ const ProcessosRoute = ProcessosRouteImport.update({
   path: '/processos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReusPresosRoute = ReusPresosRouteImport.update({
   id: '/reus-presos',
   path: '/reus-presos',
@@ -49,26 +73,38 @@ const SemMovimentacaoRoute = SemMovimentacaoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/audiencias': typeof AudienciasRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
   '/processos': typeof ProcessosRoute
+  '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/audiencias': typeof AudienciasRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
   '/processos': typeof ProcessosRoute
+  '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/audiencias': typeof AudienciasRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
   '/processos': typeof ProcessosRoute
+  '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
@@ -76,34 +112,50 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/audiencias'
+    | '/configuracoes'
+    | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
     | '/processos'
+    | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/audiencias'
+    | '/configuracoes'
+    | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
     | '/processos'
+    | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
   id:
     | '__root__'
     | '/'
+    | '/audiencias'
+    | '/configuracoes'
+    | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
     | '/processos'
+    | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AudienciasRoute: typeof AudienciasRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  PendenciasRoute: typeof PendenciasRoute
   PrioridadesRoute: typeof PrioridadesRoute
   PrisoesTemporariasRoute: typeof PrisoesTemporariasRoute
   ProcessosRoute: typeof ProcessosRoute
+  RelatoriosRoute: typeof RelatoriosRoute
   ReusPresosRoute: typeof ReusPresosRoute
   SemMovimentacaoRoute: typeof SemMovimentacaoRoute
 }
@@ -115,6 +167,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audiencias': {
+      id: '/audiencias'
+      path: '/audiencias'
+      fullPath: '/audiencias'
+      preLoaderRoute: typeof AudienciasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pendencias': {
+      id: '/pendencias'
+      path: '/pendencias'
+      fullPath: '/pendencias'
+      preLoaderRoute: typeof PendenciasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prioridades': {
@@ -138,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProcessosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reus-presos': {
       id: '/reus-presos'
       path: '/reus-presos'
@@ -157,9 +237,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AudienciasRoute: AudienciasRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
+  PendenciasRoute: PendenciasRoute,
   PrioridadesRoute: PrioridadesRoute,
   PrisoesTemporariasRoute: PrisoesTemporariasRoute,
   ProcessosRoute: ProcessosRoute,
+  RelatoriosRoute: RelatoriosRoute,
   ReusPresosRoute: ReusPresosRoute,
   SemMovimentacaoRoute: SemMovimentacaoRoute,
 }
