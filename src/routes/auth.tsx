@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { registrarAcesso, registrarFalhaLogin } from "@/lib/auditoria.functions";
 import { useState } from "react";
 import { Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,8 +51,10 @@ function Entrar() {
             setEnviando(false);
             if (error) {
               setErro(/banned/i.test(error.message) ? "Seu usuário está inativo. Procure o Administrador." : "E-mail ou senha incorretos.");
+              registrarFalhaLogin({ data: { email: email.trim() } }).catch(() => {});
               return;
             }
+            await registrarAcesso({ data: { acao: "Login" } }).catch(() => {});
             navigate({ to: "/", replace: true });
           }}
         >

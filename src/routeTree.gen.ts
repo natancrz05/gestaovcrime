@@ -20,6 +20,7 @@ import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedReusPresosRouteImport } from './routes/_authenticated/reus-presos'
 import { Route as AuthenticatedSemMovimentacaoRouteImport } from './routes/_authenticated/sem-movimentacao'
 import { Route as AuthenticatedConfiguracoesIndexRouteImport } from './routes/_authenticated/configuracoes.index'
+import { Route as AuthenticatedConfiguracoesAuditoriaRouteImport } from './routes/_authenticated/configuracoes.auditoria'
 import { Route as AuthenticatedConfiguracoesUsuariosRouteImport } from './routes/_authenticated/configuracoes.usuarios'
 import { Route as AuthenticatedProcessosIndexRouteImport } from './routes/_authenticated/processos.index'
 import { Route as AuthenticatedProcessosIdRouteImport } from './routes/_authenticated/processos.$id'
@@ -83,6 +84,12 @@ const AuthenticatedConfiguracoesIndexRoute =
     path: '/configuracoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracoesAuditoriaRoute =
+  AuthenticatedConfiguracoesAuditoriaRouteImport.update({
+    id: '/configuracoes/auditoria',
+    path: '/configuracoes/auditoria',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracoesUsuariosRoute =
   AuthenticatedConfiguracoesUsuariosRouteImport.update({
     id: '/configuracoes/usuarios',
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reus-presos': typeof AuthenticatedReusPresosRoute
   '/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
+  '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/processos/novo': typeof AuthenticatedProcessosNovoRoute
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/reus-presos': typeof AuthenticatedReusPresosRoute
   '/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
   '/': typeof AuthenticatedIndexRoute
+  '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/processos/novo': typeof AuthenticatedProcessosNovoRoute
@@ -152,6 +161,7 @@ export interface FileRoutesById {
   '/_authenticated/reus-presos': typeof AuthenticatedReusPresosRoute
   '/_authenticated/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/_authenticated/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/_authenticated/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/_authenticated/processos/novo': typeof AuthenticatedProcessosNovoRoute
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
+    | '/configuracoes/auditoria'
     | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/novo'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/reus-presos'
     | '/sem-movimentacao'
     | '/'
+    | '/configuracoes/auditoria'
     | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/novo'
@@ -203,6 +215,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reus-presos'
     | '/_authenticated/sem-movimentacao'
     | '/_authenticated/'
+    | '/_authenticated/configuracoes/auditoria'
     | '/_authenticated/configuracoes/usuarios'
     | '/_authenticated/processos/$id'
     | '/_authenticated/processos/novo'
@@ -294,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes/auditoria': {
+      id: '/_authenticated/configuracoes/auditoria'
+      path: '/configuracoes/auditoria'
+      fullPath: '/configuracoes/auditoria'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracoes/usuarios': {
       id: '/_authenticated/configuracoes/usuarios'
       path: '/configuracoes/usuarios'
@@ -334,6 +354,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReusPresosRoute: typeof AuthenticatedReusPresosRoute
   AuthenticatedSemMovimentacaoRoute: typeof AuthenticatedSemMovimentacaoRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedConfiguracoesAuditoriaRoute: typeof AuthenticatedConfiguracoesAuditoriaRoute
   AuthenticatedConfiguracoesUsuariosRoute: typeof AuthenticatedConfiguracoesUsuariosRoute
   AuthenticatedProcessosIdRoute: typeof AuthenticatedProcessosIdRoute
   AuthenticatedProcessosNovoRoute: typeof AuthenticatedProcessosNovoRoute
@@ -350,6 +371,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReusPresosRoute: AuthenticatedReusPresosRoute,
   AuthenticatedSemMovimentacaoRoute: AuthenticatedSemMovimentacaoRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedConfiguracoesAuditoriaRoute:
+    AuthenticatedConfiguracoesAuditoriaRoute,
   AuthenticatedConfiguracoesUsuariosRoute:
     AuthenticatedConfiguracoesUsuariosRoute,
   AuthenticatedProcessosIdRoute: AuthenticatedProcessosIdRoute,

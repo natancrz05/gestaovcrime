@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { registrarAcesso } from "@/lib/auditoria.functions";
 import { rotuloPerfil } from "@/lib/permissoes";
 import { useSessao } from "@/lib/sessao";
 
@@ -9,6 +10,7 @@ export function useSair() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   return async () => {
+    await registrarAcesso({ data: { acao: "Logout" } }).catch(() => {});
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();

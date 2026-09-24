@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, ShieldCheck, Users } from "lucide-react";
 import { usePode } from "@/lib/sessao";
 import { CONFIG_INTEGRACAO_PJE } from "@/lib/integracao/pje";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
@@ -64,6 +64,19 @@ function Pagina() {
             <p className="text-xs text-muted-foreground">
               Cadastrar, editar, ativar/inativar e alterar perfis de acesso
             </p>
+          </div>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </Link>
+      ) : null}
+      {admin ? (
+        <Link
+          to="/configuracoes/auditoria"
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover"
+        >
+          <ShieldCheck className="size-5 text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Auditoria</p>
+            <p className="text-xs text-muted-foreground">Consultar quem fez cada alteração, quando e qual ação</p>
           </div>
           <ChevronRight className="size-4 text-muted-foreground" />
         </Link>

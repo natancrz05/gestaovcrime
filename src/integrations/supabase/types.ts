@@ -61,6 +61,45 @@ export type Database = {
           },
         ]
       }
+      auditoria: {
+        Row: {
+          acao: string
+          criado_em: string
+          descricao: string
+          id: string
+          modulo: string
+          processo_id: string | null
+          processo_numero: string
+          registro_id: string | null
+          usuario_id: string | null
+          usuario_nome: string
+        }
+        Insert: {
+          acao: string
+          criado_em?: string
+          descricao?: string
+          id?: string
+          modulo: string
+          processo_id?: string | null
+          processo_numero?: string
+          registro_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Update: {
+          acao?: string
+          criado_em?: string
+          descricao?: string
+          id?: string
+          modulo?: string
+          processo_id?: string | null
+          processo_numero?: string
+          registro_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Relationships: []
+      }
       integracao_log: {
         Row: {
           criado_em: string
@@ -449,6 +488,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auditoria_nome: { Args: { _uid: string }; Returns: string }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
