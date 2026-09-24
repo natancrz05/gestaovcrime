@@ -4,6 +4,30 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const perfilSchema = z.enum(["administrador", "servidor", "consulta"]);
 
+function traduzirErro(msg?: string) {
+  if (!msg) return "Falha ao criar usuário.";
+  if (/already.*(registered|exists)/i.test(msg)) return "Já existe um usuário com este e-mail.";
+  if (/password/i.test(msg) && /(6|short|least)/i.test(msg)) return "A senha deve ter pelo menos 6 caracteres.";
+  if (/(weak|pwned|leaked|compromised)/i.test(msg)) return "Esta senha não foi aceita. Escolha outra senha.";
+  if (/password/i.test(msg)) return "Senha inválida. Escolha outra senha.";
+  if (/email/i.test(msg)) return "E-mail inválido.";
+  return "Falha ao criar usuário.";
+}
+
+export const excluirUsuario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    if (data.id === context.userId) throw new Error("Você não pode excluir a sua própria conta.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: u } = await supabaseAdmin.from("usuarios").select("nome, email").eq("id", data.id).maybeSingle();
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
+    if (error) throw new Error("Não foi possível excluir o usuário.");
+    await auditarUsuario(supabaseAdmin, context.userId, data.id, "Excluído", `Usuário ${u?.nome ?? u?.email ?? ""} excluído`);
+    return { ok: true };
+  });
+
 async function exigirAdmin(context: { supabase: any; userId: string }) {
   const { data } = await context.supabase.rpc("eh_admin", { _user_id: context.userId });
   if (!data) throw new Error("Somente o Administrador pode gerenciar usuários.");
@@ -46,7 +70,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
     z.object({
       nome: z.string().trim().min(1).max(120),
       email: z.string().trim().email().max(200),
-      senha: z.string().min(8).max(72),
+      senha: z.string().min(6, "A senha deve ter pelo menos 6 caracteres.").max(72, "A senha deve ter no máximo 72 caracteres."),
       perfil: perfilSchema,
     }).parse(d),
   )
@@ -58,7 +82,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
       password: data.senha,
       email_confirm: true,
     });
-    if (error || !criado.user) throw new Error(error?.message ?? "Falha ao criar usuário.");
+    if (error || !criado.user) throw new Error(traduzirErro(error?.message));
     const id = criado.user.id;
     const r1 = await supabaseAdmin.from("usuarios").insert({ id, nome: data.nome, email: data.email, ativo: true });
     const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: id, role: data.perfil });
