@@ -30,7 +30,7 @@ import {
   processoQuery,
 } from "@/lib/processos/repositorio";
 
-export const Route = createFileRoute("/processos/$id")({
+export const Route = createFileRoute("/_authenticated/processos/$id")({
   head: () => ({
     meta: [
       { title: "Ficha do processo — Gestão da Vara Criminal" },

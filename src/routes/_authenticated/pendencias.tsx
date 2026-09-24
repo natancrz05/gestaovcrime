@@ -12,7 +12,7 @@ import {
 } from "@/lib/processos/pendencias";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/pendencias")({
+export const Route = createFileRoute("/_authenticated/pendencias")({
   head: () => ({
     meta: [
       { title: "Pendências — Gestão da Vara Criminal" },

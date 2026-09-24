@@ -343,15 +343,66 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          email: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          email?: string
+          id: string
+          nome?: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          email?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      eh_admin: { Args: { _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      pode_editar: { Args: { _user_id: string }; Returns: boolean }
+      usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "administrador" | "servidor" | "consulta"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -478,6 +529,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["administrador", "servidor", "consulta"],
+    },
   },
 } as const

@@ -20,7 +20,7 @@ import {
 } from "@/lib/processos/audiencias";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/audiencias")({
+export const Route = createFileRoute("/_authenticated/audiencias")({
   head: () => ({
     meta: [
       { title: "Audiências — Gestão da Vara Criminal" },

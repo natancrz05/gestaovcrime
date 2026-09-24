@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
 
-export const Route = createFileRoute("/configuracoes")({
+export const Route = createFileRoute("/_authenticated/configuracoes/")({
   head: () => ({
     meta: [
       { title: "Configurações — Gestão da Vara Criminal" },
