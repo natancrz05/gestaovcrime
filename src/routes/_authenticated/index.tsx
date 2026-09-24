@@ -10,7 +10,7 @@ import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } fro
 import { cn } from "@/lib/utils";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Dashboard — Gestão da Vara Criminal" },

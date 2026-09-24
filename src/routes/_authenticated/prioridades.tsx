@@ -9,7 +9,7 @@ import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from 
 import { NIVEIS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import type { PrioridadeProcesso } from "@/lib/processos/modelo";
 
-export const Route = createFileRoute("/prioridades")({
+export const Route = createFileRoute("/_authenticated/prioridades")({
   head: () => ({
     meta: [
       { title: "Prioridades — Gestão da Vara Criminal" },

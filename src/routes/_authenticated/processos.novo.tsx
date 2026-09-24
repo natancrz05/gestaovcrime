@@ -12,7 +12,7 @@ import {
 } from "@/lib/processos/modelo";
 import { criarProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
 
-export const Route = createFileRoute("/processos/novo")({
+export const Route = createFileRoute("/_authenticated/processos/novo")({
   head: () => ({
     meta: [
       { title: "Novo processo — Gestão da Vara Criminal" },

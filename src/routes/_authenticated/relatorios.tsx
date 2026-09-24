@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AvisoEtapa, Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { obterIndicadores } from "@/lib/repositorio";
 
-export const Route = createFileRoute("/relatorios")({
+export const Route = createFileRoute("/_authenticated/relatorios")({
   head: () => ({
     meta: [
       { title: "Relatórios — Gestão da Vara Criminal" },

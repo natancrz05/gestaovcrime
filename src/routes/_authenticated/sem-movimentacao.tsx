@@ -3,7 +3,7 @@ import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { ListaProcessos } from "@/components/ui-serventia/ListaProcessos";
 import { listarProcessos } from "@/lib/repositorio";
 
-export const Route = createFileRoute("/sem-movimentacao")({
+export const Route = createFileRoute("/_authenticated/sem-movimentacao")({
   head: () => ({
     meta: [
       { title: "Sem Movimentação — Gestão da Vara Criminal" },
