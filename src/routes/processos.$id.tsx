@@ -272,3 +272,31 @@ function FormObservacao({ onSalvar }: { onSalvar: (texto: string) => Promise<voi
     </form>
   );
 }
+
+function AbaPendencias({ p, recarregar }: { p: ProcessoCompleto; recarregar: () => Promise<unknown> }) {
+  const lista = p.pendencias.map((x) => classificar(x, p.numero)).sort((a, b) => Number(a.concluidaFlag) - Number(b.concluidaFlag) || (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
+  const [detalhe, setDetalhe] = useState<PendenciaListada | null>(null);
+  const [edicao, setEdicao] = useState<{ id?: string; dados: PendenciaEntrada } | null>(null);
+  return (
+    <Secao titulo="Pendências" acao={<button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia(p.id) })}>Nova pendência</button>}>
+      {lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma pendência registrada.</p> : (
+        <ul className="divide-y divide-border">
+          {lista.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+              <div>
+                <button className={cn("text-left text-sm font-medium hover:underline", x.concluidaFlag && "text-muted-foreground line-through")} onClick={() => setDetalhe(x)}>{x.titulo || x.descricao}</button>
+                <p className="text-xs text-muted-foreground">{x.tipo} · Prazo {formatarData(x.prazo)} · {x.status}{x.responsavel ? ` · ${x.responsavel}` : ""}</p>
+              </div>
+              <EtiquetasPendencia p={x} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <DialogosPendencia
+        detalhe={detalhe} setDetalhe={setDetalhe} edicao={edicao} setEdicao={setEdicao}
+        onSalvar={async (d, id) => { await salvarPendencia(d, id); await recarregar(); }}
+        onConcluir={async (id) => { await concluirPendencia(id); await recarregar(); }}
+      />
+    </Secao>
+  );
+}
