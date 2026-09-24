@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { pode } from "@/lib/permissoes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -13,6 +14,9 @@ import {
 import { criarProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/novo")({
+  beforeLoad: ({ context }) => {
+    if (!pode(context.sessao.perfil, "editar")) throw redirect({ to: "/processos" });
+  },
   head: () => ({
     meta: [
       { title: "Novo processo — Gestão da Vara Criminal" },

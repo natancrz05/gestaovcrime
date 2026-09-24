@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
@@ -59,6 +60,7 @@ function Pagina() {
   const [edicao, setEdicao] = useState<{ id?: string; valores: AudienciaEntrada } | null>(null);
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
+  const podeEditar = usePode("editar");
 
   const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Instrução", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Designada", observacao: "" });
   const editar = (a: AudienciaListada) => {
@@ -77,7 +79,7 @@ function Pagina() {
       <Cabecalho
         titulo="Audiências"
         subtitulo={`${prox.length} audiências futuras · ${todas.length} registradas`}
-        acao={<button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button>}
+        acao={podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button> : undefined}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
@@ -151,8 +153,10 @@ function Pagina() {
               <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-3">
                 <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="text-sm font-medium text-primary hover:underline">Abrir ficha do processo</Link>
                 <div className="flex gap-2">
+                  {podeEditar ? <>
                   <button className={BOTAO_SEC} onClick={() => editar(detalhe)}><Pencil className="size-3.5" /> Editar</button>
                   <button className={BOTAO_SEC} onClick={() => excluir(detalhe)}><Trash2 className="size-3.5" /> Excluir</button>
+                  </> : null}
                 </div>
               </div>
             </div>

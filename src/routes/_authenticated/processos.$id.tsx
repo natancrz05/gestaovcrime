@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
+import { usePode } from "@/lib/sessao";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
 import { alertasDoProcesso } from "@/lib/processos/prioridades";
 import { classificar as classificarPend } from "@/lib/processos/pendencias";
@@ -55,6 +56,7 @@ function Pagina() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(processoQuery(id));
   const qc = useQueryClient();
+  const podeEditar = usePode("editar");
   const [aba, setAba] = useState<(typeof ABAS)[number]>("Informações gerais");
   if (!data) return null;
   const p = data;
@@ -124,7 +126,7 @@ function Pagina() {
       {aba === "Partes" && (
         <Secao titulo="Partes">
           <Lista vazio="Nenhuma parte cadastrada." itens={p.partes.map((x) => ({ id: x.id, titulo: x.nome, sub: [x.tipo, x.observacao].filter(Boolean).join(" · ") }))} />
-          <FormParte onSalvar={async (v) => { await adicionarParte({ ...v, processo_id: p.id }); await recarregar(); }} />
+          {podeEditar && <FormParte onSalvar={async (v) => { await adicionarParte({ ...v, processo_id: p.id }); await recarregar(); }} />}
         </Secao>
       )}
 
@@ -146,13 +148,13 @@ function Pagina() {
               </div>
             ))}
           </div>
-          <FormReu onSalvar={async (v) => { await adicionarReu({ ...v, processo_id: p.id, ordem: p.reus.length }); await recarregar(); }} />
+          {podeEditar && <FormReu onSalvar={async (v) => { await adicionarReu({ ...v, processo_id: p.id, ordem: p.reus.length }); await recarregar(); }} />}
         </Secao>
       )}
 
       {aba === "Movimentações" && (
         <Secao titulo="Movimentações">
-          <FormMovimentacao onSalvar={async (v) => { await adicionarMovimentacao({ ...v, processo_id: p.id }); await recarregar(); }} />
+          {podeEditar && <FormMovimentacao onSalvar={async (v) => { await adicionarMovimentacao({ ...v, processo_id: p.id }); await recarregar(); }} />}
           <ol className="mt-5 space-y-2 border-l-2 border-border pl-4">
             {movs.map((m) => (
               <li key={m.id} className="text-sm">
@@ -208,7 +210,7 @@ function Pagina() {
       {aba === "Observações" && (
         <Secao titulo="Anotações internas de gestão">
           <p className="mb-3 text-xs text-muted-foreground">Anotações administrativas — não constituem decisão nem manifestação processual.</p>
-          <FormObservacao onSalvar={async (texto) => { await adicionarObservacao({ processo_id: p.id, texto }); await recarregar(); }} />
+          {podeEditar && <FormObservacao onSalvar={async (texto) => { await adicionarObservacao({ processo_id: p.id, texto }); await recarregar(); }} />}
           <div className="mt-4">
             <Lista vazio="Nenhuma anotação." itens={[...p.observacoes_internas].sort((a, b) => b.criado_em.localeCompare(a.criado_em)).map((o) => ({ id: o.id, titulo: o.texto, sub: new Date(o.criado_em).toLocaleString("pt-BR") }))} />
           </div>
@@ -320,9 +322,10 @@ function FormObservacao({ onSalvar }: { onSalvar: (texto: string) => Promise<voi
 function AbaPendencias({ p, recarregar }: { p: ProcessoCompleto; recarregar: () => Promise<unknown> }) {
   const lista = p.pendencias.map((x) => classificar(x, p.numero)).sort((a, b) => Number(a.concluidaFlag) - Number(b.concluidaFlag) || (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
   const [detalhe, setDetalhe] = useState<PendenciaListada | null>(null);
+  const podeEditar = usePode("editar");
   const [edicao, setEdicao] = useState<{ id?: string; dados: PendenciaEntrada } | null>(null);
   return (
-    <Secao titulo="Pendências" acao={<button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia(p.id) })}>Nova pendência</button>}>
+    <Secao titulo="Pendências" acao={podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia(p.id) })}>Nova pendência</button> : undefined}>
       {lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma pendência registrada.</p> : (
         <ul className="divide-y divide-border">
           {lista.map((x) => (

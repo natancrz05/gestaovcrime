@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
@@ -30,6 +31,7 @@ const NIVEL_ROTULO: Record<string, string> = { alta: "Alta", media: "Média", ba
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const qc = useQueryClient();
+  const podeEditar = usePode("editar");
   const [filtro, setFiltro] = useState<CategoriaPrioridade | null>(null);
   const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
   const contagens = contarCategorias(atencao);
@@ -77,7 +79,7 @@ function Pagina() {
       </Secao>
 
       <Secao titulo="Manuais">
-        <form onSubmit={salvar} className="grid gap-3 rounded-md border border-dashed border-border p-3 md:grid-cols-[2fr_2fr_1fr] md:items-end">
+        {podeEditar ? <form onSubmit={salvar} className="grid gap-3 rounded-md border border-dashed border-border p-3 md:grid-cols-[2fr_2fr_1fr] md:items-end">
           <Campo rotulo="Processo">
             <select className={CLASSE_CAMPO} value={form.processo_id} onChange={(e) => setForm({ ...form, processo_id: e.target.value })}>
               <option value="">Selecione…</option>
@@ -102,7 +104,7 @@ function Pagina() {
             {editando ? <button type="button" className="h-9 rounded-md border border-border px-3 text-sm" onClick={() => { setEditando(null); setForm(vazio); }}>Cancelar</button> : null}
           </div>
           {erro ? <p className="text-sm text-urgente md:col-span-3">{erro}</p> : null}
-        </form>
+        </form> : null}
 
         <ul className="mt-4 divide-y divide-border rounded-md border border-border">
           {manuais.length === 0 ? <li className="px-3 py-3 text-sm text-muted-foreground">Nenhuma prioridade manual.</li> : null}
@@ -118,14 +120,14 @@ function Pagina() {
                   {m.observacao ? ` · ${m.observacao}` : ""}
                 </p>
               </div>
-              <div className="flex gap-1">
+              {podeEditar ? <div className="flex gap-1">
                 <button aria-label="Editar" className="rounded-md border border-border p-1.5 hover:bg-muted" onClick={() => { setEditando(m.id); setForm({ processo_id: m.processo_id, titulo: m.titulo || m.motivo, nivel: m.nivel, observacao: m.observacao }); }}>
                   <Pencil className="size-3.5" />
                 </button>
                 <button aria-label="Remover" className="rounded-md border border-border p-1.5 hover:bg-muted" onClick={() => remover(m.id)}>
                   <Trash2 className="size-3.5" />
                 </button>
-              </div>
+              </div> : null}
             </li>
           ))}
         </ul>
