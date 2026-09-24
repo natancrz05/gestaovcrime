@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useMemo } from "react";
+import { Plus, Search, X } from "lucide-react";
+import { EtiquetaAlerta } from "@/components/processos/Prioridades";
+import { CONFIG_PRIORIDADES, alertasDoProcesso } from "@/lib/processos/prioridades";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Opcoes } from "@/components/processos/campos";
@@ -27,10 +29,35 @@ export const Route = createFileRoute("/processos/")({
       { property: "og:description", content: "Acervo de processos da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): BuscaProcessos => {
+    const r: BuscaProcessos = {};
+    for (const k of CHAVES) if (typeof s[k] === "string" && s[k]) r[k] = s[k] as string;
+    return r;
+  },
   loader: ({ context }) => context.queryClient.ensureQueryData(processosQuery()),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar processos" descricao={error.message} />,
   component: Pagina,
 });
+
+const CHAVES = ["q", "status", "classe", "preso", "tipoPrisao", "periodo", "temporaria", "prioridade", "pendencia", "audiencia", "semMov", "ordem"] as const;
+type Chave = (typeof CHAVES)[number];
+type BuscaProcessos = Partial<Record<Chave, string>>;
+
+const FLAGS: { k: Chave; r: string }[] = [
+  { k: "temporaria", r: "Prisão temporária" },
+  { k: "prioridade", r: "Com prioridade" },
+  { k: "pendencia", r: "Com pendência aberta" },
+  { k: "audiencia", r: "Com audiência cadastrada" },
+  { k: "semMov", r: `Mais de ${CONFIG_PRIORIDADES.limiteDiasSemMovimentacao} dias sem movimentação` },
+];
+
+const ORDENS = [
+  { v: "processo", r: "Número do processo" },
+  { v: "distribuicao", r: "Data de distribuição (recente)" },
+  { v: "movimentacao", r: "Última movimentação (recente)" },
+  { v: "dias", r: "Dias sem movimentação (maior)" },
+  { v: "prioridade", r: "Prioridade (mais alertas)" },
+];
 
 const PERIODOS = [
   { v: "", r: "Qualquer período" },
@@ -43,21 +70,22 @@ const PERIODOS = [
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const navigate = useNavigate();
-  const [busca, setBusca] = useState("");
-  const [status, setStatus] = useState("");
-  const [classe, setClasse] = useState("");
-  const [preso, setPreso] = useState("");
-  const [tipoPrisao, setTipoPrisao] = useState("");
-  const [periodo, setPeriodo] = useState("");
+  const sp = Route.useSearch();
+  const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
+  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", ordem = sp.ordem ?? "processo";
+  const set = (k: Chave, v: string) =>
+    navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
+  const flag = (k: Chave) => sp[k] === "1";
+  const algumFiltro = CHAVES.some((k) => k !== "ordem" && sp[k]);
   const hoje = hojeISO();
 
   const classes = useMemo(() => [...new Set(processos.map((p) => p.classe))].sort(), [processos]);
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    return processos.filter((p) => {
+    const lista = processos.filter((p) => {
       if (t) {
-        const alvo = [p.numero, p.classe, p.assunto, ...p.partes.map((x) => x.nome), ...p.reus.map((x) => x.nome)]
+        const alvo = [p.numero, p.numero.replace(/\D/g, ""), p.classe, p.assunto, p.status, ...p.partes.map((x) => x.nome), ...p.reus.map((x) => x.nome)]
           .join(" ")
           .toLowerCase();
         if (!alvo.includes(t)) return false;
@@ -67,6 +95,11 @@ function Pagina() {
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
+      if (flag("temporaria") && !p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária")) return false;
+      if (flag("prioridade") && alertasDoProcesso(p, hoje).length === 0) return false;
+      if (flag("pendencia") && pendenciasAbertas(p).length === 0) return false;
+      if (flag("audiencia") && p.audiencias.length === 0) return false;
+      if (flag("semMov")) { const d = diasSemMovimentacao(p, hoje); if (d === null || d <= CONFIG_PRIORIDADES.limiteDiasSemMovimentacao) return false; }
       if (periodo) {
         const d = diasSemMovimentacao(p, hoje);
         if (periodo === "sem") return d === null;
@@ -76,7 +109,16 @@ function Pagina() {
       }
       return true;
     });
-  }, [processos, busca, status, classe, preso, tipoPrisao, periodo, hoje]);
+    const dias = (p: (typeof processos)[number]) => diasSemMovimentacao(p, hoje) ?? -1;
+    const ORD: Record<string, (a: (typeof processos)[number], b: (typeof processos)[number]) => number> = {
+      processo: (a, b) => a.numero.localeCompare(b.numero),
+      distribuicao: (a, b) => (b.data_distribuicao ?? "").localeCompare(a.data_distribuicao ?? ""),
+      movimentacao: (a, b) => (ultimaMovimentacao(b)?.data ?? "").localeCompare(ultimaMovimentacao(a)?.data ?? ""),
+      dias: (a, b) => dias(b) - dias(a),
+      prioridade: (a, b) => alertasDoProcesso(b, hoje).length - alertasDoProcesso(a, hoje).length || a.numero.localeCompare(b.numero),
+    };
+    return [...lista].sort(ORD[ordem] ?? ORD["processo"]);
+  }, [processos, sp, hoje]);
 
   return (
     <div className="space-y-6">
@@ -98,34 +140,56 @@ function Pagina() {
           <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
           <input
             className={`${CLASSE_CAMPO} pl-9`}
-            placeholder="Pesquisar por número, parte, réu, classe ou assunto"
+            placeholder="Pesquisar por número (completo ou parte), réu, parte, classe, assunto ou status"
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => set("q", e.target.value)}
             aria-label="Pesquisar processos"
           />
         </div>
-        <select className={CLASSE_CAMPO} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
+        <select className={CLASSE_CAMPO} value={status} onChange={(e) => set("status", e.target.value)} aria-label="Status">
           <option value="">Todos os status</option>
           <Opcoes valores={STATUS_PROCESSO} />
         </select>
-        <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={classe} onChange={(e) => setClasse(e.target.value)} aria-label="Classe">
+        <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={classe} onChange={(e) => set("classe", e.target.value)} aria-label="Classe">
           <option value="">Todas as classes</option>
           <Opcoes valores={classes} />
         </select>
-        <select className={CLASSE_CAMPO} value={preso} onChange={(e) => setPreso(e.target.value)} aria-label="Réu preso">
+        <select className={CLASSE_CAMPO} value={preso} onChange={(e) => set("preso", e.target.value)} aria-label="Réu preso">
           <option value="">Réu preso: todos</option>
           <option value="sim">Com réu preso</option>
           <option value="nao">Sem réu preso</option>
         </select>
-        <select className={CLASSE_CAMPO} value={tipoPrisao} onChange={(e) => setTipoPrisao(e.target.value)} aria-label="Tipo de prisão">
+        <select className={CLASSE_CAMPO} value={tipoPrisao} onChange={(e) => set("tipoPrisao", e.target.value)} aria-label="Tipo de prisão">
           <option value="">Tipo de prisão: todos</option>
           <Opcoes valores={TIPOS_PRISAO} />
         </select>
-        <select className={CLASSE_CAMPO} value={periodo} onChange={(e) => setPeriodo(e.target.value)} aria-label="Última movimentação">
+        <select className={CLASSE_CAMPO} value={periodo} onChange={(e) => set("periodo", e.target.value)} aria-label="Última movimentação">
           {PERIODOS.map((p) => (
             <option key={p.v} value={p.v}>{p.r}</option>
           ))}
         </select>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:col-span-3 lg:col-span-6">
+          {FLAGS.map((f) => (
+            <label key={f.k} className="inline-flex items-center gap-1.5 text-sm text-foreground">
+              <input type="checkbox" className="size-4 accent-primary" checked={flag(f.k)} onChange={(e) => set(f.k, e.target.checked ? "1" : "")} />
+              {f.r}
+            </label>
+          ))}
+          <div className="ml-auto flex items-center gap-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ordem">Ordenar por</label>
+            <select id="ordem" className={`${CLASSE_CAMPO} w-auto`} value={ordem} onChange={(e) => set("ordem", e.target.value === "processo" ? "" : e.target.value)}>
+              {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.r}</option>)}
+            </select>
+            <button
+              type="button"
+              disabled={!algumFiltro}
+              onClick={() => navigate({ to: "/processos", search: ordem === "processo" ? {} : { ordem }, replace: true })}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <X className="size-4" /> Limpar filtros
+            </button>
+          </div>
+        </div>
       </div>
 
       {filtrados.length === 0 ? (
@@ -171,7 +235,7 @@ function Pagina() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 font-medium">{dias === null ? "—" : `${dias} dias`}</td>
                     <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                      {p.prioridades.length ? p.prioridades.map((x) => x.titulo || x.motivo).join(", ") : "—"}
+                      {(() => { const al = alertasDoProcesso(p, hoje); return al.length ? <div className="flex flex-wrap gap-1">{al.map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}</div> : "—"; })()}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{formatarData(aud?.data ?? null)}</td>
                     <td className="px-3 py-2.5">

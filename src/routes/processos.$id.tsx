@@ -1,4 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
+import { EtiquetaAlerta } from "@/components/processos/Prioridades";
+import { alertasDoProcesso } from "@/lib/processos/prioridades";
+import { classificar as classificarPend } from "@/lib/processos/pendencias";
+import { horaCurta } from "@/lib/processos/audiencias";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -44,27 +48,38 @@ export const Route = createFileRoute("/processos/$id")({
   component: Pagina,
 });
 
-const ABAS = ["Resumo", "Partes", "Réus", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações"] as const;
+const ABAS = ["Informações gerais", "Réus", "Prisão", "Partes", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações"] as const;
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 
 function Pagina() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(processoQuery(id));
   const qc = useQueryClient();
-  const [aba, setAba] = useState<(typeof ABAS)[number]>("Resumo");
+  const [aba, setAba] = useState<(typeof ABAS)[number]>("Informações gerais");
   if (!data) return null;
   const p = data;
   const ult = ultimaMovimentacao(p);
   const dias = diasSemMovimentacao(p, hojeISO());
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
+  const alertas = alertasDoProcesso(p, hojeISO());
+  const presos = p.reus.filter((r) => r.preso);
+  const pendAbertas = p.pendencias.map((x) => classificarPend(x, p.numero)).filter((x) => !x.concluidaFlag);
+  const audFut = [...p.audiencias].filter((a) => a.data >= hojeISO() && a.situacao !== "Cancelada" && a.situacao !== "Realizada").sort((a, b) => a.data.localeCompare(b.data))[0];
   const movs = [...p.movimentacoes].sort((a, b) => b.data.localeCompare(a.data) || b.criado_em.localeCompare(a.criado_em));
 
   return (
     <div className="space-y-5">
-      <Link to="/processos" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Processos
-      </Link>
+      <Voltar />
       <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} />
+
+      <section aria-label="Resumo do processo" className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <Resumo rotulo="Situação do processo" valor={p.status} onClick={() => setAba("Informações gerais")} />
+        <Resumo rotulo="Situação prisional" valor={presos.length ? `${presos.length} réu(s) preso(s)` : "Nenhum réu preso"} sub={presos.map((r) => r.tipo_prisao).join(", ")} tom={presos.length ? "urgente" : undefined} onClick={() => setAba(presos.length ? "Prisão" : "Réus")} />
+        <Resumo rotulo="Desde a última movimentação" valor={dias === null ? "Sem registro" : `${dias} dias`} tom={dias !== null && alertas.some((a) => a.categoria === "sem-movimentacao") ? "atencao" : undefined} onClick={() => setAba("Movimentações")} />
+        <Resumo rotulo="Pendências abertas" valor={String(pendAbertas.length)} sub={pendAbertas.some((x) => x.atrasada) ? `${pendAbertas.filter((x) => x.atrasada).length} atrasada(s)` : undefined} tom={pendAbertas.some((x) => x.atrasada) ? "urgente" : undefined} onClick={() => setAba("Pendências")} />
+        <Resumo rotulo="Próxima audiência" valor={audFut ? formatarData(audFut.data) : "Nenhuma"} sub={audFut ? `${horaCurta(audFut.horario)} · ${audFut.tipo}` : undefined} onClick={() => setAba("Audiências")} />
+        <Resumo rotulo="Prioridade" valor={alertas.length ? `${alertas.length} alerta(s)` : "Nenhuma"} sub={alertas.map((a) => a.rotulo).join(", ")} tom={alertas.length ? "atencao" : undefined} onClick={() => setAba("Prioridades")} />
+      </section>
 
       <nav className="flex flex-wrap gap-1 border-b border-border" role="tablist">
         {ABAS.map((a) => (
@@ -80,8 +95,8 @@ function Pagina() {
         ))}
       </nav>
 
-      {aba === "Resumo" && (
-        <Secao titulo="Resumo">
+      {aba === "Informações gerais" && (
+        <Secao titulo="Informações gerais">
           <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["Número", p.numero],
@@ -152,16 +167,41 @@ function Pagina() {
       )}
 
       {aba === "Audiências" && (
-        <Secao titulo="Audiências">
-          <Lista vazio="Nenhuma audiência registrada." itens={p.audiencias.map((a) => ({ id: a.id, titulo: `${formatarData(a.data)} — ${a.tipo}`, sub: `${a.local} · ${a.situacao}` }))} />
-          <div className="mt-4"><AvisoEtapa>O controle completo de audiências será implementado em etapa futura.</AvisoEtapa></div>
+        <Secao titulo="Audiências" acao={<Link to="/audiencias" className="text-sm text-primary hover:underline">Abrir módulo de audiências</Link>}>
+          <Lista vazio="Nenhuma audiência registrada." itens={[...p.audiencias].sort((a, b) => a.data.localeCompare(b.data)).map((a) => ({ id: a.id, titulo: `${formatarData(a.data)} ${horaCurta(a.horario)} — ${a.tipo}`, sub: [a.modalidade, a.local, a.situacao, a.observacao].filter(Boolean).join(" · ") }))} />
+        </Secao>
+      )}
+      {aba === "Prisão" && (
+        <Secao titulo="Prisão">
+          {presos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu registrado como preso neste processo.</p> : (
+            <div className="space-y-2">
+              {presos.map((r) => (
+                <dl key={r.id} className="grid gap-3 rounded-md border border-urgente/25 bg-urgente-suave/40 p-3 text-sm sm:grid-cols-5">
+                  <div><dt className="text-xs text-muted-foreground">Réu</dt><dd className="font-medium">{r.nome}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Situação</dt><dd>{r.situacao || "—"}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Tipo de prisão</dt><dd>{r.tipo_prisao}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Data da prisão</dt><dd>{formatarData(r.data_prisao)}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Observações</dt><dd>{r.observacoes || "—"}</dd></div>
+                </dl>
+              ))}
+              <p className="text-xs text-muted-foreground">Informações registradas pela serventia — não constituem análise jurídica.</p>
+            </div>
+          )}
         </Secao>
       )}
       {aba === "Pendências" && <AbaPendencias p={p} recarregar={recarregar} />}
       {aba === "Prioridades" && (
-        <Secao titulo="Prioridades">
-          <Lista vazio="Nenhuma prioridade registrada." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.titulo || x.motivo, sub: [x.nivel, x.observacao].filter(Boolean).join(" · ") }))} />
-          <div className="mt-4"><AvisoEtapa>As regras de prioridade serão implementadas na etapa correspondente.</AvisoEtapa></div>
+        <Secao titulo="Prioridades" acao={<Link to="/prioridades" className="text-sm text-primary hover:underline">Gerenciar prioridades manuais</Link>}>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Automáticas</h3>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {alertas.filter((a) => a.categoria !== "manual").map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}
+            {alertas.every((a) => a.categoria === "manual") ? <p className="text-sm text-muted-foreground">Nenhum alerta automático.</p> : null}
+          </div>
+          <h3 className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Manuais</h3>
+          <div className="mt-2">
+            <Lista vazio="Nenhuma prioridade manual." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.titulo || x.motivo, sub: [`Nível ${x.nivel === "media" ? "média" : x.nivel}`, x.observacao].filter(Boolean).join(" · ") }))} />
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">Alertas de gestão interna — não representam conclusão jurídica.</p>
         </Secao>
       )}
 
@@ -302,5 +342,26 @@ function AbaPendencias({ p, recarregar }: { p: ProcessoCompleto; recarregar: () 
         onConcluir={async (id) => { await concluirPendencia(id); await recarregar(); }}
       />
     </Secao>
+  );
+}
+
+function Voltar() {
+  const podeVoltar = useCanGoBack();
+  const router = useRouter();
+  const cls = "inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground";
+  return podeVoltar ? (
+    <button className={cls} onClick={() => router.history.back()}><ArrowLeft className="size-4" /> Voltar à lista</button>
+  ) : (
+    <Link to="/processos" className={cls}><ArrowLeft className="size-4" /> Processos</Link>
+  );
+}
+
+function Resumo({ rotulo, valor, sub, tom, onClick }: { rotulo: string; valor: string; sub?: string | undefined; tom?: "urgente" | "atencao" | undefined; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={cn("rounded-lg border bg-card p-3 text-left shadow-card hover:shadow-card-hover", tom === "urgente" ? "border-urgente/40" : tom === "atencao" ? "border-atencao/40" : "border-border")}>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{rotulo}</p>
+      <p className={cn("mt-1 text-base font-semibold", tom === "urgente" ? "text-urgente" : tom === "atencao" ? "text-atencao" : "text-foreground")}>{valor}</p>
+      {sub ? <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{sub}</p> : null}
+    </button>
   );
 }
