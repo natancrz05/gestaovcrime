@@ -304,7 +304,7 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
         </div>
       }
     >
-      <p className="mb-3 text-sm font-medium capitalize text-foreground" data-testid="titulo-calendario">{titulo}</p>
+      <p className="mb-3 text-sm font-medium text-foreground first-letter:uppercase" data-testid="titulo-calendario">{titulo}</p>
       {visao === "dia" ? (
         <ul className="space-y-2">
           {(porDia.get(iso(ref)) ?? []).map((a) => (
