@@ -1,4 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronRight, Users } from "lucide-react";
+import { usePode } from "@/lib/sessao";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
 
 export const Route = createFileRoute("/_authenticated/configuracoes/")({
@@ -43,16 +45,29 @@ const PARAMETROS = [
 ];
 
 function Pagina() {
+  const admin = usePode("gerenciar-usuarios");
   return (
     <div className="space-y-6">
       <Cabecalho
         titulo="Configurações"
         subtitulo="Parâmetros utilizados para classificar prioridades e alertas"
       />
-      <AvisoEtapa>
-        Nesta etapa os parâmetros são apenas exibidos. A edição, o controle de usuários e as
-        permissões serão implementados posteriormente.
-      </AvisoEtapa>
+      {admin ? (
+        <Link
+          to="/configuracoes/usuarios"
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover"
+        >
+          <Users className="size-5 text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Usuários</p>
+            <p className="text-xs text-muted-foreground">
+              Cadastrar, editar, ativar/inativar e alterar perfis de acesso
+            </p>
+          </div>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </Link>
+      ) : null}
+      <AvisoEtapa>Nesta etapa os parâmetros abaixo são apenas exibidos.</AvisoEtapa>
 
       <dl className="grid gap-3 md:grid-cols-2">
         {PARAMETROS.map((p) => (
