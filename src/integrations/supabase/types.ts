@@ -16,25 +16,37 @@ export type Database = {
     Tables: {
       audiencias: {
         Row: {
+          criado_em: string
           data: string
+          horario: string | null
           id: string
           local: string
+          modalidade: string
+          observacao: string
           processo_id: string
           situacao: string
           tipo: string
         }
         Insert: {
+          criado_em?: string
           data: string
+          horario?: string | null
           id?: string
           local?: string
+          modalidade?: string
+          observacao?: string
           processo_id: string
           situacao?: string
           tipo?: string
         }
         Update: {
+          criado_em?: string
           data?: string
+          horario?: string | null
           id?: string
           local?: string
+          modalidade?: string
+          observacao?: string
           processo_id?: string
           situacao?: string
           tipo?: string
