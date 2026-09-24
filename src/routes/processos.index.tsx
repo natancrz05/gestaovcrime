@@ -117,7 +117,7 @@ function Pagina() {
       dias: (a, b) => dias(b) - dias(a),
       prioridade: (a, b) => alertasDoProcesso(b, hoje).length - alertasDoProcesso(a, hoje).length || a.numero.localeCompare(b.numero),
     };
-    return [...lista].sort(ORD[ordem] ?? ORD.processo);
+    return [...lista].sort(ORD[ordem] ?? ORD["processo"]);
   }, [processos, sp, hoje]);
 
   return (
