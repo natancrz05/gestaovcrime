@@ -44,11 +44,11 @@ export function BarraLateral() {
           Gestão da serventia
         </p>
         <ul className="space-y-0.5">
-          {ITENS.map(({ para, rotulo, icone: Icone, ...resto }) => (
+          {ITENS_NAV.map(({ para, rotulo, icone: Icone, exato }) => (
             <li key={para}>
               <Link
                 to={para}
-                activeOptions={{ exact: "exato" in resto }}
+                activeOptions={{ exact: exato }}
                 className="flex items-center gap-3 rounded-md px-2.5 py-2 text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:font-medium data-[status=active]:text-sidebar-accent-foreground"
               >
                 <Icone className="size-4 shrink-0" />
