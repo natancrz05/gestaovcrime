@@ -43,7 +43,7 @@ export function FormPendencia({
   inicial, processos, onSalvar, onCancelar,
 }: {
   inicial: PendenciaEntrada;
-  processos?: ProcessoCompleto[];
+  processos?: ProcessoCompleto[] | undefined;
   onSalvar: (e: PendenciaEntrada) => Promise<void>;
   onCancelar: () => void;
 }) {
@@ -104,7 +104,7 @@ export function DialogosPendencia({
   setDetalhe: (p: PendenciaListada | null) => void;
   edicao: { id?: string; dados: PendenciaEntrada } | null;
   setEdicao: (e: { id?: string; dados: PendenciaEntrada } | null) => void;
-  processos?: ProcessoCompleto[];
+  processos?: ProcessoCompleto[] | undefined;
   onSalvar: (e: PendenciaEntrada, id?: string) => Promise<void>;
   onConcluir: (id: string) => Promise<void>;
 }) {
