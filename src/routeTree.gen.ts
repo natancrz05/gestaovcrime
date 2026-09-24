@@ -15,7 +15,6 @@ import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as PendenciasRouteImport } from './routes/pendencias'
 import { Route as PrioridadesRouteImport } from './routes/prioridades'
 import { Route as PrisoesTemporariasRouteImport } from './routes/prisoes-temporarias'
-import { Route as ProcessosRouteImport } from './routes/processos'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as ReusPresosRouteImport } from './routes/reus-presos'
 import { Route as SemMovimentacaoRouteImport } from './routes/sem-movimentacao'
@@ -50,11 +49,6 @@ const PrisoesTemporariasRoute = PrisoesTemporariasRouteImport.update({
   path: '/prisoes-temporarias',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProcessosRoute = ProcessosRouteImport.update({
-  id: '/processos',
-  path: '/processos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
@@ -78,7 +72,6 @@ export interface FileRoutesByFullPath {
   '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
@@ -90,7 +83,6 @@ export interface FileRoutesByTo {
   '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
@@ -103,7 +95,6 @@ export interface FileRoutesById {
   '/pendencias': typeof PendenciasRoute
   '/prioridades': typeof PrioridadesRoute
   '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/processos': typeof ProcessosRoute
   '/relatorios': typeof RelatoriosRoute
   '/reus-presos': typeof ReusPresosRoute
   '/sem-movimentacao': typeof SemMovimentacaoRoute
@@ -117,7 +108,6 @@ export interface FileRouteTypes {
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
-    | '/processos'
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
@@ -129,7 +119,6 @@ export interface FileRouteTypes {
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
-    | '/processos'
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
@@ -141,7 +130,6 @@ export interface FileRouteTypes {
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
-    | '/processos'
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
@@ -154,7 +142,6 @@ export interface RootRouteChildren {
   PendenciasRoute: typeof PendenciasRoute
   PrioridadesRoute: typeof PrioridadesRoute
   PrisoesTemporariasRoute: typeof PrisoesTemporariasRoute
-  ProcessosRoute: typeof ProcessosRoute
   RelatoriosRoute: typeof RelatoriosRoute
   ReusPresosRoute: typeof ReusPresosRoute
   SemMovimentacaoRoute: typeof SemMovimentacaoRoute
@@ -204,13 +191,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrisoesTemporariasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/processos': {
-      id: '/processos'
-      path: '/processos'
-      fullPath: '/processos'
-      preLoaderRoute: typeof ProcessosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/relatorios': {
       id: '/relatorios'
       path: '/relatorios'
@@ -242,7 +222,6 @@ const rootRouteChildren: RootRouteChildren = {
   PendenciasRoute: PendenciasRoute,
   PrioridadesRoute: PrioridadesRoute,
   PrisoesTemporariasRoute: PrisoesTemporariasRoute,
-  ProcessosRoute: ProcessosRoute,
   RelatoriosRoute: RelatoriosRoute,
   ReusPresosRoute: ReusPresosRoute,
   SemMovimentacaoRoute: SemMovimentacaoRoute,
