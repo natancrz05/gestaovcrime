@@ -138,6 +138,13 @@ export interface ProcessoCompleto {
   observacao_geral: string;
   responsavel: string;
   criado_em: string;
+  /** Preparação para integração futura com PJe/TJBA. */
+  origem?: string;
+  id_externo?: string | null;
+  sync_status?: string;
+  ultima_sincronizacao?: string | null;
+  ultima_alteracao_externa?: string | null;
+  sync_erro?: string | null;
   partes: Parte[];
   reus: Reu[];
   movimentacoes: Movimentacao[];
