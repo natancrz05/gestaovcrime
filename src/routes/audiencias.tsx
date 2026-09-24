@@ -266,7 +266,7 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
   } else if (visao === "semana") {
     const primeiro = somar(ref, -ref.getDay());
     dias = Array.from({ length: 7 }, (_, i) => somar(primeiro, i));
-    titulo = `${formatarData(iso(dias[0]))} a ${formatarData(iso(dias[6]))}`;
+    titulo = `${formatarData(iso(dias[0] ?? ref))} a ${formatarData(iso(dias[6] ?? ref))}`;
   } else {
     dias = [ref];
     titulo = `${DIAS_SEMANA[ref.getDay()]}, ${formatarData(iso(ref))}`;

@@ -9,6 +9,7 @@ import { listarProximasAcoes } from "@/lib/repositorio";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
+import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,6 +32,9 @@ function Dashboard() {
   const contagens = contarCategorias(atencao);
   const exibidos = categoria ? atencao.filter((x) => x.alertas.some((a) => a.categoria === categoria)) : atencao;
   const acoes = listarProximasAcoes();
+  const audFuturas = futuras(listarAudienciasDe(processos));
+  const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
+  const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
 
   return (
     <div className="space-y-8">
@@ -45,6 +49,31 @@ function Dashboard() {
 
       <section aria-label="Indicadores">
         <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
+      </section>
+
+      <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_2fr]">
+        <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
+        <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências nos próximos 7 dias</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-info">{aud7}</p>
+        </Link>
+        <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências com prazo extenso</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-atencao">{audExtensas}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Critério administrativo de acompanhamento</p>
+        </Link>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-card">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximas audiências</p>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {audFuturas.slice(0, 4).map((a) => (
+              <li key={a.id} className="flex flex-wrap justify-between gap-2">
+                <span><span className={cn("font-medium", a.dias === 0 && "text-urgente")}>{a.dias === 0 ? "Hoje" : formatarData(a.data)} {horaCurta(a.horario)}</span> · {a.tipo}</span>
+                <Link to="/processos/$id" params={{ id: a.processo_id }} className="numero-processo text-xs text-primary hover:underline">{a.numero}</Link>
+              </li>
+            ))}
+            {audFuturas.length === 0 ? <li className="text-muted-foreground">Nenhuma audiência futura.</li> : null}
+          </ul>
+        </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
