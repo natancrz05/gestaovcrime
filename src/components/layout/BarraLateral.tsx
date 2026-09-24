@@ -1,4 +1,12 @@
 import { Link } from "@tanstack/react-router";
+import { BlocoUsuario } from "./Usuario";
+import { useSessao } from "@/lib/sessao";
+import { pode } from "@/lib/permissoes";
+
+export function useItensNav() {
+  const { perfil } = useSessao();
+  return ITENS_NAV.filter((i) => i.para !== "/relatorios" || pode(perfil, "relatorios"));
+}
 import {
   LayoutDashboard,
   FolderOpen,
@@ -27,6 +35,7 @@ export const ITENS_NAV = [
 ] as const;
 
 export function BarraLateral() {
+  const itens = useItensNav();
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex lg:w-72">
       <div className="flex items-start gap-3 border-b border-sidebar-border px-5 py-5">
@@ -44,7 +53,7 @@ export function BarraLateral() {
           Gestão da serventia
         </p>
         <ul className="space-y-0.5">
-          {ITENS_NAV.map(({ para, rotulo, icone: Icone, exato }) => (
+          {itens.map(({ para, rotulo, icone: Icone, exato }) => (
             <li key={para}>
               <Link
                 to={para}
@@ -59,6 +68,7 @@ export function BarraLateral() {
         </ul>
       </nav>
 
+      <BlocoUsuario />
       <div className="border-t border-sidebar-border px-5 py-4">
         <p className="text-[11px] leading-relaxed text-sidebar-muted">
           Ferramenta de organização interna. Não substitui a análise do servidor ou do

@@ -9,6 +9,7 @@ import {
   type PendenciaEntrada, type PendenciaListada,
 } from "@/lib/processos/pendencias";
 import { cn } from "@/lib/utils";
+import { usePode } from "@/lib/sessao";
 
 export const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 export const BOTAO_SEC = "inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted";
@@ -108,6 +109,7 @@ export function DialogosPendencia({
   onSalvar: (e: PendenciaEntrada, id?: string) => Promise<void>;
   onConcluir: (id: string) => Promise<void>;
 }) {
+  const podeEditar = usePode("editar");
   const linha = (r: string, v: React.ReactNode) => (
     <div><dt className="text-xs text-muted-foreground">{r}</dt><dd className="text-sm text-foreground">{v || "—"}</dd></div>
   );
@@ -131,12 +133,12 @@ export function DialogosPendencia({
               </dl>
               {linha("Descrição", detalhe.descricao)}
               {linha("Observações", detalhe.observacoes)}
-              <div className="flex justify-end gap-2">
+              {podeEditar ? <div className="flex justify-end gap-2">
                 <button className={BOTAO_SEC} onClick={() => { setEdicao({ id: detalhe.id, dados: paraEntrada(detalhe) }); setDetalhe(null); }}>Editar</button>
                 {!detalhe.concluidaFlag ? (
                   <button className={BOTAO} onClick={async () => { await onConcluir(detalhe.id); setDetalhe(null); }}>Concluir</button>
                 ) : null}
-              </div>
+              </div> : null}
             </div>
           ) : null}
         </DialogContent>

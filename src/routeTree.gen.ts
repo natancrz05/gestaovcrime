@@ -9,285 +9,361 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AudienciasRouteImport } from './routes/audiencias'
-import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
-import { Route as PendenciasRouteImport } from './routes/pendencias'
-import { Route as PrioridadesRouteImport } from './routes/prioridades'
-import { Route as PrisoesTemporariasRouteImport } from './routes/prisoes-temporarias'
-import { Route as RelatoriosRouteImport } from './routes/relatorios'
-import { Route as ReusPresosRouteImport } from './routes/reus-presos'
-import { Route as SemMovimentacaoRouteImport } from './routes/sem-movimentacao'
-import { Route as ProcessosIndexRouteImport } from './routes/processos.index'
-import { Route as ProcessosIdRouteImport } from './routes/processos.$id'
-import { Route as ProcessosNovoRouteImport } from './routes/processos.novo'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
+import { Route as AuthenticatedPendenciasRouteImport } from './routes/_authenticated/pendencias'
+import { Route as AuthenticatedPrioridadesRouteImport } from './routes/_authenticated/prioridades'
+import { Route as AuthenticatedPrisoesTemporariasRouteImport } from './routes/_authenticated/prisoes-temporarias'
+import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedReusPresosRouteImport } from './routes/_authenticated/reus-presos'
+import { Route as AuthenticatedSemMovimentacaoRouteImport } from './routes/_authenticated/sem-movimentacao'
+import { Route as AuthenticatedConfiguracoesIndexRouteImport } from './routes/_authenticated/configuracoes.index'
+import { Route as AuthenticatedConfiguracoesUsuariosRouteImport } from './routes/_authenticated/configuracoes.usuarios'
+import { Route as AuthenticatedProcessosIndexRouteImport } from './routes/_authenticated/processos.index'
+import { Route as AuthenticatedProcessosIdRouteImport } from './routes/_authenticated/processos.$id'
+import { Route as AuthenticatedProcessosNovoRouteImport } from './routes/_authenticated/processos.novo'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AudienciasRoute = AudienciasRouteImport.update({
+const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
   id: '/audiencias',
   path: '/audiencias',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PendenciasRoute = PendenciasRouteImport.update({
+const AuthenticatedPendenciasRoute = AuthenticatedPendenciasRouteImport.update({
   id: '/pendencias',
   path: '/pendencias',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const PrioridadesRoute = PrioridadesRouteImport.update({
-  id: '/prioridades',
-  path: '/prioridades',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrisoesTemporariasRoute = PrisoesTemporariasRouteImport.update({
-  id: '/prisoes-temporarias',
-  path: '/prisoes-temporarias',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RelatoriosRoute = RelatoriosRouteImport.update({
+const AuthenticatedPrioridadesRoute =
+  AuthenticatedPrioridadesRouteImport.update({
+    id: '/prioridades',
+    path: '/prioridades',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPrisoesTemporariasRoute =
+  AuthenticatedPrisoesTemporariasRouteImport.update({
+    id: '/prisoes-temporarias',
+    path: '/prisoes-temporarias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ReusPresosRoute = ReusPresosRouteImport.update({
+const AuthenticatedReusPresosRoute = AuthenticatedReusPresosRouteImport.update({
   id: '/reus-presos',
   path: '/reus-presos',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const SemMovimentacaoRoute = SemMovimentacaoRouteImport.update({
-  id: '/sem-movimentacao',
-  path: '/sem-movimentacao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProcessosIndexRoute = ProcessosIndexRouteImport.update({
-  id: '/processos/',
-  path: '/processos/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProcessosIdRoute = ProcessosIdRouteImport.update({
-  id: '/processos/$id',
-  path: '/processos/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProcessosNovoRoute = ProcessosNovoRouteImport.update({
-  id: '/processos/novo',
-  path: '/processos/novo',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedSemMovimentacaoRoute =
+  AuthenticatedSemMovimentacaoRouteImport.update({
+    id: '/sem-movimentacao',
+    path: '/sem-movimentacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracoesIndexRoute =
+  AuthenticatedConfiguracoesIndexRouteImport.update({
+    id: '/configuracoes/',
+    path: '/configuracoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracoesUsuariosRoute =
+  AuthenticatedConfiguracoesUsuariosRouteImport.update({
+    id: '/configuracoes/usuarios',
+    path: '/configuracoes/usuarios',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProcessosIndexRoute =
+  AuthenticatedProcessosIndexRouteImport.update({
+    id: '/processos/',
+    path: '/processos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProcessosIdRoute =
+  AuthenticatedProcessosIdRouteImport.update({
+    id: '/processos/$id',
+    path: '/processos/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProcessosNovoRoute =
+  AuthenticatedProcessosNovoRouteImport.update({
+    id: '/processos/novo',
+    path: '/processos/novo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/audiencias': typeof AudienciasRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/pendencias': typeof PendenciasRoute
-  '/prioridades': typeof PrioridadesRoute
-  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/relatorios': typeof RelatoriosRoute
-  '/reus-presos': typeof ReusPresosRoute
-  '/sem-movimentacao': typeof SemMovimentacaoRoute
-  '/processos/$id': typeof ProcessosIdRoute
-  '/processos/novo': typeof ProcessosNovoRoute
-  '/processos/': typeof ProcessosIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRoute
+  '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/pendencias': typeof AuthenticatedPendenciasRoute
+  '/prioridades': typeof AuthenticatedPrioridadesRoute
+  '/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/reus-presos': typeof AuthenticatedReusPresosRoute
+  '/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
+  '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
+  '/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/processos/novo': typeof AuthenticatedProcessosNovoRoute
+  '/configuracoes/': typeof AuthenticatedConfiguracoesIndexRoute
+  '/processos/': typeof AuthenticatedProcessosIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/audiencias': typeof AudienciasRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/pendencias': typeof PendenciasRoute
-  '/prioridades': typeof PrioridadesRoute
-  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/relatorios': typeof RelatoriosRoute
-  '/reus-presos': typeof ReusPresosRoute
-  '/sem-movimentacao': typeof SemMovimentacaoRoute
-  '/processos/$id': typeof ProcessosIdRoute
-  '/processos/novo': typeof ProcessosNovoRoute
-  '/processos': typeof ProcessosIndexRoute
+  '/auth': typeof AuthRoute
+  '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/pendencias': typeof AuthenticatedPendenciasRoute
+  '/prioridades': typeof AuthenticatedPrioridadesRoute
+  '/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/reus-presos': typeof AuthenticatedReusPresosRoute
+  '/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
+  '/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/processos/novo': typeof AuthenticatedProcessosNovoRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesIndexRoute
+  '/processos': typeof AuthenticatedProcessosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/audiencias': typeof AudienciasRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/pendencias': typeof PendenciasRoute
-  '/prioridades': typeof PrioridadesRoute
-  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
-  '/relatorios': typeof RelatoriosRoute
-  '/reus-presos': typeof ReusPresosRoute
-  '/sem-movimentacao': typeof SemMovimentacaoRoute
-  '/processos/$id': typeof ProcessosIdRoute
-  '/processos/novo': typeof ProcessosNovoRoute
-  '/processos/': typeof ProcessosIndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
+  '/_authenticated/pendencias': typeof AuthenticatedPendenciasRoute
+  '/_authenticated/prioridades': typeof AuthenticatedPrioridadesRoute
+  '/_authenticated/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
+  '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/reus-presos': typeof AuthenticatedReusPresosRoute
+  '/_authenticated/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
+  '/_authenticated/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/_authenticated/processos/novo': typeof AuthenticatedProcessosNovoRoute
+  '/_authenticated/configuracoes/': typeof AuthenticatedConfiguracoesIndexRoute
+  '/_authenticated/processos/': typeof AuthenticatedProcessosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/audiencias'
-    | '/configuracoes'
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
+    | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/novo'
+    | '/configuracoes/'
     | '/processos/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/auth'
     | '/audiencias'
-    | '/configuracoes'
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
     | '/relatorios'
     | '/reus-presos'
     | '/sem-movimentacao'
+    | '/'
+    | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/novo'
+    | '/configuracoes'
     | '/processos'
   id:
     | '__root__'
-    | '/'
-    | '/audiencias'
-    | '/configuracoes'
-    | '/pendencias'
-    | '/prioridades'
-    | '/prisoes-temporarias'
-    | '/relatorios'
-    | '/reus-presos'
-    | '/sem-movimentacao'
-    | '/processos/$id'
-    | '/processos/novo'
-    | '/processos/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/audiencias'
+    | '/_authenticated/pendencias'
+    | '/_authenticated/prioridades'
+    | '/_authenticated/prisoes-temporarias'
+    | '/_authenticated/relatorios'
+    | '/_authenticated/reus-presos'
+    | '/_authenticated/sem-movimentacao'
+    | '/_authenticated/'
+    | '/_authenticated/configuracoes/usuarios'
+    | '/_authenticated/processos/$id'
+    | '/_authenticated/processos/novo'
+    | '/_authenticated/configuracoes/'
+    | '/_authenticated/processos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AudienciasRoute: typeof AudienciasRoute
-  ConfiguracoesRoute: typeof ConfiguracoesRoute
-  PendenciasRoute: typeof PendenciasRoute
-  PrioridadesRoute: typeof PrioridadesRoute
-  PrisoesTemporariasRoute: typeof PrisoesTemporariasRoute
-  RelatoriosRoute: typeof RelatoriosRoute
-  ReusPresosRoute: typeof ReusPresosRoute
-  SemMovimentacaoRoute: typeof SemMovimentacaoRoute
-  ProcessosIdRoute: typeof ProcessosIdRoute
-  ProcessosNovoRoute: typeof ProcessosNovoRoute
-  ProcessosIndexRoute: typeof ProcessosIndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/audiencias': {
-      id: '/audiencias'
+    '/_authenticated/audiencias': {
+      id: '/_authenticated/audiencias'
       path: '/audiencias'
       fullPath: '/audiencias'
-      preLoaderRoute: typeof AudienciasRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/configuracoes': {
-      id: '/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof ConfiguracoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pendencias': {
-      id: '/pendencias'
+    '/_authenticated/pendencias': {
+      id: '/_authenticated/pendencias'
       path: '/pendencias'
       fullPath: '/pendencias'
-      preLoaderRoute: typeof PendenciasRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedPendenciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/prioridades': {
-      id: '/prioridades'
+    '/_authenticated/prioridades': {
+      id: '/_authenticated/prioridades'
       path: '/prioridades'
       fullPath: '/prioridades'
-      preLoaderRoute: typeof PrioridadesRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedPrioridadesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/prisoes-temporarias': {
-      id: '/prisoes-temporarias'
+    '/_authenticated/prisoes-temporarias': {
+      id: '/_authenticated/prisoes-temporarias'
       path: '/prisoes-temporarias'
       fullPath: '/prisoes-temporarias'
-      preLoaderRoute: typeof PrisoesTemporariasRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedPrisoesTemporariasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/relatorios': {
-      id: '/relatorios'
+    '/_authenticated/relatorios': {
+      id: '/_authenticated/relatorios'
       path: '/relatorios'
       fullPath: '/relatorios'
-      preLoaderRoute: typeof RelatoriosRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/reus-presos': {
-      id: '/reus-presos'
+    '/_authenticated/reus-presos': {
+      id: '/_authenticated/reus-presos'
       path: '/reus-presos'
       fullPath: '/reus-presos'
-      preLoaderRoute: typeof ReusPresosRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedReusPresosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/sem-movimentacao': {
-      id: '/sem-movimentacao'
+    '/_authenticated/sem-movimentacao': {
+      id: '/_authenticated/sem-movimentacao'
       path: '/sem-movimentacao'
       fullPath: '/sem-movimentacao'
-      preLoaderRoute: typeof SemMovimentacaoRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedSemMovimentacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/processos/': {
-      id: '/processos/'
+    '/_authenticated/configuracoes/': {
+      id: '/_authenticated/configuracoes/'
+      path: '/configuracoes'
+      fullPath: '/configuracoes/'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracoes/usuarios': {
+      id: '/_authenticated/configuracoes/usuarios'
+      path: '/configuracoes/usuarios'
+      fullPath: '/configuracoes/usuarios'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/processos/': {
+      id: '/_authenticated/processos/'
       path: '/processos'
       fullPath: '/processos/'
-      preLoaderRoute: typeof ProcessosIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedProcessosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/processos/$id': {
-      id: '/processos/$id'
+    '/_authenticated/processos/$id': {
+      id: '/_authenticated/processos/$id'
       path: '/processos/$id'
       fullPath: '/processos/$id'
-      preLoaderRoute: typeof ProcessosIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedProcessosIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/processos/novo': {
-      id: '/processos/novo'
+    '/_authenticated/processos/novo': {
+      id: '/_authenticated/processos/novo'
       path: '/processos/novo'
       fullPath: '/processos/novo'
-      preLoaderRoute: typeof ProcessosNovoRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedProcessosNovoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
+  AuthenticatedPendenciasRoute: typeof AuthenticatedPendenciasRoute
+  AuthenticatedPrioridadesRoute: typeof AuthenticatedPrioridadesRoute
+  AuthenticatedPrisoesTemporariasRoute: typeof AuthenticatedPrisoesTemporariasRoute
+  AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedReusPresosRoute: typeof AuthenticatedReusPresosRoute
+  AuthenticatedSemMovimentacaoRoute: typeof AuthenticatedSemMovimentacaoRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedConfiguracoesUsuariosRoute: typeof AuthenticatedConfiguracoesUsuariosRoute
+  AuthenticatedProcessosIdRoute: typeof AuthenticatedProcessosIdRoute
+  AuthenticatedProcessosNovoRoute: typeof AuthenticatedProcessosNovoRoute
+  AuthenticatedConfiguracoesIndexRoute: typeof AuthenticatedConfiguracoesIndexRoute
+  AuthenticatedProcessosIndexRoute: typeof AuthenticatedProcessosIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
+  AuthenticatedPendenciasRoute: AuthenticatedPendenciasRoute,
+  AuthenticatedPrioridadesRoute: AuthenticatedPrioridadesRoute,
+  AuthenticatedPrisoesTemporariasRoute: AuthenticatedPrisoesTemporariasRoute,
+  AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedReusPresosRoute: AuthenticatedReusPresosRoute,
+  AuthenticatedSemMovimentacaoRoute: AuthenticatedSemMovimentacaoRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedConfiguracoesUsuariosRoute:
+    AuthenticatedConfiguracoesUsuariosRoute,
+  AuthenticatedProcessosIdRoute: AuthenticatedProcessosIdRoute,
+  AuthenticatedProcessosNovoRoute: AuthenticatedProcessosNovoRoute,
+  AuthenticatedConfiguracoesIndexRoute: AuthenticatedConfiguracoesIndexRoute,
+  AuthenticatedProcessosIndexRoute: AuthenticatedProcessosIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AudienciasRoute: AudienciasRoute,
-  ConfiguracoesRoute: ConfiguracoesRoute,
-  PendenciasRoute: PendenciasRoute,
-  PrioridadesRoute: PrioridadesRoute,
-  PrisoesTemporariasRoute: PrisoesTemporariasRoute,
-  RelatoriosRoute: RelatoriosRoute,
-  ReusPresosRoute: ReusPresosRoute,
-  SemMovimentacaoRoute: SemMovimentacaoRoute,
-  ProcessosIdRoute: ProcessosIdRoute,
-  ProcessosNovoRoute: ProcessosNovoRoute,
-  ProcessosIndexRoute: ProcessosIndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
