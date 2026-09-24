@@ -6,6 +6,10 @@ import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Ca
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
+import { cn } from "@/lib/utils";
+import { DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
+import { classificar, concluirPendencia, salvarPendencia, type PendenciaEntrada, type PendenciaListada } from "@/lib/processos/pendencias";
+import type { ProcessoCompleto } from "@/lib/processos/modelo";
 import {
   TIPOS_MOVIMENTACAO,
   TIPOS_PARTE,
