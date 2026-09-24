@@ -10,13 +10,14 @@ import { usePode } from "@/lib/sessao";
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-9 items-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:opacity-60";
 const BOTAO_PERIGO = "inline-flex h-9 items-center rounded-md border border-urgente/40 bg-background px-4 text-sm font-medium text-urgente hover:bg-urgente/10 disabled:opacity-60";
+type Form = { numero: string; classe: string; assunto: string; status: string; fase: string; data_distribuicao: string; responsavel: string; observacao_geral: string };
 
 export function AcoesProcesso({ p }: { p: ProcessoCompleto }) {
   const podeEditar = usePode("editar");
   const podeExcluir = usePode("excluir-processo");
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [form, setForm] = useState<null | Record<string, string>>(null);
+  const [form, setForm] = useState<null | Form>(null);
   const [confirmar, setConfirmar] = useState(false);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -50,7 +51,7 @@ export function AcoesProcesso({ p }: { p: ProcessoCompleto }) {
     navigate({ to: "/processos" });
   }
 
-  const campo = (k: string, rotulo: string, tipo = "text", req = false) => (
+  const campo = (k: keyof Form, rotulo: string, tipo = "text", req = false) => (
     <Campo rotulo={rotulo}><input type={tipo} required={req} className={CLASSE_CAMPO} value={form![k]} onChange={(e) => setForm({ ...form!, [k]: e.target.value })} /></Campo>
   );
 
