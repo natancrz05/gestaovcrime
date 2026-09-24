@@ -9,6 +9,18 @@ async function exigirAdmin(context: { supabase: any; userId: string }) {
   if (!data) throw new Error("Somente o Administrador pode gerenciar usuários.");
 }
 
+async function auditarUsuario(admin: any, autorId: string, registroId: string, acao: string, descricao: string) {
+  const { data: u } = await admin.from("usuarios").select("nome").eq("id", autorId).maybeSingle();
+  await admin.from("auditoria").insert({
+    usuario_id: autorId,
+    usuario_nome: u?.nome ?? "",
+    acao,
+    modulo: "Usuários",
+    registro_id: registroId,
+    descricao,
+  });
+}
+
 export const listarUsuarios = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -51,6 +63,7 @@ export const criarUsuario = createServerFn({ method: "POST" })
     const r1 = await supabaseAdmin.from("usuarios").insert({ id, nome: data.nome, email: data.email, ativo: true });
     const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: id, role: data.perfil });
     if (r1.error || r2.error) throw new Error((r1.error ?? r2.error)!.message);
+    await auditarUsuario(supabaseAdmin, context.userId, id, "Criado", `Usuário ${data.nome} criado com perfil ${data.perfil}`);
     return { id };
   });
 
@@ -69,6 +82,11 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     if (data.id === context.userId && (!data.ativo || data.perfil !== "administrador"))
       throw new Error("Você não pode inativar nem retirar o perfil de Administrador da sua própria conta.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: antes }, { data: rolesAntes }] = await Promise.all([
+      supabaseAdmin.from("usuarios").select("nome, ativo").eq("id", data.id).maybeSingle(),
+      supabaseAdmin.from("user_roles").select("role").eq("user_id", data.id),
+    ]);
+    const perfilAntes = rolesAntes?.[0]?.role ?? null;
     const r1 = await supabaseAdmin.from("usuarios").update({ nome: data.nome, ativo: data.ativo }).eq("id", data.id);
     if (r1.error) throw new Error(r1.error.message);
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
@@ -76,5 +94,11 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     if (r2.error) throw new Error(r2.error.message);
     // Usuário inativo fica impedido de entrar no sistema.
     await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: data.ativo ? "none" : "876000h" });
+    if (antes && antes.ativo !== data.ativo)
+      await auditarUsuario(supabaseAdmin, context.userId, data.id, "Alteração de status", `Usuário ${data.nome} ${data.ativo ? "ativado" : "inativado"}`);
+    if (perfilAntes !== data.perfil)
+      await auditarUsuario(supabaseAdmin, context.userId, data.id, "Alteração de status", `Perfil de ${data.nome}: ${perfilAntes ?? "—"} → ${data.perfil}`);
+    if (antes && antes.nome !== data.nome)
+      await auditarUsuario(supabaseAdmin, context.userId, data.id, "Editado", `Nome do usuário alterado: ${antes.nome} → ${data.nome}`);
     return { ok: true };
   });
