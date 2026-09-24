@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { usePode } from "@/lib/sessao";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Plus, Search, X } from "lucide-react";
@@ -71,6 +72,7 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const navigate = useNavigate();
   const sp = Route.useSearch();
+  const podeEditar = usePode("editar");
   const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
   const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
@@ -125,14 +127,14 @@ function Pagina() {
       <Cabecalho
         titulo="Processos"
         subtitulo={`${filtrados.length} de ${processos.length} processos (dados fictícios)`}
-        acao={
+        acao={podeEditar ? (
           <Link
             to="/processos/novo"
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="size-4" /> Novo Processo
           </Link>
-        }
+        ) : undefined}
       />
 
       <div className="grid gap-3 rounded-lg border border-border bg-card p-4 shadow-card md:grid-cols-3 lg:grid-cols-6">

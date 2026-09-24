@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -38,6 +39,7 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
+  const podeEditar = usePode("editar");
   const todas = useMemo(() => listarPendenciasDe(processos), [processos]);
   const [status, setStatus] = useState("");
   const [prioridade, setPrioridade] = useState("");
@@ -69,7 +71,7 @@ function Pagina() {
           {abertas.length} em aberto · <span className="text-urgente">{abertas.filter((p) => p.atrasada).length} atrasadas</span> ·{" "}
           <span className="text-atencao">{abertas.filter((p) => p.prioridade === "alta").length} de alta prioridade</span>
         </p>
-        <button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia() })}>Nova pendência</button>
+        {podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia() })}>Nova pendência</button> : null}
       </div>
 
       <div className="grid gap-3 rounded-lg border border-border bg-card p-4 shadow-card sm:grid-cols-4">
@@ -97,7 +99,7 @@ function Pagina() {
                 <td className={cn("px-4 py-2.5 tabular-nums", p.atrasada && "font-medium text-urgente")}>{formatarData(p.prazo)}</td>
                 <td className={cn("px-4 py-2.5", p.concluidaFlag && "text-concluido")}>{p.status}</td>
                 <td className="px-4 py-2.5 text-right">
-                  {!p.concluidaFlag ? <button className={BOTAO_SEC} onClick={async () => { await concluirPendencia(p.id); await recarregar(); }}>Concluir</button> : null}
+                  {podeEditar && !p.concluidaFlag ? <button className={BOTAO_SEC} onClick={async () => { await concluirPendencia(p.id); await recarregar(); }}>Concluir</button> : null}
                 </td>
               </tr>
             ))}
