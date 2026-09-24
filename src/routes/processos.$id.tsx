@@ -153,12 +153,7 @@ function Pagina() {
           <div className="mt-4"><AvisoEtapa>O controle completo de audiências será implementado em etapa futura.</AvisoEtapa></div>
         </Secao>
       )}
-      {aba === "Pendências" && (
-        <Secao titulo="Pendências">
-          <Lista vazio="Nenhuma pendência registrada." itens={p.pendencias.map((x) => ({ id: x.id, titulo: x.descricao, sub: `Prazo: ${formatarData(x.prazo)}${x.concluida ? " · concluída" : ""}` }))} />
-          <div className="mt-4"><AvisoEtapa>O controle completo de pendências será implementado em etapa futura.</AvisoEtapa></div>
-        </Secao>
-      )}
+      {aba === "Pendências" && <AbaPendencias p={p} recarregar={recarregar} />}
       {aba === "Prioridades" && (
         <Secao titulo="Prioridades">
           <Lista vazio="Nenhuma prioridade registrada." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.titulo || x.motivo, sub: [x.nivel, x.observacao].filter(Boolean).join(" · ") }))} />
