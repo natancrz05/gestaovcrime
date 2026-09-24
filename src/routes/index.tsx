@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
-import { formatarData, SEVERIDADE_CLASSES } from "@/lib/dominio";
-import { listarProximasAcoes } from "@/lib/repositorio";
+import { formatarData } from "@/lib/dominio";
+import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
@@ -31,7 +30,9 @@ function Dashboard() {
   const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
   const contagens = contarCategorias(atencao);
   const exibidos = categoria ? atencao.filter((x) => x.alertas.some((a) => a.categoria === categoria)) : atencao;
-  const acoes = listarProximasAcoes();
+  const pendencias = listarPendenciasDe(processos);
+  const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
+  const acoes = proximasAcoes(pendencias).slice(0, 8);
   const audFuturas = futuras(listarAudienciasDe(processos));
   const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
   const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
@@ -51,7 +52,7 @@ function Dashboard() {
         <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
       </section>
 
-      <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_2fr]">
+      <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr]">
         <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências nos próximos 7 dias</p>
@@ -61,6 +62,11 @@ function Dashboard() {
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências com prazo extenso</p>
           <p className="mt-3 text-3xl font-semibold tabular-nums text-atencao">{audExtensas}</p>
           <p className="mt-1 text-xs text-muted-foreground">Critério administrativo de acompanhamento</p>
+        </Link>
+        <Link to="/pendencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pendências</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">{pendAbertas}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Ainda não concluídas</p>
         </Link>
         <div className="rounded-lg border border-border bg-card p-4 shadow-card">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximas audiências</p>
@@ -96,19 +102,20 @@ function Dashboard() {
         <section aria-labelledby="proximas-acoes" className="space-y-3">
           <div>
             <h2 id="proximas-acoes" className="text-lg font-semibold text-foreground">Próximas ações</h2>
-            <p className="text-sm text-muted-foreground">Exemplos fictícios (módulo futuro)</p>
+            <p className="text-sm text-muted-foreground">Atrasadas, alta prioridade e prazo próximo</p>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-card">
             {acoes.map((a) => (
               <li key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <span className={cn("mt-1.5 size-2 shrink-0 rounded-full border", SEVERIDADE_CLASSES[a.severidade])} />
+                <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.atrasada ? "bg-urgente" : a.prioridade === "alta" ? "bg-atencao" : "bg-info")} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{a.descricao}</p>
-                  <p className="numero-processo mt-0.5 text-xs text-muted-foreground">{a.processoNumero}</p>
+                  <Link to="/pendencias" className="text-sm font-medium text-foreground hover:underline">{a.titulo || a.descricao}</Link>
+                  <p className="mt-0.5 text-xs text-muted-foreground"><Link to="/processos/$id" params={{ id: a.processo_id }} className="numero-processo hover:underline">{a.numero}</Link>{a.responsavel ? ` · ${a.responsavel}` : ""}</p>
                 </div>
-                <Etiqueta severidade={a.severidade}>{formatarData(a.prazo)}</Etiqueta>
+                <span className={cn("shrink-0 text-xs tabular-nums", a.atrasada ? "font-medium text-urgente" : "text-muted-foreground")}>{a.atrasada ? "Atrasada · " : ""}{formatarData(a.prazo)}</span>
               </li>
             ))}
+            {acoes.length === 0 ? <li className="px-4 py-3 text-sm text-muted-foreground">Nenhuma ação pendente.</li> : null}
           </ul>
         </section>
       </div>

@@ -102,8 +102,16 @@ export interface AudienciaProcesso {
 export interface PendenciaProcesso {
   id: string;
   processo_id: string;
+  titulo: string;
   descricao: string;
+  tipo: string;
   prazo: string | null;
+  prioridade: "baixa" | "media" | "alta";
+  status: string;
+  responsavel: string;
+  observacoes: string;
+  criado_em: string;
+  data_conclusao: string | null;
   concluida: boolean;
 }
 

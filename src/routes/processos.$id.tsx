@@ -6,6 +6,10 @@ import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Ca
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
+import { cn } from "@/lib/utils";
+import { DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
+import { classificar, concluirPendencia, salvarPendencia, type PendenciaEntrada, type PendenciaListada } from "@/lib/processos/pendencias";
+import type { ProcessoCompleto } from "@/lib/processos/modelo";
 import {
   TIPOS_MOVIMENTACAO,
   TIPOS_PARTE,
@@ -153,12 +157,7 @@ function Pagina() {
           <div className="mt-4"><AvisoEtapa>O controle completo de audiências será implementado em etapa futura.</AvisoEtapa></div>
         </Secao>
       )}
-      {aba === "Pendências" && (
-        <Secao titulo="Pendências">
-          <Lista vazio="Nenhuma pendência registrada." itens={p.pendencias.map((x) => ({ id: x.id, titulo: x.descricao, sub: `Prazo: ${formatarData(x.prazo)}${x.concluida ? " · concluída" : ""}` }))} />
-          <div className="mt-4"><AvisoEtapa>O controle completo de pendências será implementado em etapa futura.</AvisoEtapa></div>
-        </Secao>
-      )}
+      {aba === "Pendências" && <AbaPendencias p={p} recarregar={recarregar} />}
       {aba === "Prioridades" && (
         <Secao titulo="Prioridades">
           <Lista vazio="Nenhuma prioridade registrada." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.titulo || x.motivo, sub: [x.nivel, x.observacao].filter(Boolean).join(" · ") }))} />
@@ -275,5 +274,33 @@ function FormObservacao({ onSalvar }: { onSalvar: (texto: string) => Promise<voi
       <button className={BOTAO} disabled={salvando}>Anotar</button>
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
     </form>
+  );
+}
+
+function AbaPendencias({ p, recarregar }: { p: ProcessoCompleto; recarregar: () => Promise<unknown> }) {
+  const lista = p.pendencias.map((x) => classificar(x, p.numero)).sort((a, b) => Number(a.concluidaFlag) - Number(b.concluidaFlag) || (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
+  const [detalhe, setDetalhe] = useState<PendenciaListada | null>(null);
+  const [edicao, setEdicao] = useState<{ id?: string; dados: PendenciaEntrada } | null>(null);
+  return (
+    <Secao titulo="Pendências" acao={<button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia(p.id) })}>Nova pendência</button>}>
+      {lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma pendência registrada.</p> : (
+        <ul className="divide-y divide-border">
+          {lista.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+              <div>
+                <button className={cn("text-left text-sm font-medium hover:underline", x.concluidaFlag && "text-muted-foreground line-through")} onClick={() => setDetalhe(x)}>{x.titulo || x.descricao}</button>
+                <p className="text-xs text-muted-foreground">{x.tipo} · Prazo {formatarData(x.prazo)} · {x.status}{x.responsavel ? ` · ${x.responsavel}` : ""}</p>
+              </div>
+              <EtiquetasPendencia p={x} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <DialogosPendencia
+        detalhe={detalhe} setDetalhe={setDetalhe} edicao={edicao} setEdicao={setEdicao}
+        onSalvar={async (d, id) => { await salvarPendencia(d, id); await recarregar(); }}
+        onConcluir={async (id) => { await concluirPendencia(id); await recarregar(); }}
+      />
+    </Secao>
   );
 }
