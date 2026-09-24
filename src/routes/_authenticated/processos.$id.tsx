@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
+import { AcoesProcesso } from "@/components/processos/EditarExcluirProcesso";
 import { rotuloOrigem } from "@/lib/integracao/pje";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,7 +76,7 @@ function Pagina() {
   return (
     <div className="space-y-5">
       <Voltar />
-      <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} />
+      <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} acao={<AcoesProcesso p={p} />} />
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
       </p>
