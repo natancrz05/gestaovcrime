@@ -136,3 +136,26 @@ export async function removerPrioridadeManual(id: string) {
   const { error } = await supabase.from("prioridades").delete().eq("id", id);
   if (error) throw error;
 }
+
+export interface AudienciaEntrada {
+  processo_id: string;
+  tipo: string;
+  data: string;
+  horario: string | null;
+  modalidade: string;
+  local: string;
+  situacao: string;
+  observacao: string;
+}
+
+export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
+  const { error } = id
+    ? await supabase.from("audiencias").update(e).eq("id", id)
+    : await supabase.from("audiencias").insert(e);
+  if (error) throw error;
+}
+
+export async function removerAudiencia(id: string) {
+  const { error } = await supabase.from("audiencias").delete().eq("id", id);
+  if (error) throw error;
+}

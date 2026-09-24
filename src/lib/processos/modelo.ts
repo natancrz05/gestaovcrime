@@ -93,6 +93,10 @@ export interface AudienciaProcesso {
   tipo: string;
   local: string;
   situacao: string;
+  horario: string | null;
+  modalidade: string;
+  observacao: string;
+  criado_em: string;
 }
 
 export interface PendenciaProcesso {
