@@ -171,7 +171,7 @@ function Pagina() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 font-medium">{dias === null ? "—" : `${dias} dias`}</td>
                     <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                      {p.prioridades.length ? p.prioridades.map((x) => x.motivo).join(", ") : "—"}
+                      {p.prioridades.length ? p.prioridades.map((x) => x.titulo || x.motivo).join(", ") : "—"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5">{formatarData(aud?.data ?? null)}</td>
                     <td className="px-3 py-2.5">

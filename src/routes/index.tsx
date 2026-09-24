@@ -1,39 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight } from "lucide-react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
-import { CartaoProcesso } from "@/components/ui-serventia/ListaProcessos";
-import { formatarData } from "@/lib/dominio";
-import { SEVERIDADE_CLASSES } from "@/lib/dominio";
-import {
-  listarProcessosPrioritarios,
-  listarProximasAcoes,
-  obterIndicadores,
-} from "@/lib/repositorio";
+import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
+import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
+import { formatarData, SEVERIDADE_CLASSES } from "@/lib/dominio";
+import { listarProximasAcoes } from "@/lib/repositorio";
+import { processosQuery } from "@/lib/processos/repositorio";
+import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Dashboard — Gestão da Vara Criminal" },
-      {
-        name: "description",
-        content:
-          "Painel interno da serventia da Vara Criminal de Coração de Maria/BA: prioridades, prazos, audiências e próximas ações.",
-      },
+      { name: "description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
       { property: "og:title", content: "Dashboard — Gestão da Vara Criminal" },
-      {
-        property: "og:description",
-        content:
-          "Painel interno da serventia da Vara Criminal de Coração de Maria/BA: prioridades, prazos, audiências e próximas ações.",
-      },
+      { property: "og:description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(processosQuery()),
+  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
 
 function Dashboard() {
-  const indicadores = obterIndicadores();
-  const prioritarios = listarProcessosPrioritarios().slice(0, 4);
+  const { data: processos } = useSuspenseQuery(processosQuery());
+  const [categoria, setCategoria] = useState<CategoriaPrioridade | null>(null);
+  const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
+  const contagens = contarCategorias(atencao);
+  const exibidos = categoria ? atencao.filter((x) => x.alertas.some((a) => a.categoria === categoria)) : atencao;
   const acoes = listarProximasAcoes();
 
   return (
@@ -42,89 +38,44 @@ function Dashboard() {
         <h1 className="text-2xl font-semibold text-foreground">Gestão da Vara Criminal</h1>
         <p className="mt-1 text-sm text-muted-foreground">Comarca de Coração de Maria/BA</p>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-          O que precisa da atenção da serventia hoje? Os números abaixo são fictícios e servem
-          apenas para demonstração da interface.
+          Quais processos precisam da atenção da serventia? Os indicadores são alertas de gestão e não
+          representam conclusão jurídica.
         </p>
       </header>
 
-      <section aria-labelledby="indicadores">
-        <h2 id="indicadores" className="sr-only">
-          Indicadores
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {indicadores.map((i) => (
-            <Link
-              key={i.chave}
-              to={i.para}
-              className="group rounded-lg border border-border bg-card p-4 text-left shadow-card transition-shadow hover:shadow-card-hover"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {i.titulo}
-                </p>
-                <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </div>
-              <p
-                className={cn(
-                  "mt-3 text-3xl font-semibold tabular-nums",
-                  i.severidade === "urgente" && "text-urgente",
-                  i.severidade === "atencao" && "text-atencao",
-                  i.severidade === "alerta" && "text-alerta",
-                  i.severidade === "info" && "text-info",
-                )}
-              >
-                {i.valor}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{i.descricao}</p>
-            </Link>
-          ))}
-        </div>
+      <section aria-label="Indicadores">
+        <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section aria-labelledby="requer-atencao" className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 id="requer-atencao" className="text-lg font-semibold text-foreground">
-                Requer atenção
-              </h2>
+              <h2 id="requer-atencao" className="text-lg font-semibold text-foreground">Requer atenção</h2>
               <p className="text-sm text-muted-foreground">
-                Processos com prioridade identificada pela serventia
+                {categoria ? `Filtrado: ${CATEGORIAS.find((c) => c.chave === categoria)?.titulo}` : "Processos com ao menos um alerta de gestão"}
+                {categoria ? (
+                  <button className="ml-2 text-primary hover:underline" onClick={() => setCategoria(null)}>Mostrar todos</button>
+                ) : null}
               </p>
             </div>
-            <Link
-              to="/prioridades"
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Ver todos
-            </Link>
+            <Link to="/prioridades" className="text-sm font-medium text-primary hover:underline">Gerenciar prioridades</Link>
           </div>
-          {prioritarios.map((p) => (
-            <CartaoProcesso key={p.id} processo={p} />
-          ))}
+          <ListaAtencao itens={exibidos} />
         </section>
 
         <section aria-labelledby="proximas-acoes" className="space-y-3">
           <div>
-            <h2 id="proximas-acoes" className="text-lg font-semibold text-foreground">
-              Próximas ações
-            </h2>
-            <p className="text-sm text-muted-foreground">O que a serventia precisa fazer</p>
+            <h2 id="proximas-acoes" className="text-lg font-semibold text-foreground">Próximas ações</h2>
+            <p className="text-sm text-muted-foreground">Exemplos fictícios (módulo futuro)</p>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-card">
             {acoes.map((a) => (
               <li key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <span
-                  className={cn(
-                    "mt-1.5 size-2 shrink-0 rounded-full border",
-                    SEVERIDADE_CLASSES[a.severidade],
-                  )}
-                />
+                <span className={cn("mt-1.5 size-2 shrink-0 rounded-full border", SEVERIDADE_CLASSES[a.severidade])} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">{a.descricao}</p>
-                  <p className="numero-processo mt-0.5 text-xs text-muted-foreground">
-                    {a.processoNumero}
-                  </p>
+                  <p className="numero-processo mt-0.5 text-xs text-muted-foreground">{a.processoNumero}</p>
                 </div>
                 <Etiqueta severidade={a.severidade}>{formatarData(a.prazo)}</Etiqueta>
               </li>
