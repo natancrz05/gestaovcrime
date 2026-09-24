@@ -24,6 +24,7 @@ import { Route as AuthenticatedConfiguracoesAuditoriaRouteImport } from './route
 import { Route as AuthenticatedConfiguracoesUsuariosRouteImport } from './routes/_authenticated/configuracoes.usuarios'
 import { Route as AuthenticatedProcessosIndexRouteImport } from './routes/_authenticated/processos.index'
 import { Route as AuthenticatedProcessosIdRouteImport } from './routes/_authenticated/processos.$id'
+import { Route as AuthenticatedProcessosImportarRouteImport } from './routes/_authenticated/processos.importar'
 import { Route as AuthenticatedProcessosNovoRouteImport } from './routes/_authenticated/processos.novo'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -108,6 +109,12 @@ const AuthenticatedProcessosIdRoute =
     path: '/processos/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProcessosImportarRoute =
+  AuthenticatedProcessosImportarRouteImport.update({
+    id: '/processos/importar',
+    path: '/processos/importar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProcessosNovoRoute =
   AuthenticatedProcessosNovoRouteImport.update({
     id: '/processos/novo',
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/processos/importar': typeof AuthenticatedProcessosImportarRoute
   '/processos/novo': typeof AuthenticatedProcessosNovoRoute
   '/configuracoes/': typeof AuthenticatedConfiguracoesIndexRoute
   '/processos/': typeof AuthenticatedProcessosIndexRoute
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/processos/importar': typeof AuthenticatedProcessosImportarRoute
   '/processos/novo': typeof AuthenticatedProcessosNovoRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesIndexRoute
   '/processos': typeof AuthenticatedProcessosIndexRoute
@@ -164,6 +173,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/_authenticated/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/_authenticated/processos/$id': typeof AuthenticatedProcessosIdRoute
+  '/_authenticated/processos/importar': typeof AuthenticatedProcessosImportarRoute
   '/_authenticated/processos/novo': typeof AuthenticatedProcessosNovoRoute
   '/_authenticated/configuracoes/': typeof AuthenticatedConfiguracoesIndexRoute
   '/_authenticated/processos/': typeof AuthenticatedProcessosIndexRoute
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/configuracoes/auditoria'
     | '/configuracoes/usuarios'
     | '/processos/$id'
+    | '/processos/importar'
     | '/processos/novo'
     | '/configuracoes/'
     | '/processos/'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/configuracoes/auditoria'
     | '/configuracoes/usuarios'
     | '/processos/$id'
+    | '/processos/importar'
     | '/processos/novo'
     | '/configuracoes'
     | '/processos'
@@ -218,6 +230,7 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracoes/auditoria'
     | '/_authenticated/configuracoes/usuarios'
     | '/_authenticated/processos/$id'
+    | '/_authenticated/processos/importar'
     | '/_authenticated/processos/novo'
     | '/_authenticated/configuracoes/'
     | '/_authenticated/processos/'
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProcessosIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/processos/importar': {
+      id: '/_authenticated/processos/importar'
+      path: '/processos/importar'
+      fullPath: '/processos/importar'
+      preLoaderRoute: typeof AuthenticatedProcessosImportarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/processos/novo': {
       id: '/_authenticated/processos/novo'
       path: '/processos/novo'
@@ -357,6 +377,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracoesAuditoriaRoute: typeof AuthenticatedConfiguracoesAuditoriaRoute
   AuthenticatedConfiguracoesUsuariosRoute: typeof AuthenticatedConfiguracoesUsuariosRoute
   AuthenticatedProcessosIdRoute: typeof AuthenticatedProcessosIdRoute
+  AuthenticatedProcessosImportarRoute: typeof AuthenticatedProcessosImportarRoute
   AuthenticatedProcessosNovoRoute: typeof AuthenticatedProcessosNovoRoute
   AuthenticatedConfiguracoesIndexRoute: typeof AuthenticatedConfiguracoesIndexRoute
   AuthenticatedProcessosIndexRoute: typeof AuthenticatedProcessosIndexRoute
@@ -376,6 +397,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracoesUsuariosRoute:
     AuthenticatedConfiguracoesUsuariosRoute,
   AuthenticatedProcessosIdRoute: AuthenticatedProcessosIdRoute,
+  AuthenticatedProcessosImportarRoute: AuthenticatedProcessosImportarRoute,
   AuthenticatedProcessosNovoRoute: AuthenticatedProcessosNovoRoute,
   AuthenticatedConfiguracoesIndexRoute: AuthenticatedConfiguracoesIndexRoute,
   AuthenticatedProcessosIndexRoute: AuthenticatedProcessosIndexRoute,

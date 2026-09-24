@@ -100,6 +100,116 @@ export type Database = {
         }
         Relationships: []
       }
+      importacao_itens: {
+        Row: {
+          acao: string
+          antes: Json
+          depois: Json
+          desfeito: string | null
+          id: string
+          importacao_id: string
+          linha: number | null
+          movimentacao_id: string | null
+          numero: string
+          processo_id: string | null
+          reus_ids: string[]
+        }
+        Insert: {
+          acao: string
+          antes?: Json
+          depois?: Json
+          desfeito?: string | null
+          id?: string
+          importacao_id: string
+          linha?: number | null
+          movimentacao_id?: string | null
+          numero: string
+          processo_id?: string | null
+          reus_ids?: string[]
+        }
+        Update: {
+          acao?: string
+          antes?: Json
+          depois?: Json
+          desfeito?: string | null
+          id?: string
+          importacao_id?: string
+          linha?: number | null
+          movimentacao_id?: string | null
+          numero?: string
+          processo_id?: string | null
+          reus_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importacao_itens_importacao_id_fkey"
+            columns: ["importacao_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importacoes: {
+        Row: {
+          analisados: number
+          arquivo: string
+          atualizados: number
+          conflitos: number
+          criado_em: string
+          desfeita_em: string | null
+          desfeita_por: string | null
+          detalhes: Json
+          erros: number
+          id: string
+          ignorados: number
+          novos: number
+          numero: number
+          sem_alteracao: number
+          status: string
+          usuario_id: string | null
+          usuario_nome: string
+        }
+        Insert: {
+          analisados?: number
+          arquivo?: string
+          atualizados?: number
+          conflitos?: number
+          criado_em?: string
+          desfeita_em?: string | null
+          desfeita_por?: string | null
+          detalhes?: Json
+          erros?: number
+          id?: string
+          ignorados?: number
+          novos?: number
+          numero?: number
+          sem_alteracao?: number
+          status?: string
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Update: {
+          analisados?: number
+          arquivo?: string
+          atualizados?: number
+          conflitos?: number
+          criado_em?: string
+          desfeita_em?: string | null
+          desfeita_por?: string | null
+          detalhes?: Json
+          erros?: number
+          id?: string
+          ignorados?: number
+          novos?: number
+          numero?: number
+          sem_alteracao?: number
+          status?: string
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Relationships: []
+      }
       integracao_log: {
         Row: {
           criado_em: string
@@ -347,6 +457,20 @@ export type Database = {
           numero: string
           observacao_geral: string
           origem: string
+          pje_autor: string | null
+          pje_classe_codigo: string | null
+          pje_concluso: string | null
+          pje_descricao_prioridade: string | null
+          pje_localizacao: string | null
+          pje_prioridade: string | null
+          pje_qtde_dias: number | null
+          pje_reu: string | null
+          pje_segredo: string | null
+          pje_sistema: string | null
+          pje_situacao: string | null
+          pje_tarefas: string | null
+          pje_ultima_mov_data: string | null
+          pje_ultima_mov_descricao: string | null
           responsavel: string
           status: string
           sync_erro: string | null
@@ -367,6 +491,20 @@ export type Database = {
           numero: string
           observacao_geral?: string
           origem?: string
+          pje_autor?: string | null
+          pje_classe_codigo?: string | null
+          pje_concluso?: string | null
+          pje_descricao_prioridade?: string | null
+          pje_localizacao?: string | null
+          pje_prioridade?: string | null
+          pje_qtde_dias?: number | null
+          pje_reu?: string | null
+          pje_segredo?: string | null
+          pje_sistema?: string | null
+          pje_situacao?: string | null
+          pje_tarefas?: string | null
+          pje_ultima_mov_data?: string | null
+          pje_ultima_mov_descricao?: string | null
           responsavel?: string
           status?: string
           sync_erro?: string | null
@@ -387,6 +525,20 @@ export type Database = {
           numero?: string
           observacao_geral?: string
           origem?: string
+          pje_autor?: string | null
+          pje_classe_codigo?: string | null
+          pje_concluso?: string | null
+          pje_descricao_prioridade?: string | null
+          pje_localizacao?: string | null
+          pje_prioridade?: string | null
+          pje_qtde_dias?: number | null
+          pje_reu?: string | null
+          pje_segredo?: string | null
+          pje_sistema?: string | null
+          pje_situacao?: string | null
+          pje_tarefas?: string | null
+          pje_ultima_mov_data?: string | null
+          pje_ultima_mov_descricao?: string | null
           responsavel?: string
           status?: string
           sync_erro?: string | null
@@ -489,6 +641,7 @@ export type Database = {
     }
     Functions: {
       auditoria_nome: { Args: { _uid: string }; Returns: string }
+      desfazer_importacao: { Args: { p_id: string }; Returns: Json }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -497,7 +650,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      importar_processos: {
+        Args: {
+          p_aplicar_conflitos: boolean
+          p_arquivo: string
+          p_erros: Json
+          p_ignorados: Json
+          p_linhas: Json
+          p_simular: boolean
+        }
+        Returns: Json
+      }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
+      rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

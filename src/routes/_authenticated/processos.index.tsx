@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
 import { CONFIG_PRIORIDADES, alertasDoProcesso } from "@/lib/processos/prioridades";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -128,12 +128,20 @@ function Pagina() {
         titulo="Processos"
         subtitulo={`${filtrados.length} de ${processos.length} processos (dados fictícios)`}
         acao={podeEditar ? (
-          <Link
-            to="/processos/novo"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="size-4" /> Novo Processo
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/processos/importar"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              <FileSpreadsheet className="size-4" /> Importar / Atualizar em lote
+            </Link>
+            <Link
+              to="/processos/novo"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="size-4" /> Novo Processo
+            </Link>
+          </div>
         ) : undefined}
       />
 
