@@ -61,13 +61,50 @@ export type Database = {
           },
         ]
       }
+      integracao_log: {
+        Row: {
+          criado_em: string
+          id: string
+          mensagem: string
+          operacao: string
+          processo_id: string | null
+          resultado: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          mensagem?: string
+          operacao: string
+          processo_id?: string | null
+          resultado: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          mensagem?: string
+          operacao?: string
+          processo_id?: string | null
+          resultado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracao_log_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimentacoes: {
         Row: {
           criado_em: string
           data: string
           descricao: string
           id: string
+          id_externo: string | null
           observacao: string
+          origem: string
           processo_id: string
           tipo: string
         }
@@ -76,7 +113,9 @@ export type Database = {
           data: string
           descricao: string
           id?: string
+          id_externo?: string | null
           observacao?: string
+          origem?: string
           processo_id: string
           tipo?: string
         }
@@ -85,7 +124,9 @@ export type Database = {
           data?: string
           descricao?: string
           id?: string
+          id_externo?: string | null
           observacao?: string
+          origem?: string
           processo_id?: string
           tipo?: string
         }
@@ -263,10 +304,16 @@ export type Database = {
           data_distribuicao: string | null
           fase: string
           id: string
+          id_externo: string | null
           numero: string
           observacao_geral: string
+          origem: string
           responsavel: string
           status: string
+          sync_erro: string | null
+          sync_status: string
+          ultima_alteracao_externa: string | null
+          ultima_sincronizacao: string | null
           unidade: string
         }
         Insert: {
@@ -277,10 +324,16 @@ export type Database = {
           data_distribuicao?: string | null
           fase?: string
           id?: string
+          id_externo?: string | null
           numero: string
           observacao_geral?: string
+          origem?: string
           responsavel?: string
           status?: string
+          sync_erro?: string | null
+          sync_status?: string
+          ultima_alteracao_externa?: string | null
+          ultima_sincronizacao?: string | null
           unidade?: string
         }
         Update: {
@@ -291,10 +344,16 @@ export type Database = {
           data_distribuicao?: string | null
           fase?: string
           id?: string
+          id_externo?: string | null
           numero?: string
           observacao_geral?: string
+          origem?: string
           responsavel?: string
           status?: string
+          sync_erro?: string | null
+          sync_status?: string
+          ultima_alteracao_externa?: string | null
+          ultima_sincronizacao?: string | null
           unidade?: string
         }
         Relationships: []

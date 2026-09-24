@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Users } from "lucide-react";
 import { usePode } from "@/lib/sessao";
+import { CONFIG_INTEGRACAO_PJE } from "@/lib/integracao/pje";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
 
 export const Route = createFileRoute("/_authenticated/configuracoes/")({
@@ -78,6 +79,25 @@ function Pagina() {
           </div>
         ))}
       </dl>
+
+      <section className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-card">
+        <h2 className="text-base font-semibold text-foreground">Integração com PJe</h2>
+        <dl className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Status", CONFIG_INTEGRACAO_PJE.status],
+            ["Ambiente", CONFIG_INTEGRACAO_PJE.ambiente],
+            ["Integração", CONFIG_INTEGRACAO_PJE.integracao],
+          ].map(([t, v]) => (
+            <div key={t}>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t}</dt>
+              <dd className="mt-1 text-sm font-semibold text-foreground">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-muted-foreground">
+          Estrutura preparada para futura integração oficial com o PJe do TJBA. Nenhuma conexão é realizada nesta etapa.
+        </p>
+      </section>
     </div>
   );
 }

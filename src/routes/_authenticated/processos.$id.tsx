@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
+import { rotuloOrigem } from "@/lib/integracao/pje";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
 import { alertasDoProcesso } from "@/lib/processos/prioridades";
 import { classificar as classificarPend } from "@/lib/processos/pendencias";
@@ -73,6 +74,9 @@ function Pagina() {
     <div className="space-y-5">
       <Voltar />
       <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} />
+      <p className="-mt-3 text-xs text-muted-foreground">
+        Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
+      </p>
 
       <section aria-label="Resumo do processo" className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Resumo rotulo="Situação do processo" valor={p.status} onClick={() => setAba("Informações gerais")} />
