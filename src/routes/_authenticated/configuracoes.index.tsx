@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, ShieldCheck, Users } from "lucide-react";
 import { usePode } from "@/lib/sessao";
 import { CONFIG_INTEGRACAO_PJE } from "@/lib/integracao/pje";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
