@@ -662,6 +662,7 @@ export type Database = {
         Returns: Json
       }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
+      rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
