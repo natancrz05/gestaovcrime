@@ -1,6 +1,8 @@
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { rotuloOrigem } from "@/lib/integracao/pje";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
 import { alertasDoProcesso } from "@/lib/processos/prioridades";
 import { classificar as classificarPend } from "@/lib/processos/pendencias";
@@ -50,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/processos/$id")({
   component: Pagina,
 });
 
-const ABAS = ["Informações gerais", "Réus", "Prisão", "Partes", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações"] as const;
+const ABAS = ["Informações gerais", "Réus", "Prisão", "Partes", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações", "Histórico"] as const;
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 
 function Pagina() {
@@ -220,7 +222,45 @@ function Pagina() {
           </div>
         </Secao>
       )}
+
+      {aba === "Histórico" && <HistoricoProcesso processoId={p.id} />}
     </div>
+  );
+}
+
+function HistoricoProcesso({ processoId }: { processoId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["auditoria", "processo", processoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("auditoria")
+        .select("id, criado_em, usuario_nome, descricao")
+        .eq("processo_id", processoId)
+        .order("criado_em", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data;
+    },
+  });
+  return (
+    <Secao titulo="Histórico de alterações">
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : !data?.length ? (
+        <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>
+      ) : (
+        <ul className="divide-y divide-border text-sm">
+          {data.map((h) => (
+            <li key={h.id} className="py-2">
+              <span className="tabular-nums text-muted-foreground">
+                {new Date(h.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              </span>{" "}
+              — <span className="font-medium">{h.usuario_nome || "Sistema"}</span> — {h.descricao}.
+            </li>
+          ))}
+        </ul>
+      )}
+    </Secao>
   );
 }
 
