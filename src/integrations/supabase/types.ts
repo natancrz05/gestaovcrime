@@ -185,19 +185,28 @@ export type Database = {
           criado_em: string
           id: string
           motivo: string
+          nivel: string
+          observacao: string
           processo_id: string
+          titulo: string
         }
         Insert: {
           criado_em?: string
           id?: string
-          motivo: string
+          motivo?: string
+          nivel?: string
+          observacao?: string
           processo_id: string
+          titulo?: string
         }
         Update: {
           criado_em?: string
           id?: string
           motivo?: string
+          nivel?: string
+          observacao?: string
           processo_id?: string
+          titulo?: string
         }
         Relationships: [
           {
