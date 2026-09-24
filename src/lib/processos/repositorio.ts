@@ -117,3 +117,22 @@ export async function adicionarObservacao(o: { processo_id: string; texto: strin
   const { error } = await supabase.from("observacoes_internas").insert(o);
   if (error) throw error;
 }
+
+export interface PrioridadeManualEntrada {
+  processo_id: string;
+  titulo: string;
+  nivel: "alta" | "media" | "baixa";
+  observacao: string;
+}
+
+export async function salvarPrioridadeManual(e: PrioridadeManualEntrada, id?: string) {
+  const { error } = id
+    ? await supabase.from("prioridades").update(e).eq("id", id)
+    : await supabase.from("prioridades").insert(e);
+  if (error) throw error;
+}
+
+export async function removerPrioridadeManual(id: string) {
+  const { error } = await supabase.from("prioridades").delete().eq("id", id);
+  if (error) throw error;
+}

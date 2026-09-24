@@ -161,7 +161,7 @@ function Pagina() {
       )}
       {aba === "Prioridades" && (
         <Secao titulo="Prioridades">
-          <Lista vazio="Nenhuma prioridade registrada." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.motivo, sub: "" }))} />
+          <Lista vazio="Nenhuma prioridade registrada." itens={p.prioridades.map((x) => ({ id: x.id, titulo: x.titulo || x.motivo, sub: [x.nivel, x.observacao].filter(Boolean).join(" · ") }))} />
           <div className="mt-4"><AvisoEtapa>As regras de prioridade serão implementadas na etapa correspondente.</AvisoEtapa></div>
         </Secao>
       )}

@@ -42,6 +42,8 @@
   --color-urgente-suave: var(--urgente-suave);
   --color-atencao: var(--atencao);
   --color-atencao-suave: var(--atencao-suave);
+  --color-temporaria: var(--temporaria);
+  --color-temporaria-suave: var(--temporaria-suave);
   --color-alerta: var(--alerta);
   --color-alerta-suave: var(--alerta-suave);
   --color-concluido: var(--concluido);
@@ -88,6 +90,8 @@
   --urgente-suave: oklch(0.957 0.026 27);
   --atencao: oklch(0.6 0.16 55);
   --atencao-suave: oklch(0.962 0.036 60);
+  --temporaria: oklch(0.5 0.17 300);
+  --temporaria-suave: oklch(0.96 0.03 300);
   --alerta: oklch(0.63 0.13 85);
   --alerta-suave: oklch(0.966 0.046 95);
   --concluido: oklch(0.48 0.1 155);

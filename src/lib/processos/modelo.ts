@@ -107,6 +107,9 @@ export interface PrioridadeProcesso {
   id: string;
   processo_id: string;
   motivo: string;
+  titulo: string;
+  nivel: "alta" | "media" | "baixa";
+  observacao: string;
   criado_em: string;
 }
 
