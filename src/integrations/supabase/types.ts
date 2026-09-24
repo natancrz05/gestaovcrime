@@ -14,7 +14,290 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audiencias: {
+        Row: {
+          data: string
+          id: string
+          local: string
+          processo_id: string
+          situacao: string
+          tipo: string
+        }
+        Insert: {
+          data: string
+          id?: string
+          local?: string
+          processo_id: string
+          situacao?: string
+          tipo?: string
+        }
+        Update: {
+          data?: string
+          id?: string
+          local?: string
+          processo_id?: string
+          situacao?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audiencias_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimentacoes: {
+        Row: {
+          criado_em: string
+          data: string
+          descricao: string
+          id: string
+          observacao: string
+          processo_id: string
+          tipo: string
+        }
+        Insert: {
+          criado_em?: string
+          data: string
+          descricao: string
+          id?: string
+          observacao?: string
+          processo_id: string
+          tipo?: string
+        }
+        Update: {
+          criado_em?: string
+          data?: string
+          descricao?: string
+          id?: string
+          observacao?: string
+          processo_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observacoes_internas: {
+        Row: {
+          criado_em: string
+          id: string
+          processo_id: string
+          texto: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          processo_id: string
+          texto: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          processo_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observacoes_internas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partes: {
+        Row: {
+          id: string
+          nome: string
+          observacao: string
+          processo_id: string
+          tipo: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          observacao?: string
+          processo_id: string
+          tipo: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          observacao?: string
+          processo_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partes_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pendencias: {
+        Row: {
+          concluida: boolean
+          descricao: string
+          id: string
+          prazo: string | null
+          processo_id: string
+        }
+        Insert: {
+          concluida?: boolean
+          descricao: string
+          id?: string
+          prazo?: string | null
+          processo_id: string
+        }
+        Update: {
+          concluida?: boolean
+          descricao?: string
+          id?: string
+          prazo?: string | null
+          processo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pendencias_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prioridades: {
+        Row: {
+          criado_em: string
+          id: string
+          motivo: string
+          processo_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          motivo: string
+          processo_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          motivo?: string
+          processo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prioridades_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processos: {
+        Row: {
+          assunto: string
+          classe: string
+          comarca: string
+          criado_em: string
+          data_distribuicao: string | null
+          fase: string
+          id: string
+          numero: string
+          observacao_geral: string
+          responsavel: string
+          status: string
+          unidade: string
+        }
+        Insert: {
+          assunto?: string
+          classe: string
+          comarca?: string
+          criado_em?: string
+          data_distribuicao?: string | null
+          fase?: string
+          id?: string
+          numero: string
+          observacao_geral?: string
+          responsavel?: string
+          status?: string
+          unidade?: string
+        }
+        Update: {
+          assunto?: string
+          classe?: string
+          comarca?: string
+          criado_em?: string
+          data_distribuicao?: string | null
+          fase?: string
+          id?: string
+          numero?: string
+          observacao_geral?: string
+          responsavel?: string
+          status?: string
+          unidade?: string
+        }
+        Relationships: []
+      }
+      reus: {
+        Row: {
+          data_prisao: string | null
+          id: string
+          nome: string
+          observacoes: string
+          ordem: number
+          preso: boolean
+          processo_id: string
+          situacao: string
+          tipo_prisao: string
+        }
+        Insert: {
+          data_prisao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string
+          ordem?: number
+          preso?: boolean
+          processo_id: string
+          situacao?: string
+          tipo_prisao?: string
+        }
+        Update: {
+          data_prisao?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string
+          ordem?: number
+          preso?: boolean
+          processo_id?: string
+          situacao?: string
+          tipo_prisao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reus_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
