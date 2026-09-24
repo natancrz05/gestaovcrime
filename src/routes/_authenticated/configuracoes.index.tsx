@@ -68,6 +68,19 @@ function Pagina() {
           <ChevronRight className="size-4 text-muted-foreground" />
         </Link>
       ) : null}
+      {admin ? (
+        <Link
+          to="/configuracoes/auditoria"
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover"
+        >
+          <ShieldCheck className="size-5 text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Auditoria</p>
+            <p className="text-xs text-muted-foreground">Consultar quem fez cada alteração, quando e qual ação</p>
+          </div>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </Link>
+      ) : null}
       <AvisoEtapa>Nesta etapa os parâmetros abaixo são apenas exibidos.</AvisoEtapa>
 
       <dl className="grid gap-3 md:grid-cols-2">
