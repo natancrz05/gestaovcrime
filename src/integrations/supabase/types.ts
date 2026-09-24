@@ -498,7 +498,6 @@ export type Database = {
         Returns: boolean
       }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
-      registrar_acesso: { Args: { _acao: string }; Returns: undefined }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
