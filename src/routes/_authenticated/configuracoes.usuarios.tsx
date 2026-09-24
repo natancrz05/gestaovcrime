@@ -7,7 +7,7 @@ import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PERFIS, pode, rotuloPerfil, type Perfil } from "@/lib/permissoes";
-import { atualizarUsuario, criarUsuario, listarUsuarios } from "@/lib/usuarios.functions";
+import { atualizarUsuario, criarUsuario, excluirUsuario, listarUsuarios } from "@/lib/usuarios.functions";
 import { useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,8 @@ function Pagina() {
   const listar = useServerFn(listarUsuarios);
   const criar = useServerFn(criarUsuario);
   const atualizar = useServerFn(atualizarUsuario);
+  const excluir = useServerFn(excluirUsuario);
+  const [excluindo, setExcluindo] = useState<{ id: string; nome: string } | null>(null);
   const qc = useQueryClient();
   const { data: usuarios = [], isLoading, error } = useQuery({ queryKey: ["usuarios"], queryFn: () => listar() });
   const [edicao, setEdicao] = useState<Edicao | null>(null);
@@ -94,6 +96,7 @@ function Pagina() {
                   <div className="flex justify-end gap-1.5">
                     <button className={BOTAO_SEC} onClick={() => { setErro(""); setEdicao({ id: u.id, nome: u.nome, email: u.email, senha: "", perfil: u.perfil ?? "consulta", ativo: u.ativo }); }}>Editar</button>
                     <button className={BOTAO_SEC} disabled={u.id === eu.id} onClick={() => alternar(u)}>{u.ativo ? "Inativar" : "Ativar"}</button>
+                    <button className={cn(BOTAO_SEC, "text-urgente")} disabled={u.id === eu.id} onClick={() => { setErro(""); setExcluindo({ id: u.id, nome: u.nome }); }}>Excluir</button>
                   </div>
                 </td>
               </tr>
@@ -110,7 +113,7 @@ function Pagina() {
               <Campo rotulo="Nome"><input required className={CLASSE_CAMPO} value={edicao.nome} onChange={(e) => setEdicao({ ...edicao, nome: e.target.value })} /></Campo>
               <Campo rotulo="E-mail"><input required type="email" disabled={!!edicao.id} className={CLASSE_CAMPO} value={edicao.email} onChange={(e) => setEdicao({ ...edicao, email: e.target.value })} /></Campo>
               {!edicao.id ? (
-                <Campo rotulo="Senha inicial (mínimo 8 caracteres)"><input required minLength={8} type="password" autoComplete="new-password" className={CLASSE_CAMPO} value={edicao.senha} onChange={(e) => setEdicao({ ...edicao, senha: e.target.value })} /></Campo>
+                <Campo rotulo="Senha inicial (mínimo 6 caracteres)"><input required minLength={6} maxLength={72} type="password" autoComplete="new-password" className={CLASSE_CAMPO} value={edicao.senha} onChange={(e) => setEdicao({ ...edicao, senha: e.target.value })} /></Campo>
               ) : null}
               <Campo rotulo="Perfil">
                 <select className={CLASSE_CAMPO} value={edicao.perfil} onChange={(e) => setEdicao({ ...edicao, perfil: e.target.value as Perfil })}>
@@ -131,6 +134,23 @@ function Pagina() {
               </div>
             </form>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!excluindo} onOpenChange={(o) => !o && setExcluindo(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Excluir o usuário {excluindo?.nome}?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">O acesso será removido definitivamente e o usuário deixará de aparecer na lista. Esta ação não pode ser desfeita. Se quiser apenas bloquear o acesso, use "Inativar".</p>
+          {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
+          <div className="flex justify-end gap-2">
+            <button type="button" className={BOTAO_SEC} onClick={() => setExcluindo(null)}>Cancelar</button>
+            <button className={cn(BOTAO, "bg-urgente hover:bg-urgente/90")} disabled={salvando} onClick={async () => {
+              if (!excluindo) return;
+              setSalvando(true); setErro("");
+              try { await excluir({ data: { id: excluindo.id } }); await recarregar(); setExcluindo(null); }
+              catch (e) { setErro((e as Error).message); } finally { setSalvando(false); }
+            }}>{salvando ? "Excluindo…" : "Excluir usuário"}</button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
