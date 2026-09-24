@@ -50,8 +50,10 @@ function Entrar() {
             setEnviando(false);
             if (error) {
               setErro(/banned/i.test(error.message) ? "Seu usuário está inativo. Procure o Administrador." : "E-mail ou senha incorretos.");
+              registrarFalhaLogin({ data: { email: email.trim() } }).catch(() => {});
               return;
             }
+            await registrarAcesso({ data: { acao: "Login" } }).catch(() => {});
             navigate({ to: "/", replace: true });
           }}
         >
