@@ -163,24 +163,48 @@ export type Database = {
       pendencias: {
         Row: {
           concluida: boolean
+          criado_em: string
+          data_conclusao: string | null
           descricao: string
           id: string
+          observacoes: string
           prazo: string | null
+          prioridade: string
           processo_id: string
+          responsavel: string
+          status: string
+          tipo: string
+          titulo: string
         }
         Insert: {
           concluida?: boolean
+          criado_em?: string
+          data_conclusao?: string | null
           descricao: string
           id?: string
+          observacoes?: string
           prazo?: string | null
+          prioridade?: string
           processo_id: string
+          responsavel?: string
+          status?: string
+          tipo?: string
+          titulo?: string
         }
         Update: {
           concluida?: boolean
+          criado_em?: string
+          data_conclusao?: string | null
           descricao?: string
           id?: string
+          observacoes?: string
           prazo?: string | null
+          prioridade?: string
           processo_id?: string
+          responsavel?: string
+          status?: string
+          tipo?: string
+          titulo?: string
         }
         Relationships: [
           {
