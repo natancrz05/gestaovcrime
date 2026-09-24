@@ -10,33 +10,102 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrioridadesRouteImport } from './routes/prioridades'
+import { Route as PrisoesTemporariasRouteImport } from './routes/prisoes-temporarias'
+import { Route as ProcessosRouteImport } from './routes/processos'
+import { Route as ReusPresosRouteImport } from './routes/reus-presos'
+import { Route as SemMovimentacaoRouteImport } from './routes/sem-movimentacao'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrioridadesRoute = PrioridadesRouteImport.update({
+  id: '/prioridades',
+  path: '/prioridades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrisoesTemporariasRoute = PrisoesTemporariasRouteImport.update({
+  id: '/prisoes-temporarias',
+  path: '/prisoes-temporarias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcessosRoute = ProcessosRouteImport.update({
+  id: '/processos',
+  path: '/processos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReusPresosRoute = ReusPresosRouteImport.update({
+  id: '/reus-presos',
+  path: '/reus-presos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SemMovimentacaoRoute = SemMovimentacaoRouteImport.update({
+  id: '/sem-movimentacao',
+  path: '/sem-movimentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/prioridades': typeof PrioridadesRoute
+  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
+  '/processos': typeof ProcessosRoute
+  '/reus-presos': typeof ReusPresosRoute
+  '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/prioridades': typeof PrioridadesRoute
+  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
+  '/processos': typeof ProcessosRoute
+  '/reus-presos': typeof ReusPresosRoute
+  '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/prioridades': typeof PrioridadesRoute
+  '/prisoes-temporarias': typeof PrisoesTemporariasRoute
+  '/processos': typeof ProcessosRoute
+  '/reus-presos': typeof ReusPresosRoute
+  '/sem-movimentacao': typeof SemMovimentacaoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/prioridades'
+    | '/prisoes-temporarias'
+    | '/processos'
+    | '/reus-presos'
+    | '/sem-movimentacao'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/prioridades'
+    | '/prisoes-temporarias'
+    | '/processos'
+    | '/reus-presos'
+    | '/sem-movimentacao'
+  id:
+    | '__root__'
+    | '/'
+    | '/prioridades'
+    | '/prisoes-temporarias'
+    | '/processos'
+    | '/reus-presos'
+    | '/sem-movimentacao'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PrioridadesRoute: typeof PrioridadesRoute
+  PrisoesTemporariasRoute: typeof PrisoesTemporariasRoute
+  ProcessosRoute: typeof ProcessosRoute
+  ReusPresosRoute: typeof ReusPresosRoute
+  SemMovimentacaoRoute: typeof SemMovimentacaoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +117,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prioridades': {
+      id: '/prioridades'
+      path: '/prioridades'
+      fullPath: '/prioridades'
+      preLoaderRoute: typeof PrioridadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prisoes-temporarias': {
+      id: '/prisoes-temporarias'
+      path: '/prisoes-temporarias'
+      fullPath: '/prisoes-temporarias'
+      preLoaderRoute: typeof PrisoesTemporariasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/processos': {
+      id: '/processos'
+      path: '/processos'
+      fullPath: '/processos'
+      preLoaderRoute: typeof ProcessosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reus-presos': {
+      id: '/reus-presos'
+      path: '/reus-presos'
+      fullPath: '/reus-presos'
+      preLoaderRoute: typeof ReusPresosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sem-movimentacao': {
+      id: '/sem-movimentacao'
+      path: '/sem-movimentacao'
+      fullPath: '/sem-movimentacao'
+      preLoaderRoute: typeof SemMovimentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PrioridadesRoute: PrioridadesRoute,
+  PrisoesTemporariasRoute: PrisoesTemporariasRoute,
+  ProcessosRoute: ProcessosRoute,
+  ReusPresosRoute: ReusPresosRoute,
+  SemMovimentacaoRoute: SemMovimentacaoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
