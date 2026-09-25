@@ -8,6 +8,7 @@ import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
+import { listarCentral } from "@/lib/processos/central";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -34,6 +35,7 @@ function Dashboard() {
   const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
   const acoes = proximasAcoes(pendencias).slice(0, 8);
   const audFuturas = futuras(listarAudienciasDe(processos));
+  const aguardando = listarCentral(processos).length;
   const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
   const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
 
@@ -57,6 +59,7 @@ function Dashboard() {
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências nos próximos 7 dias</p>
           <p className="mt-3 text-3xl font-semibold tabular-nums text-info">{aud7}</p>
+          <p className="mt-1 text-xs text-muted-foreground" data-testid="aguardando-marcacao"><span className="font-semibold text-foreground">{aguardando}</span> aguardando marcação</p>
         </Link>
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências com prazo extenso</p>
