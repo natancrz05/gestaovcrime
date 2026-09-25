@@ -26,6 +26,7 @@ import {
   TIPOS_PARTE,
   TIPOS_PRISAO,
   diasSemMovimentacao,
+  fluxoAtual,
   hojeISO,
   ultimaMovimentacao,
 } from "@/lib/processos/modelo";
