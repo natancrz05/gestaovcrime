@@ -81,6 +81,7 @@ function Pagina() {
       <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} acao={<AcoesProcesso p={p} />} />
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
+        {p.pje_tarefas || p.pje_situacao ? (() => { const fx = fluxoAtual(p); return <> · Fluxo atual: <span className="font-medium text-foreground">{fx.fluxo}{fx.noGabinete ? " (gabinete)" : fx.naSecretaria ? " (secretaria)" : ""}</span>{fx.tarefa ? <> — {fx.tarefa}</> : null}{fx.fluxo === "ARQUIVO PROVISÓRIO" ? " · contagem de dias suspensa" : ""}</>; })() : null}
       </p>
 
       <section aria-label="Resumo do processo" className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
