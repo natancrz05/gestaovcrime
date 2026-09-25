@@ -149,6 +149,10 @@ export interface ProcessoCompleto {
   pje_tarefas?: string | null;
   pje_ultima_mov_data?: string | null;
   pje_reu?: string | null;
+  pje_concluso?: string | null;
+  pje_localizacao?: string | null;
+  pje_situacao?: string | null;
+  pje_ultima_mov_descricao?: string | null;
   partes: Parte[];
   reus: Reu[];
   movimentacoes: Movimentacao[];
@@ -182,8 +186,60 @@ export function ultimaMovimentacao(p: ProcessoCompleto): Movimentacao | null {
   );
 }
 
-/** "X dias sem movimentação" — calculado a partir da última movimentação e da data atual. */
+export type FluxoAtual =
+  | "CONCLUSO" | "AUDIÊNCIA" | "PRAZO EM CURSO" | "PRAZO DECORRIDO" | "CARTÓRIO" | "MANIFESTAÇÃO"
+  | "EXPEDIÇÃO" | "ARQUIVO PROVISÓRIO" | "ARQUIVADO DEFINITIVAMENTE" | "OUTROS";
+
+export interface InfoFluxo {
+  fluxo: FluxoAtual;
+  tarefa: string | null;
+  noGabinete: boolean;
+  naSecretaria: boolean;
+  desarquivado: boolean;
+}
+
+const norm = (s?: string | null) => (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
+/**
+ * Estado/fluxo atual do processo, lido da última planilha importada
+ * (CONCLUSO, LOCALIZAÇÃO, SITUAÇÃO, TAREFAS, MOVIMENTAÇÃO). Classificação
+ * administrativa — não altera nem substitui o status cadastrado.
+ */
+export function fluxoAtual(p: ProcessoCompleto): InfoFluxo {
+  const concluso = norm(p.pje_concluso);
+  const loc = norm(p.pje_localizacao);
+  const sit = norm(p.pje_situacao);
+  const tar = norm(p.pje_tarefas);
+  const mov = norm(p.pje_ultima_mov_descricao);
+  const desarquivado = /DESARQUIVAD/.test(sit) || /DESARQUIVAD/.test(mov) || /DESARQUIVAD/.test(tar);
+  const base = { tarefa: p.pje_tarefas ?? null, noGabinete: concluso === "SIM" && loc.includes("GABINETE"), naSecretaria: concluso !== "SIM" && loc.includes("SECRETARIA"), desarquivado };
+  const f = (fluxo: FluxoAtual): InfoFluxo => ({ fluxo, ...base });
+
+  if (!desarquivado) {
+    if (/^(ARQUIVADO( DEFINITIVAMENTE)?|BAIXADO|ARQUIVADO DEFINITIVO)$/.test(sit) ||
+        (/ARQUIVAD\w* ?-? ?DEFINITIV/.test(tar) && /ARQUIVAD\w* DEFINITIV|BAIXA DEFINITIVA/.test(mov)))
+      return f("ARQUIVADO DEFINITIVAMENTE");
+    if (/ARQUIVO PROVISORIO/.test(sit) || /ARQUIVADO ?- ?PROVISORIO/.test(tar)) return f("ARQUIVO PROVISÓRIO");
+  }
+  if (concluso === "SIM" || /CONCLUSO/.test(tar)) return f("CONCLUSO");
+  if (/AUDIENCIA/.test(tar)) return f("AUDIÊNCIA");
+  if (/PRAZO DECORRIDO/.test(tar)) return f("PRAZO DECORRIDO");
+  if (/PRAZO EM CURSO/.test(tar)) return f("PRAZO EM CURSO");
+  if (/MANIFESTACAO/.test(tar)) return f("MANIFESTAÇÃO");
+  if (/EXPEDICAO|EXPEDIR|INTIMACAO|CITACAO/.test(tar)) return f("EXPEDIÇÃO");
+  if (/CARTORIO/.test(tar)) return f("CARTÓRIO");
+  return f("OUTROS");
+}
+
+/** Arquivo provisório ou arquivamento definitivo suspendem a contagem de dias parado. */
+export function contagemSuspensa(p: ProcessoCompleto): boolean {
+  const x = fluxoAtual(p).fluxo;
+  return x === "ARQUIVO PROVISÓRIO" || x === "ARQUIVADO DEFINITIVAMENTE";
+}
+
+/** "X dias sem movimentação". Null em arquivo provisório/definitivo (a data fica preservada). */
 export function diasSemMovimentacao(p: ProcessoCompleto, hoje = hojeISO()): number | null {
+  if (contagemSuspensa(p)) return null;
   const u = ultimaMovimentacao(p);
   return u ? diasEntre(u.data, hoje) : null;
 }
