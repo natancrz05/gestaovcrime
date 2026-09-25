@@ -667,35 +667,53 @@ export type Database = {
       }
       reus: {
         Row: {
+          conferir: boolean
+          dados_planilha: Json
           data_prisao: string | null
+          especie_cautelar: string
           id: string
+          motivo_conferencia: string
           nome: string
           observacoes: string
           ordem: number
           preso: boolean
-          processo_id: string
+          processo_id: string | null
+          processos_relacionados: Json
+          rji: string
           situacao: string
           tipo_prisao: string
         }
         Insert: {
+          conferir?: boolean
+          dados_planilha?: Json
           data_prisao?: string | null
+          especie_cautelar?: string
           id?: string
+          motivo_conferencia?: string
           nome: string
           observacoes?: string
           ordem?: number
           preso?: boolean
-          processo_id: string
+          processo_id?: string | null
+          processos_relacionados?: Json
+          rji?: string
           situacao?: string
           tipo_prisao?: string
         }
         Update: {
+          conferir?: boolean
+          dados_planilha?: Json
           data_prisao?: string | null
+          especie_cautelar?: string
           id?: string
+          motivo_conferencia?: string
           nome?: string
           observacoes?: string
           ordem?: number
           preso?: boolean
-          processo_id?: string
+          processo_id?: string | null
+          processos_relacionados?: Json
+          rji?: string
           situacao?: string
           tipo_prisao?: string
         }
@@ -780,6 +798,15 @@ export type Database = {
           p_arquivo: string
           p_erros: Json
           p_ignorados: Json
+          p_linhas: Json
+          p_simular: boolean
+        }
+        Returns: Json
+      }
+      importar_reus_presos: {
+        Args: {
+          p_arquivo: string
+          p_erros: number
           p_linhas: Json
           p_simular: boolean
         }
