@@ -102,7 +102,7 @@ export function ListaAtencao({ itens }: { itens: { processo: ProcessoCompleto; a
 }
 
 export function contarCategorias(itens: { alertas: AlertaGestao[] }[]): Record<CategoriaPrioridade, number> {
-  const r: Record<CategoriaPrioridade, number> = { "reu-preso": 0, "prisao-temporaria": 0, "sem-movimentacao": 0, manual: 0 };
+  const r: Record<CategoriaPrioridade, number> = { "reu-preso": 0, "prisao-temporaria": 0, "sem-movimentacao": 0, "urgencia-audiencia": 0, manual: 0 };
   for (const i of itens) for (const c of new Set(i.alertas.map((a) => a.categoria))) r[c]++;
   return r;
 }

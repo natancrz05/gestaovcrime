@@ -145,6 +145,10 @@ export interface ProcessoCompleto {
   ultima_sincronizacao?: string | null;
   ultima_alteracao_externa?: string | null;
   sync_erro?: string | null;
+  /** Dados vindos da planilha do PJe (importação XLSX). */
+  pje_tarefas?: string | null;
+  pje_ultima_mov_data?: string | null;
+  pje_reu?: string | null;
   partes: Parte[];
   reus: Reu[];
   movimentacoes: Movimentacao[];

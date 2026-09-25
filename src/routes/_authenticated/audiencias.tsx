@@ -20,6 +20,7 @@ import {
   type AudienciaListada,
 } from "@/lib/processos/audiencias";
 import { cn } from "@/lib/utils";
+import { listarCentral, NIVEIS_AUDIENCIA, type NivelAudiencia } from "@/lib/processos/central";
 
 export const Route = createFileRoute("/_authenticated/audiencias")({
   head: () => ({
@@ -80,6 +81,12 @@ function Pagina() {
         titulo="Audiências"
         subtitulo={`${prox.length} audiências futuras · ${todas.length} registradas`}
         acao={podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button> : undefined}
+      />
+
+      <CentralAudiencias
+        processos={processos}
+        podeEditar={podeEditar}
+        onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
@@ -337,6 +344,69 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
             );
           })}
         </div>
+      )}
+    </Secao>
+  );
+}
+
+/* ---------------- Central: processos aguardando marcação ---------------- */
+
+function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void }) {
+  const itens = useMemo(() => listarCentral(processos), [processos]);
+  const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
+  const [busca, setBusca] = useState("");
+  const termo = busca.trim().toLowerCase();
+  const digitos = termo.replace(/\D/g, "");
+  const exibidos = itens.filter(
+    (i) =>
+      (!nivel || i.nivel === nivel) &&
+      (!termo ||
+        i.reu.toLowerCase().includes(termo) ||
+        i.processo.numero.toLowerCase().includes(termo) ||
+        (digitos.length > 0 && i.processo.numero.replace(/\D/g, "").includes(digitos))),
+  );
+  return (
+    <Secao titulo="Processos aguardando audiência">
+      <p className="text-3xl font-semibold tabular-nums text-foreground" data-testid="total-aguardando">{itens.length}</p>
+      <p className="mb-4 text-xs text-muted-foreground">Identificados pelo campo TAREFAS da planilha. Níveis contados pelos dias desde a última movimentação (DATA ULT MOV) — critério administrativo.</p>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        {NIVEIS_AUDIENCIA.map((n) => {
+          const qtd = itens.filter((i) => i.nivel === n.chave).length;
+          const ativo = nivel === n.chave;
+          return (
+            <button key={n.chave} aria-pressed={ativo} onClick={() => setNivel(ativo ? null : n.chave)}
+              className={cn("flex items-center justify-between rounded-lg border p-3 text-left", ativo ? n.classe : "border-border bg-card hover:bg-muted/40")}>
+              <span className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide"><span className={cn("size-2.5 rounded-full", n.ponto)} />{n.rotulo}</span>
+              <span className="text-2xl font-semibold tabular-nums">{qtd}</span>
+            </button>
+          );
+        })}
+      </div>
+      <input className={cn(CLASSE_CAMPO, "mb-3 max-w-md")} placeholder="Buscar por número do processo ou réu/parte…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar na central" />
+      {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum processo aguardando audiência{nivel || termo ? " com estes critérios" : ""}.</p> : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {exibidos.map((i) => {
+            const n = NIVEIS_AUDIENCIA.find((x) => x.chave === i.nivel)!;
+            return (
+              <li key={i.processo.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 text-sm">
+                <span className={cn("inline-flex w-20 justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase", n.classe)}>{n.rotulo}</span>
+                <div className="min-w-0 flex-1">
+                  <Link to="/processos/$id" params={{ id: i.processo.id }} className="numero-processo font-medium hover:underline">{i.processo.numero}</Link>
+                  <p className="truncate text-xs text-muted-foreground">{i.reu} · {i.processo.classe}</p>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Últ. mov.: {formatarData(i.ultimaMov)} · <span className="font-semibold text-foreground">{i.dias ?? "—"} dias</span>
+                </div>
+                {i.proxima ? (
+                  <span className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info">Audiência cadastrada · {formatarData(i.proxima.data)} {horaCurta(i.proxima.horario)}</span>
+                ) : i.processo.audiencias.length ? (
+                  <span className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info">Audiência cadastrada</span>
+                ) : null}
+                {podeEditar ? <button className={BOTAO_SEC} onClick={() => onMarcar(i.processo.id)}><Plus className="size-3.5" /> Marcar audiência</button> : null}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Secao>
   );
