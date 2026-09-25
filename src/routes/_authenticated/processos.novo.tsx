@@ -82,7 +82,7 @@ function Pagina() {
 
   return (
     <form onSubmit={salvar} className="space-y-5">
-      <Cabecalho titulo="Novo processo" subtitulo="Cadastro para organização interna. Use apenas dados fictícios nesta fase de testes." />
+      <Cabecalho titulo="Novo processo" subtitulo="Cadastro para organização interna." />
 
       <Secao titulo="Identificação">
         <div className="grid gap-4 md:grid-cols-3">

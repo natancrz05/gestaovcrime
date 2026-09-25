@@ -127,7 +127,7 @@ function Pagina() {
     <div className="space-y-6">
       <Cabecalho
         titulo="Processos"
-        subtitulo={`${filtrados.length} de ${processos.length} processos (dados fictícios)`}
+        subtitulo={`${filtrados.length} de ${processos.length} processos`}
         acao={podeEditar ? (
           <div className="flex flex-wrap gap-2">
             <Link
