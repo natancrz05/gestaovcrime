@@ -153,6 +153,7 @@ export type Database = {
           criado_em: string
           data_inicio: string
           id: string
+          intervalo_meses: number
           observacao: string
           periodicidade: string
           pessoa: string
@@ -164,6 +165,7 @@ export type Database = {
           criado_em?: string
           data_inicio: string
           id?: string
+          intervalo_meses?: number
           observacao?: string
           periodicidade?: string
           pessoa: string
@@ -175,6 +177,7 @@ export type Database = {
           criado_em?: string
           data_inicio?: string
           id?: string
+          intervalo_meses?: number
           observacao?: string
           periodicidade?: string
           pessoa?: string
