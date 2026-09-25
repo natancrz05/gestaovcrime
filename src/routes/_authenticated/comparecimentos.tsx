@@ -20,7 +20,9 @@ import {
   preparar,
   registrarComparecimento,
   salvarComparecimento,
-  somarMes,
+  somarMeses,
+  mesesDe,
+  PERIODICIDADES,
   type ComparecimentoEntrada,
   type ComparecimentoListado,
   type SituacaoComparecimento,
@@ -68,9 +70,9 @@ function Pagina() {
     <div className="space-y-6">
       <Cabecalho
         titulo="Comparecimentos"
-        subtitulo={`${ativos.length} cadastros ativos · periodicidade mensal`}
+        subtitulo={`${ativos.length} cadastros ativos`}
         acao={podeEditar ? (
-          <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, proximo: somarMes(hoje), observacao: "", situacao: "Ativo" } })}>
+          <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1), observacao: "", situacao: "Ativo" } })}>
             <Plus className="size-4" /> Novo comparecimento
           </button>
         ) : undefined}
@@ -124,7 +126,7 @@ function Pagina() {
             <div className="space-y-4 text-sm">
               <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
               <dl className="grid grid-cols-2 gap-3">
-                {[["Processo", detalhe.numero], ["Data de início", formatarData(detalhe.data_inicio)], ["Periodicidade", detalhe.periodicidade], ["Cadastro", detalhe.situacao]].map(([k, v]) => (
+                {[["Processo", detalhe.numero], ["Data de início", formatarData(detalhe.data_inicio)], ["Periodicidade", detalhe.periodicidade === "Personalizado" ? `Personalizado — a cada ${detalhe.intervalo_meses} ${detalhe.intervalo_meses === 1 ? "mês" : "meses"}` : detalhe.periodicidade], ["Cadastro", detalhe.situacao]].map(([k, v]) => (
                   <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
                 ))}
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Observação</dt><dd>{detalhe.observacao || "—"}</dd></div>
@@ -146,7 +148,7 @@ function Pagina() {
                 <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link>
                 {podeEditar ? (
                   <div className="flex gap-2">
-                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id, pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
+                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id, pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
                     {detalhe.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                   </div>
                 ) : null}
@@ -188,7 +190,7 @@ function FormRegistro({ c, onFeito }: { c: ComparecimentoListado; onFeito: () =>
       <p className="text-sm">{c.pessoa} · <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>
       <Campo rotulo="Data do comparecimento"><input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} /></Campo>
       <Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={obs} onChange={(e) => setObs(e.target.value)} /></Campo>
-      {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMes(data))}</span></p> : null}
+      {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
       <div className="flex justify-end"><button className={BOTAO} disabled={salvando}>{salvando ? "Registrando…" : "Marcar como realizado"}</button></div>
     </form>
@@ -199,6 +201,9 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
   const [v, setV] = useState(inicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  // Sugere o próximo comparecimento a partir da data de início e da periodicidade (pode ser ajustado).
+  const recalcular = (n: ComparecimentoEntrada) =>
+    setV({ ...n, proximo: n.data_inicio ? somarMeses(n.data_inicio, mesesDe(n.periodicidade, n.intervalo_meses)) : n.proximo });
   return (
     <form className="grid gap-3 md:grid-cols-2" onSubmit={async (e) => {
       e.preventDefault();
@@ -210,12 +215,19 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
         <SeletorProcesso value={v.processo_id} onChange={(id) => setV({ ...v, processo_id: id })} />
       </Campo>
       <Campo rotulo="Pessoa"><input className={CLASSE_CAMPO} maxLength={200} value={v.pessoa} onChange={(e) => setV({ ...v, pessoa: e.target.value })} /></Campo>
-      <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => setV({ ...v, data_inicio: e.target.value })} /></Campo>
-      <Campo rotulo="Periodicidade"><select className={CLASSE_CAMPO} value="Mensal" disabled><option>Mensal</option></select></Campo>
+      <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => recalcular({ ...v, data_inicio: e.target.value })} /></Campo>
+      <Campo rotulo="Periodicidade">
+        <select className={CLASSE_CAMPO} value={v.periodicidade} onChange={(e) => recalcular({ ...v, periodicidade: e.target.value })}>
+          {PERIODICIDADES.map((p) => <option key={p.v} value={p.v}>{p.v}{p.meses ? ` (${p.meses} ${p.meses === 1 ? "mês" : "meses"})` : ""}</option>)}
+        </select>
+      </Campo>
+      {v.periodicidade === "Personalizado" ? (
+        <Campo rotulo="Intervalo (em meses)"><input type="number" min={1} max={120} className={CLASSE_CAMPO} value={v.intervalo_meses} onChange={(e) => recalcular({ ...v, intervalo_meses: Number(e.target.value) })} /></Campo>
+      ) : null}
       <Campo rotulo="Próximo comparecimento"><input type="date" className={CLASSE_CAMPO} value={v.proximo} onChange={(e) => setV({ ...v, proximo: e.target.value })} /></Campo>
       <Campo rotulo="Situação do cadastro"><select className={CLASSE_CAMPO} value={v.situacao} onChange={(e) => setV({ ...v, situacao: e.target.value })}><option>Ativo</option><option>Encerrado</option></select></Campo>
       <div className="md:col-span-2"><Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={v.observacao} onChange={(e) => setV({ ...v, observacao: e.target.value })} /></Campo></div>
-      <p className="text-xs text-muted-foreground md:col-span-2">Regular, Vencendo ou Vencido é calculado automaticamente pela data do próximo comparecimento.</p>
+      <p className="text-xs text-muted-foreground md:col-span-2">A periodicidade é o intervalo definido para este processo (decisão, acordo ou medida aplicável). Regular, Vencendo ou Vencido é calculado automaticamente pela data do próximo comparecimento.</p>
       {erro ? <p className="text-sm text-urgente md:col-span-2">{erro}</p> : null}
       <div className="flex justify-end md:col-span-2"><button className={BOTAO} disabled={salvando}>{salvando ? "Salvando…" : "Salvar comparecimento"}</button></div>
     </form>
