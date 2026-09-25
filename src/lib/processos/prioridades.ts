@@ -8,13 +8,14 @@ import {
   type PrioridadeProcesso,
   type ProcessoCompleto,
 } from "./modelo";
+import { itemCentral } from "./central";
 
 /** Parâmetros ajustáveis. Futuramente poderão vir da tela de Configurações. */
 export const CONFIG_PRIORIDADES = {
   limiteDiasSemMovimentacao: 100,
 };
 
-export type CategoriaPrioridade = "reu-preso" | "prisao-temporaria" | "sem-movimentacao" | "manual";
+export type CategoriaPrioridade = "reu-preso" | "prisao-temporaria" | "sem-movimentacao" | "urgencia-audiencia" | "manual";
 
 export const CATEGORIAS: {
   chave: CategoriaPrioridade;
@@ -61,6 +62,9 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO()): Alerta
   const dias = diasSemMovimentacao(p, hoje);
   if (dias !== null && dias > CONFIG_PRIORIDADES.limiteDiasSemMovimentacao)
     a.push({ categoria: "sem-movimentacao", rotulo: `${dias} dias sem movimentação`, cor: "atencao" });
+  const c = itemCentral(p, hoje);
+  if (c && c.dias !== null && c.nivel !== "normal")
+    a.push({ categoria: "urgencia-audiencia", rotulo: `Urgência de audiência — ${c.dias} dias sem movimentação`, cor: c.nivel === "critica" ? "urgente" : "atencao" });
   const nivelRotulo = { alta: "alta", media: "média", baixa: "baixa" };
   for (const m of p.prioridades)
     a.push({ categoria: "manual", rotulo: `${m.titulo || m.motivo} (${nivelRotulo[m.nivel] ?? m.nivel})`, cor: "alerta", manual: m });
@@ -71,7 +75,7 @@ export function temCategoria(p: ProcessoCompleto, c: CategoriaPrioridade, hoje =
   return alertasDoProcesso(p, hoje).some((a) => a.categoria === c);
 }
 
-const ORDEM: CategoriaPrioridade[] = ["reu-preso", "prisao-temporaria", "sem-movimentacao", "manual"];
+const ORDEM: CategoriaPrioridade[] = ["reu-preso", "prisao-temporaria", "sem-movimentacao", "urgencia-audiencia", "manual"];
 
 /**
  * Ordena pela existência de alertas, na ordem fixa das categorias
