@@ -51,7 +51,7 @@ export function lerPeriodicidade(txt: string): { periodicidade: string; interval
 }
 
 export interface LinhaComp {
-  linha: number; numeros: string[]; pessoa: string; cpf: string; periodicidade: string; intervalo: number;
+  linha: number; numeros: string[]; processos: string[]; outros: string[]; pessoa: string; cpf: string; periodicidade: string; intervalo: number;
   ultima: string | null; aplicacao: string | null; dados: Record<string, string>;
 }
 export interface Problema { linha: number; pessoa: string; motivo: string }
@@ -95,27 +95,45 @@ export async function lerPlanilhaComparecimentos(arquivo: File): Promise<Analise
     if (!ultima && !aplicacao) probs.push("sem data da última assinatura nem da aplicação da medida");
     const per = lerPeriodicidade(txt("periodicidade"));
     if (!per) probs.push(`periodicidade não reconhecida ("${txt("periodicidade")}")`);
+    // A falta de número de processo NÃO descarta a pessoa: ela entra como "não vinculada".
+    const processos = separarNumeros(txt("processo"));
+    const outros = [...separarNumeros(txt("acao_penal")), ...separarNumeros(txt("ip"))];
     const numeros = [txt("processo"), txt("acao_penal"), txt("ip")].filter(Boolean);
-    if (!numeros.length) probs.push("sem número de processo");
     if (probs.length || !per) { erros.push({ linha: nLinha, pessoa: pessoa || "—", motivo: probs.join("; ") }); return; }
     const dados: Record<string, string> = {};
     (["sistema", "ip", "acao_penal", "providencia", "aplicacao", "dias", "situacao"] as Campo[]).forEach((c) => {
       const s = c === "aplicacao" ? aplicacao ?? "" : txt(c);
       if (s) dados[ROTULOS[c]] = s;
     });
-    validas.push({ linha: nLinha, numeros, pessoa, cpf: txt("cpf"), periodicidade: per.periodicidade, intervalo: per.intervalo, ultima: ultima ?? null, aplicacao: aplicacao ?? null, dados });
+    validas.push({ linha: nLinha, numeros, processos, outros, pessoa, cpf: txt("cpf"), periodicidade: per.periodicidade, intervalo: per.intervalo, ultima: ultima ?? null, aplicacao: aplicacao ?? null, dados });
   });
 
   // Duplicidade = mesma pessoa (CPF ou nome) no mesmo processo, dentro da planilha.
-  const chave = (l: LinhaComp) => `${(l.numeros[0] ?? "").replace(/\D/g, "")}|${l.cpf.replace(/\D/g, "") || norm(l.pessoa)}`;
+  const chave = (l: LinhaComp) => `${[...l.processos].sort().join(",")}|${l.cpf.replace(/\D/g, "") || norm(l.pessoa)}`;
   const cont = new Map<string, number>();
   validas.forEach((l) => cont.set(chave(l), (cont.get(chave(l)) ?? 0) + 1));
-  const duplicados = validas.filter((l) => (cont.get(chave(l)) ?? 0) > 1).map((l) => ({ linha: l.linha, pessoa: l.pessoa, motivo: "mesma pessoa e processo repetidos na planilha" }));
+  const duplicados = validas.filter((l) => (cont.get(chave(l)) ?? 0) > 1).map((l) => ({ linha: l.linha, pessoa: l.pessoa, motivo: "possível duplicidade: mesma pessoa e processo repetidos na planilha" }));
   return { total, reconhecidas: cab.filter((_, i) => mapa[i]), validas: validas.filter((l) => (cont.get(chave(l)) ?? 0) === 1), erros, duplicados };
 }
 
-export interface ItemResultado extends LinhaComp { numero?: string; proximo?: string; proximo_antes?: string }
-export interface ResultadoComp { total: number; novos: ItemResultado[]; atualizados: ItemResultado[]; sem_alteracao: number; nao_vinculados: ItemResultado[] }
+/** Separa uma célula em números individuais (ignora espaços/pontuação dentro do número). */
+export function separarNumeros(celula: string): string[] {
+  const out: string[] = [];
+  for (const parte of celula.split(/[;,/|\n]+|\s+e\s+/i)) {
+    const d = parte.replace(/\D/g, "");
+    if (d.length < 10) continue;
+    if (d.length > 20 && d.length % 20 === 0) for (let i = 0; i < d.length; i += 20) out.push(d.slice(i, i + 20));
+    else out.push(d);
+  }
+  return [...new Set(out)];
+}
+
+export interface ItemResultado extends LinhaComp { numero?: string; proximo?: string; proximo_antes?: string; vinculo?: string; motivo?: string; sugestoes?: string[] }
+export interface ResultadoComp {
+  total: number; novos: ItemResultado[]; atualizados: ItemResultado[]; sem_alteracao: number; nao_vinculados: ItemResultado[];
+  processos_encontrados: number; processos_criados: { numero: string; pessoa: string; linha: number }[];
+  correspondencias: { linha: number; pessoa: string; sugestoes: string[] }[];
+}
 
 export async function executarImportacaoComparecimentos(arquivo: string, linhas: LinhaComp[], simular: boolean): Promise<ResultadoComp> {
   const { data, error } = await supabase.rpc("importar_comparecimentos" as never, { p_arquivo: arquivo, p_linhas: linhas, p_simular: simular } as never);

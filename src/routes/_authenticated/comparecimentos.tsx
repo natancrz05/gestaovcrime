@@ -57,7 +57,21 @@ function Pagina() {
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
   const ativos = lista.filter((c) => c.situacao !== "Encerrado");
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
-  const exibidos = filtro ? ativos.filter((c) => c.status === filtro) : lista;
+  const [termo, setTermo] = useState("");
+  const porSituacao = filtro ? ativos.filter((c) => c.status === filtro) : lista;
+  const exibidos = useMemo(() => {
+    const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (!t) return porSituacao;
+    const d = t.replace(/\D/g, "");
+    return porSituacao.filter((c) => {
+      const campos = [c.pessoa, c.numero, c.cpf, ...(c.numeros_informados ?? []), ...Object.values(c.dados_planilha ?? {})];
+      return campos.some((x) => {
+        const s = String(x ?? "");
+        if (s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(t)) return true;
+        return d.length >= 3 && s.replace(/\D/g, "").includes(d);
+      });
+    });
+  }, [porSituacao, termo]);
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["comparecimentos"] });
@@ -99,6 +113,11 @@ function Pagina() {
         })}
       </section>
 
+      <div className="max-w-md">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="pesq-comp">Pesquisar comparecimentos</label>
+        <input id="pesq-comp" type="search" className={CLASSE_CAMPO} placeholder="Nome, processo, CPF, IP ou ação penal..." value={termo} onChange={(e) => setTermo(e.target.value)} />
+      </div>
+
       <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
           <div className="overflow-x-auto">
@@ -109,8 +128,8 @@ function Pagina() {
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="px-2 py-2 font-medium">{c.pessoa}</td>
-                    <td className="numero-processo whitespace-nowrap px-2 py-2">{c.numero}</td>
+                    <td className="px-2 py-2 font-medium">{c.pessoa}{c.conferir ? <span title={c.motivo_conferencia} className="ml-2 rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</td>
+                    <td className={cn("whitespace-nowrap px-2 py-2", c.processo_id ? "numero-processo" : "text-muted-foreground")}>{c.processo_id ? c.numero : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
                     <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
@@ -135,6 +154,7 @@ function Pagina() {
                 {[["Processo", detalhe.numero], ["Data de início", formatarData(detalhe.data_inicio)], ["Periodicidade", detalhe.periodicidade === "Personalizado" ? `Personalizado — a cada ${detalhe.intervalo_meses} ${detalhe.intervalo_meses === 1 ? "mês" : "meses"}` : detalhe.periodicidade], ["Cadastro", detalhe.situacao]].map(([k, v]) => (
                   <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
                 ))}
+                {detalhe.conferir ? <div className="col-span-2 rounded-md border border-alerta/30 bg-alerta-suave p-2 text-alerta"><dt className="text-xs font-medium">Sinalizado para conferência</dt><dd>{detalhe.motivo_conferencia || "Conferir vínculo com o processo."}{detalhe.numeros_informados?.length ? ` Números informados: ${detalhe.numeros_informados.join(" / ")}` : ""}</dd></div> : null}
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Observação</dt><dd>{detalhe.observacao || "—"}</dd></div>
               </dl>
               <div>
@@ -151,10 +171,10 @@ function Pagina() {
                 )}
               </div>
               <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-3">
-                <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link>
+                {detalhe.processo_id ? <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link> : <span className="text-muted-foreground">Processo não vinculado — edite para vincular</span>}
                 {podeEditar ? (
                   <div className="flex gap-2">
-                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id, pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
+                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id ?? "", pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
                     {detalhe.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                   </div>
                 ) : null}

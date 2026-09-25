@@ -24,8 +24,13 @@ export interface RegistroComparecimento {
 
 export interface Comparecimento {
   id: string;
-  processo_id: string;
+  processo_id: string | null;
   pessoa: string;
+  cpf: string;
+  dados_planilha: Record<string, string> | null;
+  conferir: boolean;
+  motivo_conferencia: string;
+  numeros_informados: string[];
   data_inicio: string;
   periodicidade: string;
   intervalo_meses: number;
@@ -73,7 +78,7 @@ export function preparar(lista: Comparecimento[], hoje = hojeISO()): Comparecime
       );
       return {
         ...c,
-        numero: c.processos?.numero ?? "—",
+        numero: c.processos?.numero ?? "Não vinculado",
         status: situacaoPorData(c.proximo, hoje),
         dias: diasEntre(hoje, c.proximo),
         ultimo: historico[0]?.data_realizada ?? null,
@@ -129,7 +134,7 @@ export interface ComparecimentoEntrada {
 }
 
 export async function salvarComparecimento(v: ComparecimentoEntrada, id?: string) {
-  const dados = { ...v, pessoa: v.pessoa.trim().slice(0, 200), observacao: v.observacao.slice(0, 1000), intervalo_meses: mesesDe(v.periodicidade, v.intervalo_meses) };
+  const dados = { ...v, ...(v.processo_id ? { conferir: false, motivo_conferencia: "" } : {}), pessoa: v.pessoa.trim().slice(0, 200), observacao: v.observacao.slice(0, 1000), intervalo_meses: mesesDe(v.periodicidade, v.intervalo_meses) };
   const { error } = id
     ? await supabase.from("comparecimentos").update(dados).eq("id", id)
     : await supabase.from("comparecimentos").insert(dados);
