@@ -41,7 +41,7 @@ export const ROTULOS_REU: Record<Campo, string> = {
 export function tipoPrisaoDe(especie: string): string {
   const t = norm(especie);
   if (t.includes("PREVENT")) return "Prisão preventiva";
-  if (t.includes("TEMPOR")) return "Prisão temporária";
+  if (t.includes("TEMPORARIA")) return "Prisão temporária";
   if (t.includes("FLAGRAN")) return "Prisão em flagrante";
   return "Outra";
 }

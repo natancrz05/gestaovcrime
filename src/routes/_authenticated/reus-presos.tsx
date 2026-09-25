@@ -20,7 +20,7 @@ interface Preso {
 const presosQuery = () => queryOptions({
   queryKey: ["reus-presos"],
   queryFn: async () => {
-    const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).order("nome");
+    const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).neq("tipo_prisao", "Prisão temporária").order("nome");
     if (error) throw new Error(error.message);
     return (data ?? []) as unknown as Preso[];
   },
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
   component: Pagina,
 });
 
-const TIPOS = ["Prisão preventiva", "Prisão temporária", "Prisão em flagrante", "Outra"];
+const TIPOS = ["Prisão preventiva", "Prisão em flagrante", "Outra"];
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 function Pagina() {
@@ -87,7 +87,7 @@ function Pagina() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Preso", "Prisão", "Data da prisão", "Dias preso", "Processos relacionados", "Reavaliação"].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Processo", "Réu custodiado", "Prisão", "Data da prisão", "Dias preso", "Processos relacionados", "Reavaliação"].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
@@ -97,6 +97,10 @@ function Pagina() {
                   const dp = p.dados_planilha ?? {};
                   return (
                     <tr key={p.id}>
+                      <td className="px-2 py-2 text-xs whitespace-nowrap">
+                        {p.processo_id ? <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">{p.processos?.numero}</Link>
+                          : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : <span className="text-muted-foreground">Não vinculado</span>}
+                      </td>
                       <td className="px-2 py-2">
                         <div className="font-medium">{p.nome}{p.conferir ? <span title={p.motivo_conferencia} className="ml-2 rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</div>
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
