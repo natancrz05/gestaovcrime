@@ -8,7 +8,6 @@
 export const ORIGENS = [
   { valor: "manual", rotulo: "Cadastro manual" },
   { valor: "pje_tjba", rotulo: "PJe/TJBA" },
-  { valor: "importacao_comparecimentos", rotulo: "Importação de comparecimentos (conferir)" },
 ] as const;
 export type Origem = (typeof ORIGENS)[number]["valor"];
 export const rotuloOrigem = (v: string | null | undefined) =>
