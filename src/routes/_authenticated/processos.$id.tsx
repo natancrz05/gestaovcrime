@@ -1,5 +1,5 @@
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
-import { EtiquetaComparecimento } from "./comparecimentos";
+import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { AcoesProcesso } from "@/components/processos/EditarExcluirProcesso";

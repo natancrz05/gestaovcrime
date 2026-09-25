@@ -12,6 +12,7 @@ import { hojeISO } from "@/lib/processos/modelo";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
+import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import {
   SITUACOES_COMP,
   comparecimentosQuery,
@@ -42,11 +43,6 @@ export const Route = createFileRoute("/_authenticated/comparecimentos")({
 
 const BOTAO = "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted";
-
-export function EtiquetaComparecimento({ s }: { s: SituacaoComparecimento }) {
-  const n = SITUACOES_COMP.find((x) => x.chave === s)!;
-  return <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase", n.classe)}><span className={cn("size-1.5 rounded-full", n.ponto)} />{n.rotulo}</span>;
-}
 
 function Pagina() {
   const { data } = useSuspenseQuery(comparecimentosQuery());
