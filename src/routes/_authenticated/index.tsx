@@ -44,18 +44,23 @@ function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <header className="border-b border-border pb-5">
-        <h1 className="text-2xl font-semibold text-foreground">Gestão da Vara Criminal</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Comarca de Coração de Maria/BA</p>
-        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-          Quais processos precisam da atenção da serventia? Os indicadores são alertas de gestão e não
-          representam conclusão jurídica.
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Central de gestão da Vara Criminal</p>
+          <h1 className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">Painel da serventia</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Comarca de Coração de Maria/BA</p>
+        </div>
+        <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+          Os indicadores são alertas de gestão e não representam conclusão jurídica.
         </p>
       </header>
 
-      <section aria-label="Indicadores">
+      <section aria-labelledby="indicadores" className="space-y-3">
+        <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Situações prioritárias</h2>
         <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
       </section>
+
+      <h2 className="-mb-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agenda e acompanhamento</h2>
 
       <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr]">
         <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
