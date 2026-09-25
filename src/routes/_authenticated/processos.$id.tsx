@@ -1,3 +1,5 @@
+import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
+import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { AcoesProcesso } from "@/components/processos/EditarExcluirProcesso";
@@ -53,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/processos/$id")({
   component: Pagina,
 });
 
-const ABAS = ["Informações gerais", "Réus", "Prisão", "Partes", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações", "Histórico"] as const;
+const ABAS = ["Informações gerais", "Réus", "Prisão", "Partes", "Movimentações", "Audiências", "Pendências", "Prioridades", "Observações", "Comparecimentos", "Histórico"] as const;
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 
 function Pagina() {
@@ -224,6 +226,7 @@ function Pagina() {
         </Secao>
       )}
 
+      {aba === "Comparecimentos" && <ComparecimentosProcesso processoId={p.id} />}
       {aba === "Histórico" && <HistoricoProcesso processoId={p.id} />}
     </div>
   );
@@ -411,5 +414,30 @@ function Resumo({ rotulo, valor, sub, tom, onClick }: { rotulo: string; valor: s
       <p className={cn("mt-1 text-base font-semibold", tom === "urgente" ? "text-urgente" : tom === "atencao" ? "text-atencao" : "text-foreground")}>{valor}</p>
       {sub ? <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{sub}</p> : null}
     </button>
+  );
+}
+
+function ComparecimentosProcesso({ processoId }: { processoId: string }) {
+  const { data, isLoading } = useQuery(comparecimentosQuery());
+  const lista = preparar((data ?? []).filter((c) => c.processo_id === processoId));
+  return (
+    <Secao titulo="Comparecimentos">
+      {isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento cadastrado.</p> : (
+        <ul className="space-y-3">
+          {lista.map((c) => (
+            <li key={c.id} className="rounded-md border border-border p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{c.pessoa}</span>
+                <span className="flex items-center gap-2">Próximo comparecimento: <b>{formatarData(c.proximo)}</b> {c.situacao === "Encerrado" ? <span className="text-xs text-muted-foreground">Encerrado</span> : <EtiquetaComparecimento s={c.status} />}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {c.historico.length ? `Últimos: ${c.historico.slice(0, 3).map((r) => formatarData(r.data_realizada)).join(", ")} (${c.historico.length} registrados)` : "Nenhum comparecimento registrado."}
+              </p>
+              <Link to="/comparecimentos" search={{ situacao: "", id: c.id }} className="mt-1 inline-block text-xs font-medium text-primary hover:underline">Abrir cadastro completo</Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Secao>
   );
 }

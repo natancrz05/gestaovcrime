@@ -100,6 +100,98 @@ export type Database = {
         }
         Relationships: []
       }
+      comparecimento_registros: {
+        Row: {
+          comparecimento_id: string
+          criado_em: string
+          data_prevista: string
+          data_realizada: string
+          id: string
+          observacao: string
+          processo_id: string
+          situacao: string
+        }
+        Insert: {
+          comparecimento_id: string
+          criado_em?: string
+          data_prevista: string
+          data_realizada: string
+          id?: string
+          observacao?: string
+          processo_id: string
+          situacao: string
+        }
+        Update: {
+          comparecimento_id?: string
+          criado_em?: string
+          data_prevista?: string
+          data_realizada?: string
+          id?: string
+          observacao?: string
+          processo_id?: string
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparecimento_registros_comparecimento_id_fkey"
+            columns: ["comparecimento_id"]
+            isOneToOne: false
+            referencedRelation: "comparecimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comparecimento_registros_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comparecimentos: {
+        Row: {
+          criado_em: string
+          data_inicio: string
+          id: string
+          observacao: string
+          periodicidade: string
+          pessoa: string
+          processo_id: string
+          proximo: string
+          situacao: string
+        }
+        Insert: {
+          criado_em?: string
+          data_inicio: string
+          id?: string
+          observacao?: string
+          periodicidade?: string
+          pessoa: string
+          processo_id: string
+          proximo: string
+          situacao?: string
+        }
+        Update: {
+          criado_em?: string
+          data_inicio?: string
+          id?: string
+          observacao?: string
+          periodicidade?: string
+          pessoa?: string
+          processo_id?: string
+          proximo?: string
+          situacao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparecimentos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       importacao_itens: {
         Row: {
           acao: string
@@ -662,6 +754,10 @@ export type Database = {
         Returns: Json
       }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
+      registrar_comparecimento: {
+        Args: { p_data: string; p_id: string; p_obs: string }
+        Returns: string
+      }
       rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
