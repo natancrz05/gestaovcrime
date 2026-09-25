@@ -88,7 +88,7 @@ function Dashboard() {
         </div>
       </section>
 
-      <section aria-labelledby="painel-comp" className="grid gap-3 md:grid-cols-[1fr_1fr_3fr]">
+      <section aria-labelledby="painel-comp" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_3fr]">
         <h2 id="painel-comp" className="sr-only">Comparecimentos</h2>
         <Link to="/comparecimentos" search={{ situacao: "vencido", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparecimentos vencidos</p>
@@ -97,6 +97,10 @@ function Dashboard() {
         <Link to="/comparecimentos" search={{ situacao: "vencendo", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vencendo em 7 dias</p>
           <p className="mt-3 text-3xl font-semibold tabular-nums text-alerta">{comps.filter((c) => c.status === "vencendo").length}</p>
+        </Link>
+        <Link to="/comparecimentos" search={{ situacao: "regular", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparecimentos regulares</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-concluido">{comps.filter((c) => c.status === "regular").length}</p>
         </Link>
         <div className="rounded-lg border border-border bg-card p-4 shadow-card">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximos comparecimentos</p>

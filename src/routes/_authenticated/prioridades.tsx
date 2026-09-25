@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -81,10 +82,7 @@ function Pagina() {
       <Secao titulo="Manuais">
         {podeEditar ? <form onSubmit={salvar} className="grid gap-3 rounded-md border border-dashed border-border p-3 md:grid-cols-[2fr_2fr_1fr] md:items-end">
           <Campo rotulo="Processo">
-            <select className={CLASSE_CAMPO} value={form.processo_id} onChange={(e) => setForm({ ...form, processo_id: e.target.value })}>
-              <option value="">Selecione…</option>
-              {processos.map((p) => <option key={p.id} value={p.id}>{p.numero}</option>)}
-            </select>
+            <SeletorProcesso value={form.processo_id} onChange={(id) => setForm({ ...form, processo_id: id })} />
           </Campo>
           <Campo rotulo="Título">
             <input className={CLASSE_CAMPO} value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />

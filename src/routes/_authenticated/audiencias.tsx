@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -225,10 +226,7 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
     >
       <div className="md:col-span-3">
         <Campo rotulo="Processo">
-          <select className={CLASSE_CAMPO} value={v.processo_id} onChange={(e) => setV({ ...v, processo_id: e.target.value })}>
-            <option value="">Selecione…</option>
-            {processos.map((p) => <option key={p.id} value={p.id}>{p.numero}</option>)}
-          </select>
+          <SeletorProcesso value={v.processo_id} onChange={(id) => setV({ ...v, processo_id: id })} />
         </Campo>
       </div>
       <Campo rotulo="Tipo de audiência"><select className={CLASSE_CAMPO} value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}><Opcoes valores={TIPOS_AUDIENCIA} /></select></Campo>
