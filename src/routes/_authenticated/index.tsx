@@ -8,6 +8,7 @@ import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
+import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
 import { listarCentral } from "@/lib/processos/central";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/")({
       { property: "og:description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosQuery()),
+  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
@@ -35,6 +36,8 @@ function Dashboard() {
   const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
   const acoes = proximasAcoes(pendencias).slice(0, 8);
   const audFuturas = futuras(listarAudienciasDe(processos));
+  const { data: compData } = useSuspenseQuery(comparecimentosQuery());
+  const comps = preparar(compData).filter((c) => c.situacao !== "Encerrado");
   const aguardando = listarCentral(processos).length;
   const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
   const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
@@ -81,6 +84,27 @@ function Dashboard() {
               </li>
             ))}
             {audFuturas.length === 0 ? <li className="text-muted-foreground">Nenhuma audiência futura.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="painel-comp" className="grid gap-3 md:grid-cols-[1fr_1fr_3fr]">
+        <h2 id="painel-comp" className="sr-only">Comparecimentos</h2>
+        <Link to="/comparecimentos" search={{ situacao: "vencido", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparecimentos vencidos</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-urgente">{comps.filter((c) => c.status === "vencido").length}</p>
+        </Link>
+        <Link to="/comparecimentos" search={{ situacao: "vencendo", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vencendo em 7 dias</p>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-alerta">{comps.filter((c) => c.status === "vencendo").length}</p>
+        </Link>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-card">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximos comparecimentos</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {comps.filter((c) => c.status !== "vencido").slice(0, 4).map((c) => (
+              <li key={c.id}><Link to="/comparecimentos" search={{ situacao: "", id: c.id }} className="hover:underline"><span className="font-medium">{formatarData(c.proximo)}</span> · {c.pessoa} · <span className="numero-processo text-muted-foreground">{c.numero}</span></Link></li>
+            ))}
+            {comps.every((c) => c.status === "vencido") ? <li className="text-muted-foreground">Nenhum comparecimento futuro.</li> : null}
           </ul>
         </div>
       </section>

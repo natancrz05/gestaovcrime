@@ -19,6 +19,7 @@ import {
   FileBarChart2,
   Settings,
   Scale,
+  UserCheck,
 } from "lucide-react";
 
 export const ITENS_NAV = [
@@ -29,6 +30,7 @@ export const ITENS_NAV = [
   { para: "/prisoes-temporarias", rotulo: "Prisões Temporárias", icone: Timer, exato: false },
   { para: "/sem-movimentacao", rotulo: "Sem Movimentação", icone: PauseCircle, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
+  { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
   { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList, exato: false },
   { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2, exato: false },
   { para: "/configuracoes", rotulo: "Configurações", icone: Settings, exato: false },
