@@ -57,7 +57,7 @@ export function formatarNumeroCNJ(d: string) {
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
 }
 
-function paraData(v: unknown): string | null | undefined {
+export function paraData(v: unknown): string | null | undefined {
   if (v === null || v === undefined || v === "") return undefined;
   if (v instanceof Date && !isNaN(v.getTime())) {
     return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;

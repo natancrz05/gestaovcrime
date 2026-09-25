@@ -4,7 +4,8 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { CheckCircle2, Pencil, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Upload } from "lucide-react";
+import { ImportarComparecimentos } from "@/components/processos/ImportarComparecimentos";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,16 +66,21 @@ function Pagina() {
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
+  const [importar, setImportar] = useState(false);
 
   return (
     <div className="space-y-6">
+      {podeEditar ? <ImportarComparecimentos aberto={importar} onFechar={() => setImportar(false)} onConcluir={recarregar} /> : null}
       <Cabecalho
         titulo="Comparecimentos"
         subtitulo={`${ativos.length} cadastros ativos`}
         acao={podeEditar ? (
+          <div className="flex flex-wrap gap-2">
+          <button className={BOTAO_SEC + " h-9"} onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
           <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1), observacao: "", situacao: "Ativo" } })}>
             <Plus className="size-4" /> Novo comparecimento
           </button>
+          </div>
         ) : undefined}
       />
 
