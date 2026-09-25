@@ -3,12 +3,13 @@ import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
+import { confirmarAudiencia, estaPendente } from "@/lib/processos/audiencias";
 import { processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada } from "@/lib/processos/repositorio";
 import {
   CONFIG_AUDIENCIAS,
@@ -59,12 +60,25 @@ function Pagina() {
   const extensas = prox.filter((a) => a.prazoExtenso);
 
   const [detalhe, setDetalhe] = useState<AudienciaListada | null>(null);
+  const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
+  const [filtroSit, setFiltroSit] = useState("Todas");
+  const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
+  const listadas = filtroSit === "Todas" ? todas : todas.filter((a) => rotuloSit(a.situacao) === filtroSit);
+  async function executarConfirmacao() {
+    if (!confirmar) return;
+    setConfirmar({ ...confirmar, salvando: true, erro: undefined });
+    try {
+      await confirmarAudiencia(confirmar.a.id, confirmar.data, confirmar.obs);
+      await recarregar();
+      setConfirmar(null); setDetalhe(null);
+    } catch (e) { setConfirmar({ ...confirmar, salvando: false, erro: e instanceof Error ? e.message : "Falha ao confirmar" }); }
+  }
   const [edicao, setEdicao] = useState<{ id?: string; valores: AudienciaEntrada } | null>(null);
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
   const podeEditar = usePode("editar");
 
-  const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Instrução", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Designada", observacao: "" });
+  const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Instrução", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
   const editar = (a: AudienciaListada) => {
     setDetalhe(null);
     setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: a.tipo, data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao } });
@@ -99,14 +113,21 @@ function Pagina() {
       <Calendario audiencias={todas} onAbrir={setDetalhe} />
 
       <Secao titulo="Todas as audiências">
-        {todas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma audiência registrada.</p> : (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {["Todas", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
+            <button key={s} aria-pressed={filtroSit === s} onClick={() => setFiltroSit(s)} className={cn("rounded-full border border-border px-3 py-1 text-xs", filtroSit === s ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+              {s === "Todas" ? "Todas" : s + "s"} ({s === "Todas" ? todas.length : todas.filter((a) => rotuloSit(a.situacao) === s).length})
+            </button>
+          ))}
+        </div>
+        {listadas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma audiência registrada.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>{["Data", "Horário", "Processo", "Réu", "Tipo", "Modalidade", "Situação", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {todas.map((a) => (
+                {listadas.map((a) => (
                   <tr key={a.id} className={cn("cursor-pointer hover:bg-muted/40", a.dias < 0 && "text-muted-foreground")} onClick={() => setDetalhe(a)}>
                     <td className="whitespace-nowrap px-2 py-2 font-medium">{formatarData(a.data)}</td>
                     <td className="px-2 py-2">{horaCurta(a.horario)}</td>
@@ -114,7 +135,7 @@ function Pagina() {
                     <td className="px-2 py-2">{a.reu}</td>
                     <td className="px-2 py-2">{a.tipo}</td>
                     <td className="px-2 py-2">{a.modalidade}</td>
-                    <td className="px-2 py-2">{a.situacao}</td>
+                    <td className="px-2 py-2">{rotuloSit(a.situacao)}</td>
                     <td className="px-2 py-2">{a.prazoExtenso ? <EtiquetaExtenso /> : a.dias === 0 ? <span className="text-xs font-semibold text-urgente">Hoje</span> : null}</td>
                   </tr>
                 ))}
@@ -151,7 +172,8 @@ function Pagina() {
                 {[
                   ["Processo", detalhe.numero], ["Réu", detalhe.reu], ["Tipo", detalhe.tipo],
                   ["Data", formatarData(detalhe.data)], ["Horário", horaCurta(detalhe.horario)], ["Modalidade", detalhe.modalidade],
-                  ["Local/sala", detalhe.local || "—"], ["Situação", detalhe.situacao],
+                  ["Local/sala", detalhe.local || "—"], ["Situação", rotuloSit(detalhe.situacao)],
+                  ...(detalhe.data_realizacao ? [["Realizada em", formatarData(detalhe.data_realizacao)]] : []),
                 ].map(([k, v]) => (
                   <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
                 ))}
@@ -162,10 +184,31 @@ function Pagina() {
                 <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="text-sm font-medium text-primary hover:underline">Abrir ficha do processo</Link>
                 <div className="flex gap-2">
                   {podeEditar ? <>
+                  {estaPendente(detalhe) ? <button className={BOTAO_SEC} onClick={() => setConfirmar({ a: detalhe, data: hoje, obs: "" })}><CheckCircle2 className="size-3.5" /> Confirmar realização</button> : null}
                   <button className={BOTAO_SEC} onClick={() => editar(detalhe)}><Pencil className="size-3.5" /> Editar</button>
                   <button className={BOTAO_SEC} onClick={() => excluir(detalhe)}><Trash2 className="size-3.5" /> Excluir</button>
                   </> : null}
                 </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmar} onOpenChange={(o) => !o && setConfirmar(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar realização da audiência</DialogTitle></DialogHeader>
+          {confirmar ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">{confirmar.a.numero} · {confirmar.a.tipo} agendada para {formatarData(confirmar.a.data)} {horaCurta(confirmar.a.horario)}. A data e o horário agendados são mantidos.</p>
+              <label className="block"><span className="text-xs text-muted-foreground">Data efetiva da realização</span>
+                <input type="date" className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2" value={confirmar.data} onChange={(e) => setConfirmar({ ...confirmar, data: e.target.value })} /></label>
+              <label className="block"><span className="text-xs text-muted-foreground">Observação (opcional)</span>
+                <textarea className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5" rows={3} value={confirmar.obs} onChange={(e) => setConfirmar({ ...confirmar, obs: e.target.value })} /></label>
+              {confirmar.erro ? <p className="text-urgente">{confirmar.erro}</p> : null}
+              <div className="flex justify-end gap-2">
+                <button className={BOTAO_SEC} onClick={() => setConfirmar(null)}>Cancelar</button>
+                <button className={BOTAO} disabled={!confirmar.data || confirmar.salvando} onClick={executarConfirmacao}>Confirmar realização</button>
               </div>
             </div>
           ) : null}

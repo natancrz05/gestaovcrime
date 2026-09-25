@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           criado_em: string
           data: string
+          data_realizacao: string | null
           horario: string | null
           id: string
           local: string
@@ -30,6 +31,7 @@ export type Database = {
         Insert: {
           criado_em?: string
           data: string
+          data_realizacao?: string | null
           horario?: string | null
           id?: string
           local?: string
@@ -42,6 +44,7 @@ export type Database = {
         Update: {
           criado_em?: string
           data?: string
+          data_realizacao?: string | null
           horario?: string | null
           id?: string
           local?: string
@@ -736,6 +739,10 @@ export type Database = {
     }
     Functions: {
       auditoria_nome: { Args: { _uid: string }; Returns: string }
+      confirmar_audiencia: {
+        Args: { p_data: string; p_id: string; p_obs: string }
+        Returns: undefined
+      }
       desfazer_importacao: { Args: { p_id: string }; Returns: Json }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
       has_role: {

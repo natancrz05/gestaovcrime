@@ -39,8 +39,9 @@ export interface ItemCentral {
 
 export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral | null {
   if (!tarefaIndicaAudiencia(p.pje_tarefas)) return null;
-  // Fonte principal: DATA ULT MOV da planilha; na falta dela, a última movimentação registrada.
-  const ultimaMov = p.pje_ultima_mov_data ?? ultimaMovimentacao(p)?.data ?? null;
+  // A mais recente entre DATA ULT MOV da planilha e as movimentações registradas (ex.: audiência realizada).
+  const datas = [p.pje_ultima_mov_data, ultimaMovimentacao(p)?.data].filter(Boolean) as string[];
+  const ultimaMov = datas.sort().at(-1) ?? null;
   const dias = ultimaMov && !contagemSuspensa(p) ? diasEntre(ultimaMov, hoje) : null;
   return {
     processo: p,

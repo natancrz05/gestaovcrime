@@ -97,6 +97,7 @@ export interface AudienciaProcesso {
   modalidade: string;
   observacao: string;
   criado_em: string;
+  data_realizacao?: string | null;
 }
 
 export interface PendenciaProcesso {
@@ -260,7 +261,7 @@ export function reuPrincipal(p: ProcessoCompleto): Reu | null {
 
 export function proximaAudiencia(p: ProcessoCompleto, hoje = hojeISO()): AudienciaProcesso | null {
   return (
-    p.audiencias.filter((a) => a.data >= hoje).sort((a, b) => a.data.localeCompare(b.data))[0] ??
+    p.audiencias.filter((a) => a.data >= hoje && a.situacao !== "Realizada" && a.situacao !== "Cancelada").sort((a, b) => a.data.localeCompare(b.data))[0] ??
     null
   );
 }
