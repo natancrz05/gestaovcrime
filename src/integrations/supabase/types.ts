@@ -153,44 +153,53 @@ export type Database = {
       }
       comparecimentos: {
         Row: {
+          conferir: boolean
           cpf: string
           criado_em: string
           dados_planilha: Json
           data_inicio: string
           id: string
           intervalo_meses: number
+          motivo_conferencia: string
+          numeros_informados: string[]
           observacao: string
           periodicidade: string
           pessoa: string
-          processo_id: string
+          processo_id: string | null
           proximo: string
           situacao: string
         }
         Insert: {
+          conferir?: boolean
           cpf?: string
           criado_em?: string
           dados_planilha?: Json
           data_inicio: string
           id?: string
           intervalo_meses?: number
+          motivo_conferencia?: string
+          numeros_informados?: string[]
           observacao?: string
           periodicidade?: string
           pessoa: string
-          processo_id: string
+          processo_id?: string | null
           proximo: string
           situacao?: string
         }
         Update: {
+          conferir?: boolean
           cpf?: string
           criado_em?: string
           dados_planilha?: Json
           data_inicio?: string
           id?: string
           intervalo_meses?: number
+          motivo_conferencia?: string
+          numeros_informados?: string[]
           observacao?: string
           periodicidade?: string
           pessoa?: string
-          processo_id?: string
+          processo_id?: string | null
           proximo?: string
           situacao?: string
         }
@@ -553,6 +562,7 @@ export type Database = {
           assunto: string
           classe: string
           comarca: string
+          conferir: boolean
           criado_em: string
           data_distribuicao: string | null
           fase: string
@@ -587,6 +597,7 @@ export type Database = {
           assunto?: string
           classe: string
           comarca?: string
+          conferir?: boolean
           criado_em?: string
           data_distribuicao?: string | null
           fase?: string
@@ -621,6 +632,7 @@ export type Database = {
           assunto?: string
           classe?: string
           comarca?: string
+          conferir?: boolean
           criado_em?: string
           data_distribuicao?: string | null
           fase?: string
