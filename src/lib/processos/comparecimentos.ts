@@ -28,6 +28,7 @@ export interface Comparecimento {
   pessoa: string;
   data_inicio: string;
   periodicidade: string;
+  intervalo_meses: number;
   proximo: string;
   observacao: string;
   situacao: string;
@@ -86,26 +87,49 @@ export function preparar(lista: Comparecimento[], hoje = hojeISO()): Comparecime
     });
 }
 
-/** Soma um mês mantendo o dia (ex.: 10/09 → 10/10). */
-export function somarMes(iso: string): string {
+/**
+ * Periodicidade = intervalo definido para aquele processo (decisão, acordo ou
+ * medida aplicável). Não presume previsão legal específica.
+ */
+export const PERIODICIDADES = [
+  { v: "Mensal", meses: 1 },
+  { v: "Bimestral", meses: 2 },
+  { v: "Trimestral", meses: 3 },
+  { v: "Quadrimestral", meses: 4 },
+  { v: "Semestral", meses: 6 },
+  { v: "Anual", meses: 12 },
+  { v: "Personalizado", meses: 0 },
+] as const;
+
+export function mesesDe(periodicidade: string, personalizado: number): number {
+  const p = PERIODICIDADES.find((x) => x.v === periodicidade);
+  return p && p.meses > 0 ? p.meses : Math.max(1, Math.min(120, Math.floor(personalizado) || 1));
+}
+
+/** Soma N meses mantendo o dia; se o dia não existir, usa o último dia do mês (ex.: 31/01 + 1 → 28/02). */
+export function somarMeses(iso: string, n = 1): string {
   const [a, m, d] = iso.split("-").map(Number) as [number, number, number];
-  const ultimoDia = new Date(a, m + 1, 0).getDate();
-  const nm = m === 12 ? 1 : m + 1;
-  const na = m === 12 ? a + 1 : a;
+  const total = a * 12 + (m - 1) + n;
+  const na = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  const ultimoDia = new Date(na, nm, 0).getDate();
   return `${na}-${String(nm).padStart(2, "0")}-${String(Math.min(d, ultimoDia)).padStart(2, "0")}`;
 }
+export const somarMes = (iso: string) => somarMeses(iso, 1);
 
 export interface ComparecimentoEntrada {
   processo_id: string;
   pessoa: string;
   data_inicio: string;
+  periodicidade: string;
+  intervalo_meses: number;
   proximo: string;
   observacao: string;
   situacao: string;
 }
 
 export async function salvarComparecimento(v: ComparecimentoEntrada, id?: string) {
-  const dados = { ...v, pessoa: v.pessoa.trim().slice(0, 200), observacao: v.observacao.slice(0, 1000), periodicidade: "Mensal" };
+  const dados = { ...v, pessoa: v.pessoa.trim().slice(0, 200), observacao: v.observacao.slice(0, 1000), intervalo_meses: mesesDe(v.periodicidade, v.intervalo_meses) };
   const { error } = id
     ? await supabase.from("comparecimentos").update(dados).eq("id", id)
     : await supabase.from("comparecimentos").insert(dados);
