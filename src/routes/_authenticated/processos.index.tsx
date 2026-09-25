@@ -13,6 +13,7 @@ import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
   diasSemMovimentacao,
+  rotuloFluxo,
   hojeISO,
   pendenciasAbertas,
   proximaAudiencia,
@@ -209,7 +210,7 @@ function Pagina() {
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
               <tr>
-                {["Número", "Réu principal", "Classe", "Situação", "Última movimentação", "Dias s/ mov.", "Prioridade", "Próx. audiência", "Pendências", "Responsável"].map((h) => (
+                {["Número", "Réu principal", "Classe", "Situação", "Fluxo atual", "Última movimentação", "Dias s/ mov.", "Prioridade", "Próx. audiência", "Pendências", "Responsável"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-3 py-2.5 font-medium">{h}</th>
                 ))}
               </tr>
@@ -239,6 +240,7 @@ function Pagina() {
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">{p.classe}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">{p.status}</td>
+                    <td className="min-w-40 px-3 py-2.5 text-xs font-medium" title={p.pje_tarefas ?? undefined}>{rotuloFluxo(p)}</td>
                     <td className="px-3 py-2.5">
                       <div>{formatarData(ult?.data ?? null)}</div>
                       <div className="text-xs text-muted-foreground">{ult?.descricao}</div>

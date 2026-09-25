@@ -231,6 +231,16 @@ export function fluxoAtual(p: ProcessoCompleto): InfoFluxo {
   return f("OUTROS");
 }
 
+/** Texto exibido como "Fluxo atual": a tarefa específica (sem prefixo "(CR)"/"(TJBA)"),
+ *  exceto em arquivo provisório/definitivo, que mostram a categoria. "—" se não houver dados. */
+export function rotuloFluxo(p: ProcessoCompleto): string {
+  if (!p.pje_tarefas && !p.pje_situacao && !p.pje_concluso) return "—";
+  const fx = fluxoAtual(p);
+  if (fx.fluxo === "ARQUIVO PROVISÓRIO" || fx.fluxo === "ARQUIVADO DEFINITIVAMENTE") return fx.fluxo;
+  const t = (p.pje_tarefas ?? "").replace(/\((CR|TJBA)\)\s*/gi, "").trim();
+  return t || fx.fluxo;
+}
+
 /** Arquivo provisório ou arquivamento definitivo suspendem a contagem de dias parado. */
 export function contagemSuspensa(p: ProcessoCompleto): boolean {
   const x = fluxoAtual(p).fluxo;
