@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -206,10 +207,7 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
       try { await onSalvar(v); } catch (err) { setErro(err instanceof Error ? err.message : "Erro ao salvar."); setSalvando(false); }
     }}>
       <Campo rotulo="Processo">
-        <select className={CLASSE_CAMPO} value={v.processo_id} onChange={(e) => setV({ ...v, processo_id: e.target.value })}>
-          <option value="">Selecione…</option>
-          {processos.map((p) => <option key={p.id} value={p.id}>{p.numero}</option>)}
-        </select>
+        <SeletorProcesso value={v.processo_id} onChange={(id) => setV({ ...v, processo_id: id })} />
       </Campo>
       <Campo rotulo="Pessoa"><input className={CLASSE_CAMPO} maxLength={200} value={v.pessoa} onChange={(e) => setV({ ...v, pessoa: e.target.value })} /></Campo>
       <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => setV({ ...v, data_inicio: e.target.value })} /></Campo>

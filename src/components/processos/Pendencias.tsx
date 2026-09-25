@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CLASSE_CAMPO, Campo, Opcoes } from "@/components/processos/campos";
@@ -68,10 +69,7 @@ export function FormPendencia({
         <div className="sm:col-span-2"><Campo rotulo="Título"><input className={CLASSE_CAMPO} value={f.titulo} onChange={(e) => set("titulo", e.target.value)} /></Campo></div>
         {processos ? (
           <div className="sm:col-span-2"><Campo rotulo="Processo relacionado">
-            <select className={CLASSE_CAMPO} value={f.processo_id} onChange={(e) => set("processo_id", e.target.value)}>
-              <option value="">Selecione…</option>
-              {processos.map((p) => <option key={p.id} value={p.id}>{p.numero} — {p.classe}</option>)}
-            </select>
+            <SeletorProcesso value={f.processo_id} onChange={(id) => set("processo_id", id)} />
           </Campo></div>
         ) : null}
         <Campo rotulo="Tipo"><select className={CLASSE_CAMPO} value={f.tipo} onChange={(e) => set("tipo", e.target.value)}><Opcoes valores={TIPOS_PENDENCIA} /></select></Campo>
