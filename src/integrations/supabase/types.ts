@@ -153,7 +153,9 @@ export type Database = {
       }
       comparecimentos: {
         Row: {
+          cpf: string
           criado_em: string
+          dados_planilha: Json
           data_inicio: string
           id: string
           intervalo_meses: number
@@ -165,7 +167,9 @@ export type Database = {
           situacao: string
         }
         Insert: {
+          cpf?: string
           criado_em?: string
+          dados_planilha?: Json
           data_inicio: string
           id?: string
           intervalo_meses?: number
@@ -177,7 +181,9 @@ export type Database = {
           situacao?: string
         }
         Update: {
+          cpf?: string
           criado_em?: string
+          dados_planilha?: Json
           data_inicio?: string
           id?: string
           intervalo_meses?: number
@@ -752,6 +758,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      importar_comparecimentos: {
+        Args: { p_arquivo: string; p_linhas: Json; p_simular: boolean }
+        Returns: Json
+      }
       importar_processos: {
         Args: {
           p_aplicar_conflitos: boolean
@@ -769,6 +779,7 @@ export type Database = {
         Returns: string
       }
       rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
+      unaccent_safe: { Args: { t: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
