@@ -36,38 +36,51 @@ export const ITENS_NAV = [
   { para: "/configuracoes", rotulo: "Configurações", icone: Settings, exato: false },
 ] as const;
 
+const GRUPOS: { titulo: string; rotas: string[] }[] = [
+  { titulo: "Visão geral", rotas: ["/", "/processos", "/prioridades"] },
+  { titulo: "Acompanhamento", rotas: ["/reus-presos", "/prisoes-temporarias", "/sem-movimentacao", "/audiencias", "/comparecimentos", "/pendencias"] },
+  { titulo: "Administração", rotas: ["/relatorios", "/configuracoes"] },
+];
+
 export function BarraLateral() {
   const itens = useItensNav();
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex lg:w-72">
-      <div className="flex items-start gap-3 border-b border-sidebar-border px-5 py-5">
-        <span className="mt-0.5 flex size-9 items-center justify-center rounded-md bg-sidebar-accent">
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-5">
+        <span className="flex size-10 items-center justify-center rounded-lg bg-sidebar-accent ring-1 ring-sidebar-border">
           <Scale className="size-5 text-sidebar-accent-foreground" />
         </span>
         <div className="leading-tight">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-muted">Central de gestão</p>
           <p className="text-sm font-semibold text-sidebar-foreground">Vara Criminal</p>
           <p className="text-xs text-sidebar-muted">Coração de Maria/BA</p>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
-          Gestão da serventia
-        </p>
-        <ul className="space-y-0.5">
-          {itens.map(({ para, rotulo, icone: Icone, exato }) => (
-            <li key={para}>
-              <Link
-                to={para}
-                activeOptions={{ exact: exato }}
-                className="flex items-center gap-3 rounded-md px-2.5 py-2 text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:font-medium data-[status=active]:text-sidebar-accent-foreground"
-              >
-                <Icone className="size-4 shrink-0" />
-                {rotulo}
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+        {GRUPOS.map((g) => {
+          const doGrupo = itens.filter((i) => g.rotas.includes(i.para));
+          if (!doGrupo.length) return null;
+          return (
+            <div key={g.titulo}>
+              <p className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-sidebar-muted/80">{g.titulo}</p>
+              <ul className="space-y-0.5">
+                {doGrupo.map(({ para, rotulo, icone: Icone, exato }) => (
+                  <li key={para}>
+                    <Link
+                      to={para}
+                      activeOptions={{ exact: exato }}
+                      className="group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:font-medium data-[status=active]:text-sidebar-accent-foreground before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-r before:bg-transparent data-[status=active]:before:bg-sidebar-foreground"
+                    >
+                      <Icone className="size-[18px] shrink-0" strokeWidth={1.75} />
+                      {rotulo}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       <BlocoUsuario />
