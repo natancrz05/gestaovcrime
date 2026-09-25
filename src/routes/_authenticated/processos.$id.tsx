@@ -27,6 +27,7 @@ import {
   TIPOS_PRISAO,
   diasSemMovimentacao,
   fluxoAtual,
+  rotuloFluxo,
   hojeISO,
   ultimaMovimentacao,
 } from "@/lib/processos/modelo";
@@ -82,7 +83,18 @@ function Pagina() {
       <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} acao={<AcoesProcesso p={p} />} />
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
-        {p.pje_tarefas || p.pje_situacao ? (() => { const fx = fluxoAtual(p); return <> · Fluxo atual: <span className="font-medium text-foreground">{fx.fluxo}{fx.noGabinete ? " (gabinete)" : fx.naSecretaria ? " (secretaria)" : ""}</span>{fx.tarefa ? <> — {fx.tarefa}</> : null}{fx.fluxo === "ARQUIVO PROVISÓRIO" ? " · contagem de dias suspensa" : ""}</>; })() : null}
+      </p>
+      {p.pje_tarefas || p.pje_situacao || p.pje_concluso ? (() => { const fx = fluxoAtual(p); return (
+        <div className="rounded-md border border-border bg-card px-4 py-3 text-sm">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Fluxo atual</div>
+          <div className="mt-0.5 text-base font-semibold text-foreground">{rotuloFluxo(p)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Categoria: {fx.fluxo}{fx.noGabinete ? " · no gabinete" : fx.naSecretaria ? " · na secretaria" : ""}
+            {" · "}TAREFA original: {p.pje_tarefas || "—"}
+            {fx.fluxo === "ARQUIVO PROVISÓRIO" ? " · contagem de dias suspensa" : ""}
+          </div>
+        </div>); })() : null}
+      <p className="hidden">
       </p>
 
       <section aria-label="Resumo do processo" className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
