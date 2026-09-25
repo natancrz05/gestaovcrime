@@ -3,7 +3,7 @@ import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,7 +60,7 @@ function Pagina() {
   const extensas = prox.filter((a) => a.prazoExtenso);
 
   const [detalhe, setDetalhe] = useState<AudienciaListada | null>(null);
-  const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string; salvando?: boolean } | null>(null);
+  const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
   const [filtroSit, setFiltroSit] = useState("Todas");
   const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
   const listadas = filtroSit === "Todas" ? todas : todas.filter((a) => rotuloSit(a.situacao) === filtroSit);
