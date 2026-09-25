@@ -44,38 +44,43 @@ function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <header className="border-b border-border pb-5">
-        <h1 className="text-2xl font-semibold text-foreground">Gestão da Vara Criminal</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Comarca de Coração de Maria/BA</p>
-        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-          Quais processos precisam da atenção da serventia? Os indicadores são alertas de gestão e não
-          representam conclusão jurídica.
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Central de gestão da Vara Criminal</p>
+          <h1 className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">Painel da serventia</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Comarca de Coração de Maria/BA</p>
+        </div>
+        <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+          Os indicadores são alertas de gestão e não representam conclusão jurídica.
         </p>
       </header>
 
-      <section aria-label="Indicadores">
+      <section aria-labelledby="indicadores" className="space-y-3">
+        <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Situações prioritárias</h2>
         <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
       </section>
+
+      <h2 className="-mb-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agenda e acompanhamento</h2>
 
       <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr]">
         <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências nos próximos 7 dias</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-info">{aud7}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Audiências nos próximos 7 dias</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-info">{aud7}</p>
           <p className="mt-1 text-xs text-muted-foreground" data-testid="aguardando-marcacao"><span className="font-semibold text-foreground">{aguardando}</span> aguardando marcação</p>
         </Link>
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Audiências com prazo extenso</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-atencao">{audExtensas}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Audiências com prazo extenso</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-atencao">{audExtensas}</p>
           <p className="mt-1 text-xs text-muted-foreground">Critério administrativo de acompanhamento</p>
         </Link>
         <Link to="/pendencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pendências</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">{pendAbertas}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendências</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-foreground">{pendAbertas}</p>
           <p className="mt-1 text-xs text-muted-foreground">Ainda não concluídas</p>
         </Link>
         <div className="rounded-lg border border-border bg-card p-4 shadow-card">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximas audiências</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Próximas audiências</p>
           <ul className="mt-2 space-y-1.5 text-sm">
             {audFuturas.slice(0, 4).map((a) => (
               <li key={a.id} className="flex flex-wrap justify-between gap-2">
@@ -91,19 +96,19 @@ function Dashboard() {
       <section aria-labelledby="painel-comp" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_3fr]">
         <h2 id="painel-comp" className="sr-only">Comparecimentos</h2>
         <Link to="/comparecimentos" search={{ situacao: "vencido", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparecimentos vencidos</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-urgente">{comps.filter((c) => c.status === "vencido").length}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Comparecimentos vencidos</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-urgente">{comps.filter((c) => c.status === "vencido").length}</p>
         </Link>
         <Link to="/comparecimentos" search={{ situacao: "vencendo", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vencendo em 7 dias</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-alerta">{comps.filter((c) => c.status === "vencendo").length}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Vencendo em 7 dias</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-alerta">{comps.filter((c) => c.status === "vencendo").length}</p>
         </Link>
         <Link to="/comparecimentos" search={{ situacao: "regular", id: "" }} className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparecimentos regulares</p>
-          <p className="mt-3 text-3xl font-semibold tabular-nums text-concluido">{comps.filter((c) => c.status === "regular").length}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Comparecimentos regulares</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-concluido">{comps.filter((c) => c.status === "regular").length}</p>
         </Link>
         <div className="rounded-lg border border-border bg-card p-4 shadow-card">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próximos comparecimentos</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Próximos comparecimentos</p>
           <ul className="mt-2 space-y-1 text-sm">
             {comps.filter((c) => c.status !== "vencido").slice(0, 4).map((c) => (
               <li key={c.id}><Link to="/comparecimentos" search={{ situacao: "", id: c.id }} className="hover:underline"><span className="font-medium">{formatarData(c.proximo)}</span> · {c.pessoa} · <span className="numero-processo text-muted-foreground">{c.numero}</span></Link></li>

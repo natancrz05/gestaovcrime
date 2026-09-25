@@ -33,16 +33,14 @@ export function CartoesCategorias({
             aria-pressed={ativo}
             onClick={() => onSelecionar(ativo ? null : c.chave)}
             className={cn(
-              "rounded-lg border bg-card p-4 text-left shadow-card transition-shadow hover:shadow-card-hover",
-              ativo ? "border-primary ring-2 ring-primary/30" : "border-border",
+              "group relative overflow-hidden rounded-lg border bg-card p-5 text-left shadow-card transition-all hover:-translate-y-px hover:shadow-card-hover",
+              ativo ? "border-primary ring-2 ring-primary/25" : "border-border",
             )}
           >
-            <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <span className={cn("size-2.5 rounded-full bg-current", COR_CLASSES[c.cor].texto)} />
-              {c.titulo}
-            </p>
-            <p className={cn("mt-3 text-3xl font-semibold tabular-nums", COR_CLASSES[c.cor].texto)}>{contagens[c.chave]}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{c.descricao}</p>
+            <span className={cn("absolute inset-x-0 top-0 h-[3px] bg-current opacity-80", COR_CLASSES[c.cor].texto)} />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{c.titulo}</p>
+            <p className={cn("mt-2 text-4xl font-semibold leading-none tabular-nums tracking-tight", contagens[c.chave] > 0 ? COR_CLASSES[c.cor].texto : "text-muted-foreground/60")}>{contagens[c.chave]}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.descricao}</p>
           </button>
         );
       })}
