@@ -3,7 +3,7 @@
  * audiência a partir do campo TAREFAS (planilha do PJe). Critério
  * administrativo de acompanhamento — sem conclusão jurídica.
  */
-import { diasEntre, hojeISO, proximaAudiencia, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "./modelo";
+import { contagemSuspensa, diasEntre, hojeISO, proximaAudiencia, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "./modelo";
 
 export type NivelAudiencia = "critica" | "alta" | "normal";
 
@@ -41,7 +41,7 @@ export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral 
   if (!tarefaIndicaAudiencia(p.pje_tarefas)) return null;
   // Fonte principal: DATA ULT MOV da planilha; na falta dela, a última movimentação registrada.
   const ultimaMov = p.pje_ultima_mov_data ?? ultimaMovimentacao(p)?.data ?? null;
-  const dias = ultimaMov ? diasEntre(ultimaMov, hoje) : null;
+  const dias = ultimaMov && !contagemSuspensa(p) ? diasEntre(ultimaMov, hoje) : null;
   return {
     processo: p,
     reu: reuPrincipal(p)?.nome ?? p.pje_reu ?? "—",
