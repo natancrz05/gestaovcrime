@@ -665,6 +665,44 @@ export type Database = {
         }
         Relationships: []
       }
+      reu_reavaliacoes: {
+        Row: {
+          criado_em: string
+          data_reavaliacao: string
+          id: string
+          observacao: string
+          proxima_data: string | null
+          reu_id: string
+          usuario_nome: string
+        }
+        Insert: {
+          criado_em?: string
+          data_reavaliacao: string
+          id?: string
+          observacao?: string
+          proxima_data?: string | null
+          reu_id: string
+          usuario_nome?: string
+        }
+        Update: {
+          criado_em?: string
+          data_reavaliacao?: string
+          id?: string
+          observacao?: string
+          proxima_data?: string | null
+          reu_id?: string
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reu_reavaliacoes_reu_id_fkey"
+            columns: ["reu_id"]
+            isOneToOne: false
+            referencedRelation: "reus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reus: {
         Row: {
           conferir: boolean
@@ -816,6 +854,15 @@ export type Database = {
       registrar_comparecimento: {
         Args: { p_data: string; p_id: string; p_obs: string }
         Returns: string
+      }
+      registrar_reavaliacao: {
+        Args: {
+          p_data: string
+          p_obs: string
+          p_proxima: string
+          p_reu: string
+        }
+        Returns: undefined
       }
       rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
       unaccent_safe: { Args: { t: string }; Returns: string }
