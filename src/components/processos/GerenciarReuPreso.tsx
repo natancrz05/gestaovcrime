@@ -16,7 +16,7 @@ export interface ReuEditavel {
   rji: string; especie_cautelar: string; observacoes?: string; dados_planilha: Record<string, string>;
 }
 
-const EXTRAS = ["Andamento do último procedimento", "Término de eventual prazo", "Prazo de reavaliação", "Sistema"] as const;
+const EXTRAS = ["Andamento do último procedimento", "Término de eventual prazo", "Prazo de reavaliação", "Data de reavaliação", "Sistema"] as const;
 const BTN = "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium disabled:opacity-50";
 
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
@@ -93,6 +93,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
             <Campo rotulo="Situação"><input className={CLASSE_CAMPO} value={f.situacao} onChange={set("situacao")} /></Campo>
             <Campo rotulo="Término de eventual prazo"><input type="date" className={CLASSE_CAMPO} value={extras["Término de eventual prazo"] ?? ""} onChange={(e) => setExtras({ ...extras, "Término de eventual prazo": e.target.value })} /></Campo>
             <Campo rotulo="Prazo de reavaliação"><input className={CLASSE_CAMPO} value={extras["Prazo de reavaliação"] ?? ""} onChange={(e) => setExtras({ ...extras, "Prazo de reavaliação": e.target.value })} /></Campo>
+            <Campo rotulo="Próxima reavaliação"><input type="date" className={CLASSE_CAMPO} value={extras["Data de reavaliação"] ?? ""} onChange={(e) => setExtras({ ...extras, "Data de reavaliação": e.target.value })} /></Campo>
             <Campo rotulo="Sistema"><input className={CLASSE_CAMPO} value={extras["Sistema"] ?? ""} onChange={(e) => setExtras({ ...extras, Sistema: e.target.value })} /></Campo>
             <Campo rotulo="Andamento do último procedimento"><input className={CLASSE_CAMPO} value={extras["Andamento do último procedimento"] ?? ""} onChange={(e) => setExtras({ ...extras, "Andamento do último procedimento": e.target.value })} /></Campo>
           </div>
@@ -184,4 +185,68 @@ export function situacaoRevisao(tipo: string, ultima: string | undefined, hoje: 
   if (d < 85) return { rotulo: "Regular", cls: "border-border bg-muted text-muted-foreground", dias: d };
   if (d === 85) return { rotulo: "Revisão próxima", cls: "border-alerta/30 bg-alerta-suave text-alerta", dias: d };
   return { rotulo: "Revisão pendente", cls: "border-urgente/30 bg-urgente-suave text-urgente", dias: d };
+}
+
+const TIPOS_REL = [["ip", "IP"], ["cautelar", "Processo cautelar"], ["acao_penal", "Ação penal"], ["outro", "Outro processo relacionado"]] as const;
+const soDig = (s: string) => s.replace(/\D/g, "");
+function formatarCNJ(d: string) { return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`; }
+
+/** Vincula um processo (existente ou criado de forma mínima) ao preso, no mesmo campo usado pelo importador. */
+export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEditavel & { processos_relacionados?: { tipo: string; numero: string; processo_id: string | null; situacao: string }[] }) | null; onFechar: () => void; onSalvo: () => void }) {
+  const [modo, setModo] = useState<"existente" | "novo">("existente");
+  const [proc, setProc] = useState("");
+  const [numero, setNumero] = useState("");
+  const [tipo, setTipo] = useState<string>("acao_penal");
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => { if (reu) { setModo("existente"); setProc(""); setNumero(""); setTipo("acao_penal"); } }, [reu]);
+  const salvar = async () => {
+    if (!reu) return;
+    setSalvando(true);
+    try {
+      let pid = proc; let num = "";
+      if (modo === "existente") {
+        if (!pid) throw new Error("Selecione o processo");
+        const { data } = await supabase.from("processos").select("numero").eq("id", pid).single();
+        num = data?.numero ?? "";
+      } else {
+        const d = soDig(numero);
+        if (d.length !== 20) throw new Error("Informe o número CNJ completo (20 dígitos)");
+        num = formatarCNJ(d);
+        const { data: ex } = await supabase.from("processos").select("id, numero").eq("numero", num).maybeSingle();
+        if (ex) { pid = ex.id; num = ex.numero; }
+        else {
+          const { data: novo, error } = await supabase.from("processos").insert({ numero: num, classe: "Não informada", origem: "manual", conferir: true }).select("id").single();
+          if (error) throw new Error(error.message);
+          pid = novo.id;
+        }
+      }
+      if (pid === reu.processo_id) throw new Error("Este já é o processo principal do preso");
+      const atuais = reu.processos_relacionados ?? [];
+      if (atuais.some((r) => r.processo_id === pid || soDig(r.numero) === soDig(num))) { toast.info("Processo já relacionado — vínculo existente mantido"); onFechar(); return; }
+      const lista = [...atuais, { tipo, numero: num, processo_id: pid, situacao: "manual" }];
+      const { error } = await supabase.from("reus").update({ processos_relacionados: lista }).eq("id", reu.id);
+      if (error) throw new Error(error.message);
+      toast.success("Processo relacionado adicionado"); onSalvo(); onFechar();
+    } catch (e) { toast.error((e as Error).message); } finally { setSalvando(false); }
+  };
+  return (
+    <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Adicionar processo relacionado — {reu?.nome}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <Campo rotulo="Tipo de relação"><select className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>{TIPOS_REL.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select></Campo>
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-1.5"><input type="radio" checked={modo === "existente"} onChange={() => setModo("existente")} /> Processo do acervo</label>
+            <label className="flex items-center gap-1.5"><input type="radio" checked={modo === "novo"} onChange={() => setModo("novo")} /> Não está no acervo</label>
+          </div>
+          {modo === "existente" ? <Campo rotulo="Processo"><SeletorProcesso value={proc} onChange={setProc} /></Campo>
+            : <Campo rotulo="Número do processo (cadastro mínimo, sinalizado para conferência)"><input className={CLASSE_CAMPO} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="0000000-00.0000.0.00.0000" /></Campo>}
+          <div className="flex justify-end gap-2">
+            <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
+            <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={salvar}>Salvar</button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

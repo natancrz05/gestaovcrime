@@ -2,6 +2,9 @@ import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos"
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
+import { AdicionarRelacionado, FormReuPreso, RegistrarReavaliacao, situacaoRevisao, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
+import { ROTULO_TIPO_PROC } from "@/lib/processos/importacao-reus";
+import { diasEntre } from "@/lib/processos/modelo";
 import { AcoesProcesso } from "@/components/processos/EditarExcluirProcesso";
 import { rotuloOrigem } from "@/lib/integracao/pje";
 import { useQuery } from "@tanstack/react-query";
@@ -196,24 +199,7 @@ function Pagina() {
           <Lista vazio="Nenhuma audiência registrada." itens={[...p.audiencias].sort((a, b) => a.data.localeCompare(b.data)).map((a) => ({ id: a.id, titulo: `${formatarData(a.data)} ${horaCurta(a.horario)} — ${a.tipo}`, sub: [a.modalidade, a.local, a.situacao, a.observacao].filter(Boolean).join(" · ") }))} />
         </Secao>
       )}
-      {aba === "Prisão" && (
-        <Secao titulo="Prisão">
-          {presos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu registrado como preso neste processo.</p> : (
-            <div className="space-y-2">
-              {presos.map((r) => (
-                <dl key={r.id} className="grid gap-3 rounded-md border border-urgente/25 bg-urgente-suave/40 p-3 text-sm sm:grid-cols-5">
-                  <div><dt className="text-xs text-muted-foreground">Réu</dt><dd className="font-medium">{r.nome}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">Situação</dt><dd>{r.situacao || "—"}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">Tipo de prisão</dt><dd>{r.tipo_prisao}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">Data da prisão</dt><dd>{formatarData(r.data_prisao)}</dd></div>
-                  <div><dt className="text-xs text-muted-foreground">Observações</dt><dd>{r.observacoes || "—"}</dd></div>
-                </dl>
-              ))}
-              <p className="text-xs text-muted-foreground">Informações registradas pela serventia — não constituem análise jurídica.</p>
-            </div>
-          )}
-        </Secao>
-      )}
+      {aba === "Prisão" && <AbaPrisao presos={presos as unknown as PresoFicha[]} podeEditar={podeEditar} recarregar={() => qc.invalidateQueries()} />}
       {aba === "Pendências" && <AbaPendencias p={p} recarregar={recarregar} />}
       {aba === "Prioridades" && (
         <Secao titulo="Prioridades" acao={<Link to="/prioridades" className="text-sm text-primary hover:underline">Gerenciar prioridades manuais</Link>}>
@@ -451,6 +437,60 @@ function ComparecimentosProcesso({ processoId }: { processoId: string }) {
             </li>
           ))}
         </ul>
+      )}
+    </Secao>
+  );
+}
+
+type PresoFicha = ReuEditavel & { observacoes: string; processos_relacionados?: { tipo: string; numero: string; processo_id: string | null; situacao: string }[] };
+const ORDEM_REL = ["acao_penal", "cautelar", "ip", "outro"];
+
+function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; podeEditar: boolean; recarregar: () => void }) {
+  const [editar, setEditar] = useState<PresoFicha | null>(null);
+  const [reav, setReav] = useState<PresoFicha | null>(null);
+  const [rel, setRel] = useState<PresoFicha | null>(null);
+  const hoje = hojeISO();
+  const LNK = "text-xs font-medium text-primary hover:underline";
+  return (
+    <Secao titulo="Prisão">
+      {podeEditar ? <>
+        <FormReuPreso aberto={!!editar} reu={editar} onFechar={() => setEditar(null)} onSalvo={recarregar} />
+        <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={recarregar} />
+        <AdicionarRelacionado reu={rel} onFechar={() => setRel(null)} onSalvo={recarregar} />
+      </> : null}
+      {presos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu registrado como preso neste processo.</p> : (
+        <div className="space-y-2">
+          {presos.map((r) => {
+            const dp = r.dados_planilha ?? {};
+            const rev = situacaoRevisao(r.tipo_prisao, dp["Última reavaliação"] || undefined, hoje, diasEntre);
+            const rels = [...(r.processos_relacionados ?? [])].sort((a, b) => ORDEM_REL.indexOf(a.tipo) - ORDEM_REL.indexOf(b.tipo));
+            return (
+              <div key={r.id} className="rounded-md border border-urgente/25 bg-urgente-suave/40 p-3 text-sm">
+                <dl className="grid gap-3 sm:grid-cols-4">
+                  <div><dt className="text-xs text-muted-foreground">Réu</dt><dd className="font-medium">{r.nome}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Situação</dt><dd>{r.situacao || "—"}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Tipo de prisão</dt><dd>{r.tipo_prisao}{r.especie_cautelar ? <span className="block text-xs text-muted-foreground">{r.especie_cautelar}</span> : null}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Data da prisão</dt><dd>{formatarData(r.data_prisao)}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Última reavaliação</dt><dd>{formatarData(dp["Última reavaliação"] || null)}{rev ? <span className={`ml-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : null}</dd></div>
+                  <div><dt className="text-xs text-muted-foreground">Próxima reavaliação</dt><dd>{formatarData(dp["Data de reavaliação"] || null)}</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Observações</dt><dd>{r.observacoes || "—"}</dd></div>
+                  <div className="sm:col-span-4"><dt className="text-xs text-muted-foreground">Processos relacionados</dt><dd>
+                    {rels.length === 0 ? "—" : rels.map((x, i) => (
+                      <div key={i}><span className="text-muted-foreground">{ROTULO_TIPO_PROC[x.tipo] ?? x.tipo}: </span>
+                        {x.processo_id ? <Link to="/processos/$id" params={{ id: x.processo_id }} className="numero-processo text-primary hover:underline">{x.numero}</Link> : <span className="numero-processo">{x.numero}</span>}</div>
+                    ))}
+                  </dd></div>
+                </dl>
+                {podeEditar ? <div className="mt-2 flex flex-wrap gap-3">
+                  <button className={LNK} onClick={() => setEditar(r)}>Atualizar prisão</button>
+                  {r.tipo_prisao === "Prisão preventiva" ? <button className={LNK} onClick={() => setReav(r)}>Registrar reavaliação</button> : null}
+                  <button className={LNK} onClick={() => setRel(r)}>Adicionar processo relacionado</button>
+                </div> : null}
+              </div>
+            );
+          })}
+          <p className="text-xs text-muted-foreground">Informações registradas pela serventia — não constituem análise jurídica.</p>
+        </div>
       )}
     </Secao>
   );

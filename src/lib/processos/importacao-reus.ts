@@ -133,4 +133,4 @@ export async function executarImportacaoReus(arquivo: string, linhas: LinhaReu[]
   return data as unknown as ResultadoReu;
 }
 
-export const ROTULO_TIPO_PROC: Record<string, string> = { cautelar: "Cautelar", ip: "IP", acao_penal: "Ação penal" };
+export const ROTULO_TIPO_PROC: Record<string, string> = { cautelar: "Cautelar", ip: "IP", acao_penal: "Ação penal", outro: "Outro relacionado" };
