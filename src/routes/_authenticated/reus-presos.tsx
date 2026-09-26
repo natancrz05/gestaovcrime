@@ -1,26 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Upload } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
+import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
 import { usePode } from "@/lib/sessao";
 
-interface Preso {
-  id: string; processo_id: string | null; nome: string; situacao: string; tipo_prisao: string; data_prisao: string | null;
-  rji: string; especie_cautelar: string; dados_planilha: Record<string, string>; processos_relacionados: ProcRel[];
+interface Preso extends ReuEditavel {
+  processos_relacionados: ProcRel[];
   conferir: boolean; motivo_conferencia: string; processos: { numero: string } | null;
 }
 
 const presosQuery = () => queryOptions({
   queryKey: ["reus-presos"],
   queryFn: async () => {
-    const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).neq("tipo_prisao", "Prisão temporária").order("nome");
+    const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).order("nome");
     if (error) throw new Error(error.message);
     return (data ?? []) as unknown as Preso[];
   },
@@ -40,17 +40,21 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
   component: Pagina,
 });
 
-const TIPOS = ["Prisão preventiva", "Prisão em flagrante", "Outra"];
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const BTN_P = "text-xs text-primary hover:underline";
 
 function Pagina() {
   const { data } = useSuspenseQuery(presosQuery());
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
   const [importar, setImportar] = useState(false);
+  const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
+  const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
+  const [reav, setReav] = useState<ReuEditavel | null>(null);
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
+  const atualizar = () => qc.invalidateQueries();
 
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
@@ -64,11 +68,19 @@ function Pagina() {
 
   return (
     <div className="space-y-6">
-      {podeEditar ? <ImportarReusPresos aberto={importar} onFechar={() => setImportar(false)} onConcluir={() => qc.invalidateQueries()} /> : null}
+      {podeEditar ? <>
+        <ImportarReusPresos aberto={importar} onFechar={() => setImportar(false)} onConcluir={atualizar} />
+        <FormReuPreso aberto={!!form} reu={form?.reu ?? null} onFechar={() => setForm(null)} onSalvo={atualizar} />
+        <RetirarPrisao reu={soltar} onFechar={() => setSoltar(null)} onSalvo={atualizar} />
+        <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={atualizar} />
+      </> : null}
       <Cabecalho
         titulo="Réus Presos"
         subtitulo={`${data.length} réus custodiados — prioridade máxima de tramitação`}
-        acao={podeEditar ? <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted" onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button> : undefined}
+        acao={podeEditar ? <div className="flex gap-2">
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted" onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar réu preso</button>
+        </div> : undefined}
       />
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full max-w-md">
@@ -78,7 +90,7 @@ function Pagina() {
         <div>
           <label htmlFor="tipo-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Tipo de prisão</label>
           <select id="tipo-presos" className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="">Todos</option>{TIPOS.map((x) => <option key={x}>{x}</option>)}
+            <option value="">Todos</option>{TIPOS_CUSTODIA.map((x) => <option key={x}>{x}</option>)}
           </select>
         </div>
       </div>
@@ -87,7 +99,7 @@ function Pagina() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Processo", "Réu custodiado", "Prisão", "Data da prisão", "Dias preso", "Processos relacionados", "Reavaliação"].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
@@ -95,6 +107,7 @@ function Pagina() {
                     : p.processo_id ? [{ tipo: "", numero: p.processos?.numero ?? "", processo_id: p.processo_id, situacao: "encontrado" }] : [];
                   const dias = p.data_prisao ? diasEntre(p.data_prisao, hoje) : null;
                   const dp = p.dados_planilha ?? {};
+                  const rev = situacaoRevisao(p.tipo_prisao, dp["Última reavaliação"] || undefined, hoje, diasEntre);
                   return (
                     <tr key={p.id}>
                       <td className="px-2 py-2 text-xs whitespace-nowrap">
@@ -117,14 +130,25 @@ function Pagina() {
                               : <span className="numero-processo">{r.numero} <span className="text-alerta">(não vinculado)</span></span>}
                           </div>
                         ))}
+                        {dp["Sistema"] ? <div className="text-muted-foreground">Sistema: {dp["Sistema"]}</div> : null}
                       </td>
                       <td className="px-2 py-2 text-xs">
-                        {dp["Última reavaliação"] ? <div>Última: {formatarData(dp["Última reavaliação"])}</div> : null}
-                        {dp["Data de reavaliação"] ? <div>Próxima: {formatarData(dp["Data de reavaliação"])}</div> : null}
+                        {dp["Última reavaliação"] ? <div>{formatarData(dp["Última reavaliação"])}</div> : <div className="text-muted-foreground">—</div>}
+                        {dp["Data de reavaliação"] ? <div className="text-muted-foreground">Próxima: {formatarData(dp["Data de reavaliação"])}</div> : null}
                         {dp["Prazo de reavaliação"] ? <div className="text-muted-foreground">Prazo: {dp["Prazo de reavaliação"]}</div> : null}
                         {dp["Término de eventual prazo"] ? <div className="text-muted-foreground">Término: {formatarData(dp["Término de eventual prazo"])}</div> : null}
                         {dp["Andamento do último procedimento"] ? <div className="text-muted-foreground">{dp["Andamento do último procedimento"]}</div> : null}
                       </td>
+                      <td className="px-2 py-2 text-xs">
+                        {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      {podeEditar ? (
+                        <td className="space-y-1 px-2 py-2 whitespace-nowrap">
+                          <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>Editar</button></div>
+                          {p.tipo_prisao === "Prisão preventiva" ? <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div> : null}
+                          <div><button className={BTN_P} onClick={() => setSoltar(p)}>Retirar da prisão</button></div>
+                        </td>
+                      ) : null}
                     </tr>
                   );
                 })}
@@ -133,6 +157,7 @@ function Pagina() {
           </div>
         )}
       </Secao>
+      <p className="text-xs text-muted-foreground">Situação da revisão: alerta operacional interno aos 85 dias da última reavaliação (somente prisão preventiva). Não representa prazo legal.</p>
     </div>
   );
 }
