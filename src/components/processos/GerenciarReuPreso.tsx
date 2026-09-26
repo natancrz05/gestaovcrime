@@ -51,8 +51,8 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
   };
 
   const salvar = async () => {
-    if (!proc) return toast.error("Selecione o processo");
-    if (!f.nome.trim()) return toast.error("Informe o nome do réu");
+    if (!proc) { toast.error("Selecione o processo"); return; }
+    if (!f.nome.trim()) { toast.error("Informe o nome do réu"); return; }
     setSalvando(true);
     const base = reu ?? vinculados.find((x) => x.id === reuId);
     const dados = { ...((base?.dados_planilha ?? {}) as Record<string, string>) };
@@ -64,7 +64,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     if (id) ({ error } = await supabase.from("reus").update(linha).eq("id", id));
     else ({ error } = await supabase.from("reus").insert({ ...linha, ordem: vinculados.length }));
     setSalvando(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Réu preso salvo"); onSalvo(); onFechar();
   };
 
@@ -116,7 +116,7 @@ export function RetirarPrisao({ reu, onFechar, onSalvo }: { reu: ReuEditavel | n
     setSalvando(true);
     const { error } = await supabase.from("reus").update({ preso: false, tipo_prisao: "Não preso", situacao: sit.trim() || "Solto" }).eq("id", reu.id);
     setSalvando(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Réu retirado da condição de preso"); onSalvo(); onFechar();
   };
   return (
@@ -149,7 +149,7 @@ export function RegistrarReavaliacao({ reu, onFechar, onSalvo }: { reu: ReuEdita
     setSalvando(true);
     const { error } = await supabase.rpc("registrar_reavaliacao", { p_reu: reu.id, p_data: data, p_proxima: prox || null, p_obs: obs } as never);
     setSalvando(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Reavaliação registrada"); onSalvo(); onFechar();
   };
   return (
