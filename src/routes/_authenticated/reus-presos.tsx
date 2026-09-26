@@ -155,7 +155,7 @@ function Pagina() {
                         <td className="space-y-1 px-2 py-2 whitespace-nowrap">
                           <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button></div>
                           <div><button className={BTN_P} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Marcar como conferido" : "Reabrir conferência"}</button></div>
-                          {p.tipo_prisao === "Prisão preventiva" ? <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div> : null}
+                          <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div>
                           <div><button className={BTN_P} onClick={() => setSoltar(p)}>Retirar da prisão</button></div>
                         </td>
                       ) : null}

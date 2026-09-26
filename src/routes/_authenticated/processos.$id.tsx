@@ -483,7 +483,7 @@ function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; p
                 </dl>
                 {podeEditar ? <div className="mt-2 flex flex-wrap gap-3">
                   <button className={LNK} onClick={() => setEditar(r)}>Atualizar prisão</button>
-                  {r.tipo_prisao === "Prisão preventiva" ? <button className={LNK} onClick={() => setReav(r)}>Registrar reavaliação</button> : null}
+                  <button className={LNK} onClick={() => setReav(r)}>Registrar reavaliação</button>
                   <button className={LNK} onClick={() => setRel(r)}>Adicionar processo relacionado</button>
                 </div> : null}
               </div>
