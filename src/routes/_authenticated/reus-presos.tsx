@@ -155,8 +155,12 @@ function Pagina() {
                         <td className="space-y-1 px-2 py-2 whitespace-nowrap">
                           <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button></div>
                           <div><button className={BTN_P} title={p.conferir ? "Indica que os dados importados deste cadastro foram revisados pelo servidor." : "Volta o selo Conferir para nova revisão do cadastro."} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>{p.conferir ? <div className="max-w-44 whitespace-normal text-[10px] text-muted-foreground">Indica que os dados importados deste cadastro foram revisados pelo servidor.</div> : null}</div>
-                          <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div>
-                          <div><button className={BTN_P} onClick={() => setSoltar(p)}>Retirar da prisão</button></div>
+                          <div className="rounded border border-border p-1.5">
+                            <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">Ações da prisão</div>
+                            <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>Atualizar prisão</button></div>
+                            <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div>
+                            <div><button className={BTN_P} onClick={() => setSoltar(p)}>Encerrar situação prisional</button></div>
+                          </div>
                         </td>
                       ) : null}
                     </tr>

@@ -665,6 +665,59 @@ export type Database = {
         }
         Relationships: []
       }
+      reu_prisoes_encerradas: {
+        Row: {
+          criado_em: string
+          dados_planilha: Json
+          data_encerramento: string
+          data_prisao: string | null
+          especie_cautelar: string
+          id: string
+          motivo: string
+          processo_id: string | null
+          reu_id: string
+          situacao_anterior: string
+          tipo_prisao: string
+          usuario_nome: string
+        }
+        Insert: {
+          criado_em?: string
+          dados_planilha?: Json
+          data_encerramento: string
+          data_prisao?: string | null
+          especie_cautelar?: string
+          id?: string
+          motivo?: string
+          processo_id?: string | null
+          reu_id: string
+          situacao_anterior?: string
+          tipo_prisao?: string
+          usuario_nome?: string
+        }
+        Update: {
+          criado_em?: string
+          dados_planilha?: Json
+          data_encerramento?: string
+          data_prisao?: string | null
+          especie_cautelar?: string
+          id?: string
+          motivo?: string
+          processo_id?: string | null
+          reu_id?: string
+          situacao_anterior?: string
+          tipo_prisao?: string
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reu_prisoes_encerradas_reu_id_fkey"
+            columns: ["reu_id"]
+            isOneToOne: false
+            referencedRelation: "reus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reu_reavaliacoes: {
         Row: {
           criado_em: string
@@ -819,6 +872,10 @@ export type Database = {
       }
       desfazer_importacao: { Args: { p_id: string }; Returns: Json }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
+      encerrar_prisao: {
+        Args: { p_data: string; p_motivo: string; p_reu: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

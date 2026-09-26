@@ -109,26 +109,42 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
   );
 }
 
+/** Encerra a situação prisional atual, preservando réu, processo, vínculos e histórico. */
 export function RetirarPrisao({ reu, onFechar, onSalvo }: { reu: ReuEditavel | null; onFechar: () => void; onSalvo: () => void }) {
-  const [sit, setSit] = useState("Solto");
+  const [data, setData] = useState(hojeISO());
+  const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
+  useEffect(() => { if (reu) { setData(hojeISO()); setMotivo(""); } }, [reu]);
+  const { data: hist = [] } = useQuery({
+    queryKey: ["prisoes-encerradas", reu?.id], enabled: !!reu,
+    queryFn: async () => ((await (supabase.from as never as (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { order: (c: string, o: object) => Promise<{ data: { id: string; tipo_prisao: string; data_prisao: string | null; data_encerramento: string; motivo: string }[] | null }> } } })("reu_prisoes_encerradas").select("*").eq("reu_id", reu!.id).order("data_encerramento", { ascending: false })).data) ?? [],
+  });
   const confirmar = async () => {
     if (!reu) return;
     setSalvando(true);
-    const { error } = await supabase.from("reus").update({ preso: false, tipo_prisao: "Não preso", situacao: sit.trim() || "Solto" }).eq("id", reu.id);
+    const { error } = await supabase.rpc("encerrar_prisao" as never, { p_reu: reu.id, p_data: data, p_motivo: motivo } as never);
     setSalvando(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Réu retirado da condição de preso"); onSalvo(); onFechar();
+    toast.success("Situação prisional encerrada"); onSalvo(); onFechar();
   };
   return (
     <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Retirar da condição de preso</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">{reu?.nome} deixará a lista de Réus Presos. O processo, o cadastro do réu e o histórico são preservados.</p>
-        <Campo rotulo="Nova situação"><input className={CLASSE_CAMPO} value={sit} onChange={(e) => setSit(e.target.value)} /></Campo>
-        <div className="flex justify-end gap-2">
-          <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
-          <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={confirmar}>Confirmar</button>
+        <DialogHeader><DialogTitle>Encerrar situação prisional — {reu?.nome}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">O réu deixará as listas de Réus Presos e Prisões Temporárias. O processo, o cadastro do réu, os processos relacionados e o histórico são preservados. Uma nova prisão poderá ser registrada depois sem apagar esta.</p>
+        <div className="space-y-3">
+          <Campo rotulo="Data do encerramento"><input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} /></Campo>
+          <Campo rotulo="Motivo / observação (opcional)"><textarea className={`${CLASSE_CAMPO} h-16 py-2`} value={motivo} onChange={(e) => setMotivo(e.target.value)} /></Campo>
+          {hist.length ? (
+            <div className="text-xs">
+              <div className="mb-1 font-medium text-muted-foreground">Prisões anteriores encerradas</div>
+              {hist.map((h) => <div key={h.id}>{h.tipo_prisao} · {formatarData(h.data_prisao)} a {formatarData(h.data_encerramento)}{h.motivo ? ` — ${h.motivo}` : ""}</div>)}
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
+            <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando || !data} onClick={confirmar}>Encerrar</button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
