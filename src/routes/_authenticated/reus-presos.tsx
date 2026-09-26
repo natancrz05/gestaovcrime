@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
+import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
 
 interface Preso extends ReuEditavel {
@@ -55,6 +56,12 @@ function Pagina() {
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
   const atualizar = () => qc.invalidateQueries();
+  const marcarConferencia = async (id: string, conferir: boolean) => {
+    const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(conferir ? "Registro voltou para conferência" : "Registro marcado como conferido");
+    atualizar();
+  };
 
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
@@ -115,7 +122,9 @@ function Pagina() {
                           : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : <span className="text-muted-foreground">Não vinculado</span>}
                       </td>
                       <td className="px-2 py-2">
-                        <div className="font-medium">{p.nome}{p.conferir ? <span title={p.motivo_conferencia} className="ml-2 rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</div>
+                        <div className="font-medium">{p.nome}{p.conferir ? <span title={p.motivo_conferencia} onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className="ml-2 cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</div>
+                        {p.conferir && p.motivo_conferencia ? <div className="text-xs text-alerta">{p.motivo_conferencia}</div> : null}
+                        {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Conferência: Concluída</div> : null}
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
                         {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
                       </td>
@@ -144,7 +153,8 @@ function Pagina() {
                       </td>
                       {podeEditar ? (
                         <td className="space-y-1 px-2 py-2 whitespace-nowrap">
-                          <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>Editar</button></div>
+                          <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button></div>
+                          <div><button className={BTN_P} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Marcar como conferido" : "Reabrir conferência"}</button></div>
                           {p.tipo_prisao === "Prisão preventiva" ? <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div> : null}
                           <div><button className={BTN_P} onClick={() => setSoltar(p)}>Retirar da prisão</button></div>
                         </td>
