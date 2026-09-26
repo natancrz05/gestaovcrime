@@ -59,7 +59,7 @@ function Pagina() {
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success(conferir ? "Registro voltou para conferência" : "Registro marcado como conferido");
+    toast.success(conferir ? "Revisão do cadastro reaberta" : "Revisão do cadastro concluída");
     atualizar();
   };
 
@@ -124,7 +124,7 @@ function Pagina() {
                       <td className="px-2 py-2">
                         <div className="font-medium">{p.nome}{p.conferir ? <span title={p.motivo_conferencia} onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className="ml-2 cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</div>
                         {p.conferir && p.motivo_conferencia ? <div className="text-xs text-alerta">{p.motivo_conferencia}</div> : null}
-                        {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Conferência: Concluída</div> : null}
+                        {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Revisão do cadastro: concluída</div> : null}
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
                         {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
                       </td>
@@ -154,7 +154,7 @@ function Pagina() {
                       {podeEditar ? (
                         <td className="space-y-1 px-2 py-2 whitespace-nowrap">
                           <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button></div>
-                          <div><button className={BTN_P} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Marcar como conferido" : "Reabrir conferência"}</button></div>
+                          <div><button className={BTN_P} title={p.conferir ? "Indica que os dados importados deste cadastro foram revisados pelo servidor." : "Volta o selo Conferir para nova revisão do cadastro."} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>{p.conferir ? <div className="max-w-44 whitespace-normal text-[10px] text-muted-foreground">Indica que os dados importados deste cadastro foram revisados pelo servidor.</div> : null}</div>
                           <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div>
                           <div><button className={BTN_P} onClick={() => setSoltar(p)}>Retirar da prisão</button></div>
                         </td>
