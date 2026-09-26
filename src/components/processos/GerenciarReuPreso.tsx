@@ -122,7 +122,7 @@ export function RetirarPrisao({ reu, onFechar, onSalvo }: { reu: ReuEditavel | n
   const confirmar = async () => {
     if (!reu) return;
     setSalvando(true);
-    const { error } = await supabase.rpc("encerrar_prisao" as never, { p_reu: reu.id, p_data: data, p_obs: undefined, p_motivo: motivo } as never);
+    const { error } = await supabase.rpc("encerrar_prisao" as never, { p_reu: reu.id, p_data: data, p_motivo: motivo } as never);
     setSalvando(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Situação prisional encerrada"); onSalvo(); onFechar();
