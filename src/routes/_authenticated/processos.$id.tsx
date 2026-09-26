@@ -2,7 +2,7 @@ import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos"
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
-import { AdicionarRelacionado, FormReuPreso, RegistrarReavaliacao, situacaoRevisao, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
+import { AdicionarRelacionado, FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { ROTULO_TIPO_PROC } from "@/lib/processos/importacao-reus";
 import { diasEntre } from "@/lib/processos/modelo";
 import { AcoesProcesso } from "@/components/processos/EditarExcluirProcesso";
@@ -449,6 +449,7 @@ function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; p
   const [editar, setEditar] = useState<PresoFicha | null>(null);
   const [reav, setReav] = useState<PresoFicha | null>(null);
   const [rel, setRel] = useState<PresoFicha | null>(null);
+  const [encerrar, setEncerrar] = useState<PresoFicha | null>(null);
   const hoje = hojeISO();
   const LNK = "text-xs font-medium text-primary hover:underline";
   return (
@@ -456,6 +457,7 @@ function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; p
       {podeEditar ? <>
         <FormReuPreso aberto={!!editar} reu={editar} onFechar={() => setEditar(null)} onSalvo={recarregar} />
         <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={recarregar} />
+        <RetirarPrisao reu={encerrar} onFechar={() => setEncerrar(null)} onSalvo={recarregar} />
         <AdicionarRelacionado reu={rel} onFechar={() => setRel(null)} onSalvo={recarregar} />
       </> : null}
       {presos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu registrado como preso neste processo.</p> : (
@@ -481,9 +483,12 @@ function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; p
                     ))}
                   </dd></div>
                 </dl>
-                {podeEditar ? <div className="mt-2 flex flex-wrap gap-3">
+                {podeEditar ? <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <span className="text-[10px] font-semibold uppercase text-muted-foreground">Ações da prisão:</span>
                   <button className={LNK} onClick={() => setEditar(r)}>Atualizar prisão</button>
                   <button className={LNK} onClick={() => setReav(r)}>Registrar reavaliação</button>
+                  <button className={LNK} onClick={() => setEncerrar(r)}>Encerrar situação prisional</button>
+                  <span className="text-muted-foreground">·</span>
                   <button className={LNK} onClick={() => setRel(r)}>Adicionar processo relacionado</button>
                 </div> : null}
               </div>
