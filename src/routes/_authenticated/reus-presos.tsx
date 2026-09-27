@@ -66,7 +66,7 @@ function Pagina() {
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
     return data.filter((p) => {
-      if (tipo && p.tipo_prisao !== tipo) return false;
+      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(p.tipo_prisao) : tipo && p.tipo_prisao !== tipo) return false;
       if (!t) return true;
       const campos = [p.nome, p.rji, p.processos?.numero ?? "", ...p.processos_relacionados.map((r) => r.numero)];
       return campos.some((c) => semAcento(c).includes(t) || (d.length >= 3 && c.replace(/\D/g, "").includes(d)));
@@ -89,6 +89,20 @@ function Pagina() {
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar réu preso</button>
         </div> : undefined}
       />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {([
+          ["", "Réus presos", data.length],
+          ["Prisão temporária", "Prisões temporárias", data.filter((p) => p.tipo_prisao === "Prisão temporária").length],
+          ["Prisão preventiva", "Prisões preventivas", data.filter((p) => p.tipo_prisao === "Prisão preventiva").length],
+          ["outras", "Outras prisões", data.filter((p) => !["Prisão temporária", "Prisão preventiva"].includes(p.tipo_prisao)).length],
+        ] as const).map(([v, r, n]) => (
+          <button key={r} type="button" onClick={() => setTipo(v)} aria-pressed={tipo === v}
+            className={`rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/50 ${tipo === v ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{r}</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{n}</p>
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full max-w-md">
           <label htmlFor="pesq-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Pesquisar réus presos</label>
@@ -97,7 +111,7 @@ function Pagina() {
         <div>
           <label htmlFor="tipo-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Tipo de prisão</label>
           <select id="tipo-presos" className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="">Todos</option>{TIPOS_CUSTODIA.map((x) => <option key={x}>{x}</option>)}
+            <option value="">Todos</option>{TIPOS_CUSTODIA.map((x) => <option key={x}>{x}</option>)}<option value="outras">Outras prisões (exceto temporária e preventiva)</option>
           </select>
         </div>
       </div>
