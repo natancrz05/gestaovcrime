@@ -39,8 +39,16 @@ export interface ItemCentral {
 
 export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral | null {
   if (!tarefaIndicaAudiencia(p.pje_tarefas)) return null;
-  // A mais recente entre DATA ULT MOV da planilha e as movimentações registradas (ex.: audiência realizada).
-  const datas = [p.pje_ultima_mov_data, ultimaMovimentacao(p)?.data].filter(Boolean) as string[];
+  // Audiência cadastrada e pendente (Agendada/Redesignada/aguardando nova data) já está no fluxo operacional.
+  const pendente = p.audiencias.some((a) => a.situacao !== "Realizada" && a.situacao !== "Cancelada");
+  // Audiência Realizada após a informação da planilha: a espera foi atendida. Não reinicia contagem.
+  const ref = p.pje_ultima_mov_data ?? "";
+  const realizadaDepois = p.audiencias.some((a) => a.situacao === "Realizada" && (a.data_realizacao ?? a.data) >= ref);
+  if (realizadaDepois && !pendente) return null;
+  // Contagem pela DATA ULT MOV da planilha; movimentação "Audiência realizada" não inicia nova espera.
+  const movs = ultimaMovimentacao(p);
+  const movValida = movs && !/audi[eê]ncia realizada/i.test(movs.descricao) ? movs.data : null;
+  const datas = [p.pje_ultima_mov_data, movValida].filter(Boolean) as string[];
   const ultimaMov = datas.sort().at(-1) ?? null;
   const dias = ultimaMov && !contagemSuspensa(p) ? diasEntre(ultimaMov, hoje) : null;
   return {
