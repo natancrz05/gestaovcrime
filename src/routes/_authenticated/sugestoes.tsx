@@ -42,11 +42,11 @@ function Pagina() {
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!descricao.trim()) return toast.error("Descreva o problema ou a sugestão.");
+    if (!descricao.trim()) { toast.error("Descreva o problema ou a sugestão."); return; }
     setSalvando(true);
     const { error } = await tabela().insert({ tipo, descricao: descricao.trim().slice(0, 5000) });
     setSalvando(false);
-    if (error) return toast.error("Não foi possível registrar a nota.");
+    if (error) { toast.error("Não foi possível registrar a nota."); return; }
     toast.success("Nota registrada. Obrigado!");
     setDescricao("");
     void carregar();
@@ -54,13 +54,13 @@ function Pagina() {
 
   const mudarStatus = async (id: string, status: string) => {
     const { error } = await tabela().update({ status }).eq("id", id);
-    if (error) return toast.error("Não foi possível alterar o status.");
+    if (error) { toast.error("Não foi possível alterar o status."); return; }
     setNotas((n) => n.map((x) => (x.id === id ? { ...x, status } : x)));
   };
   const excluir = async (id: string) => {
     if (!confirm("Excluir esta nota? Esta ação não pode ser desfeita.")) return;
     const { error } = await tabela().delete().eq("id", id);
-    if (error) return toast.error("Não foi possível excluir a nota.");
+    if (error) { toast.error("Não foi possível excluir a nota."); return; }
     setNotas((n) => n.filter((x) => x.id !== id));
   };
 
