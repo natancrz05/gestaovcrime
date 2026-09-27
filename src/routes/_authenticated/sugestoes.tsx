@@ -66,7 +66,7 @@ function Pagina() {
 
   return (
     <div className="space-y-6">
-      <Cabecalho titulo="Problemas e Sugestões" descricao="Registre problemas encontrados no sistema ou sugira melhorias." />
+      <Cabecalho titulo="Problemas e Sugestões" subtitulo="Registre problemas encontrados no sistema ou sugira melhorias." />
       <form onSubmit={enviar} className="space-y-3 rounded-lg border bg-card p-5">
         <div className="grid gap-3 sm:grid-cols-[200px_1fr]">
           <label className="text-sm font-medium">Tipo
