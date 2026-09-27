@@ -101,8 +101,8 @@ export async function lerPlanilhaComparecimentos(arquivo: File): Promise<Analise
     const numeros = [txt("processo"), txt("acao_penal"), txt("ip")].filter(Boolean);
     if (probs.length || !per) { erros.push({ linha: nLinha, pessoa: pessoa || "—", motivo: probs.join("; ") }); return; }
     const dados: Record<string, string> = {};
-    (["sistema", "ip", "acao_penal", "providencia", "aplicacao", "dias", "situacao"] as Campo[]).forEach((c) => {
-      const s = c === "aplicacao" ? aplicacao ?? "" : txt(c);
+    (["sistema", "ip", "acao_penal", "providencia", "ultima", "aplicacao", "dias", "situacao"] as Campo[]).forEach((c) => {
+      const s = c === "aplicacao" ? aplicacao ?? "" : c === "ultima" ? ultima ?? "" : txt(c);
       if (s) dados[ROTULOS[c]] = s;
     });
     validas.push({ linha: nLinha, numeros, processos, outros, pessoa, cpf: txt("cpf"), periodicidade: per.periodicidade, intervalo: per.intervalo, ultima: ultima ?? null, aplicacao: aplicacao ?? null, dados });
