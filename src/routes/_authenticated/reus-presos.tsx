@@ -122,7 +122,23 @@ function Pagina() {
                           : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : <span className="text-muted-foreground">Não vinculado</span>}
                       </td>
                       <td className="px-2 py-2">
-                        <div className="font-medium">{p.nome}{p.conferir ? <span title={p.motivo_conferencia} onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className="ml-2 cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</div>
+                        <div className="font-medium">
+                          {p.nome}
+                          {p.conferir ? (
+                            <span className="group/selo relative ml-2 inline-flex align-middle" title={p.motivo_conferencia}>
+                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" : "rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta"}>Conferir</span>
+                              {podeEditar ? (
+                                <button
+                                  type="button"
+                                  aria-label="Remover selo Conferir deste cadastro"
+                                  title="Remover o selo Conferir (os dados do cadastro são mantidos)"
+                                  onClick={() => marcarConferencia(p.id, false)}
+                                  className="absolute -right-1.5 -top-1.5 hidden size-3.5 items-center justify-center rounded-full border border-alerta/40 bg-background text-[9px] font-bold leading-none text-alerta group-hover/selo:flex hover:bg-alerta hover:text-primary-foreground"
+                                >×</button>
+                              ) : null}
+                            </span>
+                          ) : null}
+                        </div>
                         {p.conferir && p.motivo_conferencia ? <div className="text-xs text-alerta">{p.motivo_conferencia}</div> : null}
                         {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Revisão do cadastro: concluída</div> : null}
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
