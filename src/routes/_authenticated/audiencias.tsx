@@ -9,7 +9,7 @@ import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campo
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { confirmarAudiencia, estaPendente } from "@/lib/processos/audiencias";
+import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
 import { processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada } from "@/lib/processos/repositorio";
 import {
   CONFIG_AUDIENCIAS,
@@ -49,6 +49,23 @@ function EtiquetaExtenso() {
   );
 }
 
+function SeloReuPreso({ podeRemover, onRemover }: { podeRemover: boolean; onRemover: () => void }) {
+  return (
+    <span className="group relative inline-flex items-center rounded border border-urgente/25 bg-urgente-suave px-1.5 py-0.5 text-[10px] font-medium text-urgente">
+      Réu preso
+      {podeRemover ? (
+        <button type="button" aria-label="Remover selo Réu preso" title="Remover selo (não altera a prisão nem o processo)"
+          onClick={(e) => { e.stopPropagation(); onRemover(); }}
+          className="ml-1 leading-none opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100">×</button>
+      ) : null}
+    </span>
+  );
+}
+
+const SeloAguardando = () => (
+  <span className="inline-flex rounded border border-atencao/25 bg-atencao-suave px-1.5 py-0.5 text-[10px] font-medium text-atencao">Aguardando nova data</span>
+);
+
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const hoje = hojeISO();
@@ -63,7 +80,14 @@ function Pagina() {
   const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
   const [filtroSit, setFiltroSit] = useState("Todas");
   const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
-  const listadas = filtroSit === "Todas" ? todas : todas.filter((a) => rotuloSit(a.situacao) === filtroSit);
+  const filtrar = (s: string) => (s === "Todas" ? todas : s === "A realizar" ? todas.filter(estaPendente) : todas.filter((a) => rotuloSit(a.situacao) === s));
+  const listadas = filtrar(filtroSit);
+  const mostrarSelo = (a: AudienciaListada) => a.reuPreso && !a.ocultar_selo_reu_preso && estaPendente(a);
+  async function removerSelo(a: AudienciaListada) {
+    await ocultarSeloReuPreso(a.id);
+    if (detalhe?.id === a.id) setDetalhe({ ...detalhe, ocultar_selo_reu_preso: true });
+    await recarregar();
+  }
   async function executarConfirmacao() {
     if (!confirmar) return;
     setConfirmar({ ...confirmar, salvando: true, erro: undefined });
@@ -81,7 +105,7 @@ function Pagina() {
   const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Instrução", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
   const editar = (a: AudienciaListada) => {
     setDetalhe(null);
-    setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: a.tipo, data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao } });
+    setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: a.tipo, data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao, aguardando_nova_data: !!a.aguardando_nova_data } });
   };
   async function excluir(a: AudienciaListada) {
     if (!confirm("Excluir esta audiência?")) return;
@@ -114,9 +138,9 @@ function Pagina() {
 
       <Secao titulo="Todas as audiências">
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {["Todas", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
+          {["Todas", "A realizar", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
             <button key={s} aria-pressed={filtroSit === s} onClick={() => setFiltroSit(s)} className={cn("rounded-full border border-border px-3 py-1 text-xs", filtroSit === s ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-              {s === "Todas" ? "Todas" : s + "s"} ({s === "Todas" ? todas.length : todas.filter((a) => rotuloSit(a.situacao) === s).length})
+              {s === "Todas" || s === "A realizar" ? s : s + "s"} ({filtrar(s).length})
             </button>
           ))}
         </div>
@@ -132,10 +156,10 @@ function Pagina() {
                     <td className="whitespace-nowrap px-2 py-2 font-medium">{formatarData(a.data)}</td>
                     <td className="px-2 py-2">{horaCurta(a.horario)}</td>
                     <td className="numero-processo whitespace-nowrap px-2 py-2">{a.numero}</td>
-                    <td className="px-2 py-2">{a.reu}</td>
+                    <td className="px-2 py-2">{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</td>
                     <td className="px-2 py-2">{a.tipo}</td>
                     <td className="px-2 py-2">{a.modalidade}</td>
-                    <td className="px-2 py-2">{rotuloSit(a.situacao)}</td>
+                    <td className="px-2 py-2">{rotuloSit(a.situacao)}{a.aguardando_nova_data ? <div><SeloAguardando /></div> : null}</td>
                     <td className="px-2 py-2">{a.prazoExtenso ? <EtiquetaExtenso /> : a.dias === 0 ? <span className="text-xs font-semibold text-urgente">Hoje</span> : null}</td>
                   </tr>
                 ))}
@@ -179,7 +203,16 @@ function Pagina() {
                 ))}
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Observações</dt><dd>{detalhe.observacao || "—"}</dd></div>
               </dl>
-              {detalhe.prazoExtenso ? <EtiquetaExtenso /> : null}
+              <div className="flex flex-wrap gap-2">
+                {detalhe.prazoExtenso ? <EtiquetaExtenso /> : null}
+                {detalhe.aguardando_nova_data ? <SeloAguardando /> : null}
+                {mostrarSelo(detalhe) ? <SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(detalhe)} /> : null}
+              </div>
+              {detalhe.datas_anteriores?.length ? (
+                <div className="text-xs"><p className="text-muted-foreground">Datas anteriores</p>
+                  <ul className="mt-1 space-y-0.5">{detalhe.datas_anteriores.map((d, i) => <li key={i}>{formatarData(d.data)} {horaCurta(d.horario)} · {rotuloSit(d.situacao)}</li>)}</ul>
+                </div>
+              ) : null}
               <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-3">
                 <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="text-sm font-medium text-primary hover:underline">Abrir ficha do processo</Link>
                 <div className="flex gap-2">
@@ -263,8 +296,9 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
       onSubmit={async (e) => {
         e.preventDefault();
         if (!v.processo_id || !v.data) return setErro("Selecione o processo e informe a data.");
+        const aguardando = v.situacao === "Redesignada" && !!v.aguardando_nova_data && v.data === inicial.data && (v.horario || "") === (inicial.horario || "");
         setSalvando(true); setErro("");
-        try { await onSalvar({ ...v, horario: v.horario || null }); } catch (err) { setErro(err instanceof Error ? err.message : "Erro ao salvar."); setSalvando(false); }
+        try { await onSalvar({ ...v, horario: v.horario || null, aguardando_nova_data: aguardando }); } catch (err) { setErro(err instanceof Error ? err.message : "Erro ao salvar."); setSalvando(false); }
       }}
     >
       <div className="md:col-span-3">
@@ -273,11 +307,18 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
         </Campo>
       </div>
       <Campo rotulo="Tipo de audiência"><select className={CLASSE_CAMPO} value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}><Opcoes valores={TIPOS_AUDIENCIA} /></select></Campo>
-      <Campo rotulo="Data"><input type="date" className={CLASSE_CAMPO} value={v.data} onChange={(e) => setV({ ...v, data: e.target.value })} /></Campo>
+      <Campo rotulo="Data"><input type="date" className={CLASSE_CAMPO} value={v.data} onChange={(e) => setV({ ...v, data: e.target.value, aguardando_nova_data: false })} /></Campo>
       <Campo rotulo="Horário"><input type="time" className={CLASSE_CAMPO} value={v.horario ?? ""} onChange={(e) => setV({ ...v, horario: e.target.value })} /></Campo>
       <Campo rotulo="Modalidade"><select className={CLASSE_CAMPO} value={v.modalidade} onChange={(e) => setV({ ...v, modalidade: e.target.value })}><Opcoes valores={MODALIDADES} /></select></Campo>
       <Campo rotulo="Local/sala"><input className={CLASSE_CAMPO} value={v.local} onChange={(e) => setV({ ...v, local: e.target.value })} /></Campo>
       <Campo rotulo="Situação"><select className={CLASSE_CAMPO} value={v.situacao} onChange={(e) => setV({ ...v, situacao: e.target.value })}><Opcoes valores={SITUACOES_AUDIENCIA} /></select></Campo>
+      {v.situacao === "Redesignada" ? (
+        <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3 text-sm md:col-span-3">
+          <label className="flex items-center gap-2"><input type="radio" checked={!v.aguardando_nova_data} onChange={() => setV({ ...v, aguardando_nova_data: false })} /> Informar nova data (altere Data e Horário acima)</label>
+          <label className="flex items-center gap-2"><input type="radio" checked={!!v.aguardando_nova_data} onChange={() => setV({ ...v, aguardando_nova_data: true, data: inicial.data, horario: inicial.horario })} /> Redesignada — aguardando nova data</label>
+          <p className="text-xs text-muted-foreground">A audiência continua no fluxo. As datas anteriores ficam guardadas no histórico.</p>
+        </div>
+      ) : null}
       <div className="md:col-span-3"><Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} value={v.observacao} onChange={(e) => setV({ ...v, observacao: e.target.value })} /></Campo></div>
       {erro ? <p className="text-sm text-urgente md:col-span-3">{erro}</p> : null}
       <div className="flex justify-end md:col-span-3"><button className={BOTAO} disabled={salvando}>{salvando ? "Salvando…" : "Salvar audiência"}</button></div>

@@ -146,12 +146,13 @@ export interface AudienciaEntrada {
   local: string;
   situacao: string;
   observacao: string;
+  aguardando_nova_data?: boolean;
 }
 
 export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   const { error } = id
-    ? await supabase.from("audiencias").update(e).eq("id", id)
-    : await supabase.from("audiencias").insert(e);
+    ? await supabase.from("audiencias").update(e as never).eq("id", id)
+    : await supabase.from("audiencias").insert(e as never);
   if (error) throw error;
 }
 

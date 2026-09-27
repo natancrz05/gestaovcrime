@@ -98,6 +98,9 @@ export interface AudienciaProcesso {
   observacao: string;
   criado_em: string;
   data_realizacao?: string | null;
+  aguardando_nova_data?: boolean;
+  datas_anteriores?: { data: string; horario: string | null; situacao: string; alterado_em: string }[];
+  ocultar_selo_reu_preso?: boolean;
 }
 
 export interface PendenciaProcesso {

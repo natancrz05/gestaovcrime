@@ -19,6 +19,8 @@ export interface AudienciaListada extends AudienciaProcesso {
   reu: string;
   dias: number;
   prazoExtenso: boolean;
+  /** Há réu atualmente preso no processo (indicador visual, removível). */
+  reuPreso: boolean;
 }
 
 export function listarAudienciasDe(processos: ProcessoCompleto[], hoje = hojeISO()): AudienciaListada[] {
@@ -31,7 +33,8 @@ export function listarAudienciasDe(processos: ProcessoCompleto[], hoje = hojeISO
           numero: p.numero,
           reu: reuPrincipal(p)?.nome ?? "—",
           dias,
-          prazoExtenso: dias > CONFIG_AUDIENCIAS.limiteDiasPrazoExtenso && estaPendente(a),
+          prazoExtenso: dias > CONFIG_AUDIENCIAS.limiteDiasPrazoExtenso && estaPendente(a) && !a.aguardando_nova_data,
+          reuPreso: p.reus.some((r) => r.preso),
         };
       }),
     )
@@ -39,7 +42,7 @@ export function listarAudienciasDe(processos: ProcessoCompleto[], hoje = hojeISO
 }
 
 export function futuras(lista: AudienciaListada[]) {
-  return lista.filter((a) => a.dias >= 0 && estaPendente(a));
+  return lista.filter((a) => estaPendente(a) && (a.dias >= 0 || !!a.aguardando_nova_data));
 }
 
 export const horaCurta = (h: string | null) => (h ? h.slice(0, 5) : "—");
@@ -50,5 +53,11 @@ export const estaPendente = (a: { situacao: string }) => a.situacao !== "Realiza
 /** Única lógica de confirmação (lista e calendário): situação, data efetiva e movimentação sem duplicar. */
 export async function confirmarAudiencia(id: string, data: string, obs: string) {
   const { error } = await supabase.rpc("confirmar_audiencia" as never, { p_id: id, p_data: data, p_obs: obs } as never);
+  if (error) throw error;
+}
+
+/** Remove apenas o selo visual "Réu preso" desta audiência. */
+export async function ocultarSeloReuPreso(id: string) {
+  const { error } = await supabase.from("audiencias").update({ ocultar_selo_reu_preso: true } as never).eq("id", id);
   if (error) throw error;
 }

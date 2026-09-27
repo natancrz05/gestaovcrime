@@ -16,40 +16,49 @@ export type Database = {
     Tables: {
       audiencias: {
         Row: {
+          aguardando_nova_data: boolean
           criado_em: string
           data: string
           data_realizacao: string | null
+          datas_anteriores: Json
           horario: string | null
           id: string
           local: string
           modalidade: string
           observacao: string
+          ocultar_selo_reu_preso: boolean
           processo_id: string
           situacao: string
           tipo: string
         }
         Insert: {
+          aguardando_nova_data?: boolean
           criado_em?: string
           data: string
           data_realizacao?: string | null
+          datas_anteriores?: Json
           horario?: string | null
           id?: string
           local?: string
           modalidade?: string
           observacao?: string
+          ocultar_selo_reu_preso?: boolean
           processo_id: string
           situacao?: string
           tipo?: string
         }
         Update: {
+          aguardando_nova_data?: boolean
           criado_em?: string
           data?: string
           data_realizacao?: string | null
+          datas_anteriores?: Json
           horario?: string | null
           id?: string
           local?: string
           modalidade?: string
           observacao?: string
+          ocultar_selo_reu_preso?: boolean
           processo_id?: string
           situacao?: string
           tipo?: string
