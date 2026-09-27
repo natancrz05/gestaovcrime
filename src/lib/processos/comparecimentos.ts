@@ -68,6 +68,14 @@ async function listar(): Promise<Comparecimento[]> {
 
 export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], queryFn: listar });
 
+/** Último comparecimento: o mais recente entre o histórico e a "Data da última assinatura" importada. */
+function ultimoDe(registro: string | undefined, dados: unknown): string | null {
+  const v = (dados as Record<string, unknown> | null)?.["Data da última assinatura"];
+  const planilha = typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
+  if (registro && planilha) return registro > planilha ? registro : planilha;
+  return registro ?? planilha ?? null;
+}
+
 const ORDEM = { vencido: 0, vencendo: 1, regular: 2 };
 
 export function preparar(lista: Comparecimento[], hoje = hojeISO()): ComparecimentoListado[] {
@@ -81,7 +89,7 @@ export function preparar(lista: Comparecimento[], hoje = hojeISO()): Comparecime
         numero: c.processos?.numero ?? "Não vinculado",
         status: situacaoPorData(c.proximo, hoje),
         dias: diasEntre(hoje, c.proximo),
-        ultimo: historico[0]?.data_realizada ?? null,
+        ultimo: ultimoDe(historico[0]?.data_realizada, c.dados_planilha),
         historico,
       };
     })
