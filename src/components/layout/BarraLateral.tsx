@@ -18,6 +18,7 @@ import {
   Settings,
   Scale,
   UserCheck,
+  MessageSquareWarning,
 } from "lucide-react";
 
 export const ITENS_NAV = [
@@ -28,6 +29,7 @@ export const ITENS_NAV = [
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
   { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList, exato: false },
+  { para: "/sugestoes", rotulo: "Problemas e Sugestões", icone: MessageSquareWarning, exato: false },
   { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2, exato: false },
   { para: "/configuracoes", rotulo: "Configurações", icone: Settings, exato: false },
 ] as const;
@@ -35,7 +37,7 @@ export const ITENS_NAV = [
 const GRUPOS: { titulo: string; rotas: string[] }[] = [
   { titulo: "Visão geral", rotas: ["/", "/processos"] },
   { titulo: "Acompanhamento", rotas: ["/reus-presos", "/prisoes-temporarias", "/audiencias", "/comparecimentos", "/pendencias"] },
-  { titulo: "Administração", rotas: ["/relatorios", "/configuracoes"] },
+  { titulo: "Administração", rotas: ["/relatorios", "/sugestoes", "/configuracoes"] },
 ];
 
 export function BarraLateral() {

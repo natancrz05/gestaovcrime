@@ -827,6 +827,36 @@ export type Database = {
           },
         ]
       }
+      sugestoes: {
+        Row: {
+          criado_em: string
+          descricao: string
+          id: string
+          status: string
+          tipo: string
+          usuario_id: string
+          usuario_nome: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao: string
+          id?: string
+          status?: string
+          tipo: string
+          usuario_id?: string
+          usuario_nome?: string
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string
+          id?: string
+          status?: string
+          tipo?: string
+          usuario_id?: string
+          usuario_nome?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
