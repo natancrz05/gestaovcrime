@@ -61,7 +61,7 @@ export function obterIndicadores(): IndicadorPainel[] {
       valor: listarProcessosPor("prisao-temporaria").length,
       descricao: "Prazos em curso a controlar",
       severidade: "urgente",
-      para: "/prisoes-temporarias",
+      para: "/reus-presos",
     },
     {
       chave: "sem-movimentacao",

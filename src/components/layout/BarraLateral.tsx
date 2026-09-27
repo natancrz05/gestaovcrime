@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   FolderOpen,
   Lock,
-  Timer,
   CalendarDays,
   ClipboardList,
   FileBarChart2,
@@ -25,7 +24,6 @@ export const ITENS_NAV = [
   { para: "/", rotulo: "Dashboard", icone: LayoutDashboard, exato: true },
   { para: "/processos", rotulo: "Processos", icone: FolderOpen, exato: false },
   { para: "/reus-presos", rotulo: "Réus Presos", icone: Lock, exato: false },
-  { para: "/prisoes-temporarias", rotulo: "Prisões Temporárias", icone: Timer, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
   { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList, exato: false },
@@ -36,7 +34,7 @@ export const ITENS_NAV = [
 
 const GRUPOS: { titulo: string; rotas: string[] }[] = [
   { titulo: "Visão geral", rotas: ["/", "/processos"] },
-  { titulo: "Acompanhamento", rotas: ["/reus-presos", "/prisoes-temporarias", "/audiencias", "/comparecimentos", "/pendencias"] },
+  { titulo: "Acompanhamento", rotas: ["/reus-presos", "/audiencias", "/comparecimentos", "/pendencias"] },
   { titulo: "Administração", rotas: ["/relatorios", "/sugestoes", "/configuracoes"] },
 ];
 
