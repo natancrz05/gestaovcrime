@@ -8,7 +8,6 @@ import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
 import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
-import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
 import { toast } from "sonner";
@@ -141,7 +140,7 @@ function Pagina() {
                           {p.nome}
                           {p.conferir ? (
                             <span className="group/selo relative ml-2 inline-flex align-middle" title={p.motivo_conferencia}>
-                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer" : undefined}><Etiqueta severidade="alerta">Conferir</Etiqueta></span>
+                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" : "rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta"}>Conferir</span>
                               {podeEditar ? (
                                 <button
                                   type="button"
@@ -180,7 +179,7 @@ function Pagina() {
                         {dp["Andamento do último procedimento"] ? <div className="text-muted-foreground">{dp["Andamento do último procedimento"]}</div> : null}
                       </td>
                       <td className="px-2 py-2 text-xs">
-                        {rev ? <Etiqueta severidade={rev.dias !== null && rev.dias >= 85 ? "atencao" : "info"}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</Etiqueta> : <span className="text-muted-foreground">—</span>}
+                        {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
                       </td>
                       {podeEditar ? (
                         <td className="space-y-1 px-2 py-2 whitespace-nowrap">

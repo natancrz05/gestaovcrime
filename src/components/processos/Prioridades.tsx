@@ -64,12 +64,9 @@ export function ListaAtencao({ itens }: { itens: { processo: ProcessoCompleto; a
           <li key={p.id} className={cn("rounded-lg border bg-card p-4 shadow-card", urgente ? "border-l-4 border-border border-l-urgente" : "border-border")}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                  <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo text-sm font-semibold text-primary hover:underline">
-                    {p.numero}
-                  </Link>
-                  {p.conferir ? <Etiqueta severidade="alerta">Conferir</Etiqueta> : null}
-                </div>
+                <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo text-sm font-semibold text-primary hover:underline">
+                  {p.numero}
+                </Link>
                 <p className="mt-0.5 text-sm text-foreground">
                   {reu?.nome ?? "Sem réu cadastrado"}
                   {p.reus.length > 1 ? <span className="text-xs text-muted-foreground"> +{p.reus.length - 1} réu(s)</span> : null}
