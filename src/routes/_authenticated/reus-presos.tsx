@@ -9,7 +9,7 @@ import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIP
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
-import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
+import { ROTULO_TIPO_PROC, tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
@@ -36,6 +36,8 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const BTN_P = "text-xs text-primary hover:underline";
 
+// A espécie da planilha é a fonte de verdade para a classificação exibida.\n// O tipo legado do cadastro fica como fallback para registros sem espécie.\nconst tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>\n  p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
+
 function Pagina() {
   const { data } = useSuspenseQuery(presosQuery());
   const podeEditar = usePode("editar");
@@ -59,7 +61,7 @@ function Pagina() {
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
     return data.filter((p) => {
-      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(p.tipo_prisao) : tipo && p.tipo_prisao !== tipo) return false;
+      const tipoAtual = tipoExibido(p);\n      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(tipoAtual) : tipo && tipoAtual !== tipo) return false;
       if (!t) return true;
       const campos = [p.nome, p.rji, p.processos?.numero ?? "", ...p.processos_relacionados.map((r) => r.numero)];
       return campos.some((c) => semAcento(c).includes(t) || (d.length >= 3 && c.replace(/\D/g, "").includes(d)));
@@ -85,9 +87,9 @@ function Pagina() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {([
           ["", "Réus presos", data.length],
-          ["Prisão temporária", "Prisões temporárias", data.filter((p) => p.tipo_prisao === "Prisão temporária").length],
-          ["Prisão preventiva", "Prisões preventivas", data.filter((p) => p.tipo_prisao === "Prisão preventiva").length],
-          ["outras", "Outras prisões", data.filter((p) => !["Prisão temporária", "Prisão preventiva"].includes(p.tipo_prisao)).length],
+          ["Prisão temporária", "Prisões temporárias", data.filter((p) => tipoExibido(p) === "Prisão temporária").length],
+          ["Prisão preventiva", "Prisões preventivas", data.filter((p) => tipoExibido(p) === "Prisão preventiva").length],
+          ["outras", "Outras prisões", data.filter((p) => !["Prisão temporária", "Prisão preventiva"].includes(tipoExibido(p))).length],
         ] as const).map(([v, r, n]) => (
           <button key={r} type="button" onClick={() => setTipo(v)} aria-pressed={tipo === v}
             className={`rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/50 ${tipo === v ? "border-primary ring-1 ring-primary" : "border-border"}`}>
@@ -121,7 +123,7 @@ function Pagina() {
                     : p.processo_id ? [{ tipo: "", numero: p.processos?.numero ?? "", processo_id: p.processo_id, situacao: "encontrado" }] : [];
                   const dias = p.data_prisao ? diasEntre(p.data_prisao, hoje) : null;
                   const dp = p.dados_planilha ?? {};
-                  const rev = situacaoRevisao(p.tipo_prisao, dp["Última reavaliação"] || undefined, hoje, diasEntre);
+                  const rev = situacaoRevisao(tipoExibido(p), dp["Última reavaliação"] || undefined, hoje, diasEntre);
                   return (
                     <tr key={p.id}>
                       <td className="px-2 py-2 text-xs whitespace-nowrap">
@@ -151,7 +153,7 @@ function Pagina() {
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
                         {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
                       </td>
-                      <td className="px-2 py-2">{p.tipo_prisao}{p.especie_cautelar ? <div className="text-xs text-muted-foreground">{p.especie_cautelar}</div> : null}</td>
+                      <td className="px-2 py-2">{tipoExibido(p)}{p.especie_cautelar ? <div className="text-xs text-muted-foreground">{p.especie_cautelar}</div> : null}</td>
                       <td className="px-2 py-2">{formatarData(p.data_prisao)}</td>
                       <td className="px-2 py-2 tabular-nums">{dias ?? dp["Dias preso (planilha)"] ?? "—"}</td>
                       <td className="px-2 py-2 text-xs">
