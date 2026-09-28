@@ -28,21 +28,21 @@ type Campo = "nome" | "rji" | "especie" | "cautelar" | "ip" | "acao_penal" | "an
 
 /** Ordem importa: regras mais específicas primeiro. */
 const REGRAS: [Campo, (h: string) => boolean][] = [
-  ["especie", (h) => h.includes("ESPECIE")],
-  ["nome", (h) => h.includes("NOME")],
+  ["nome", (h) => h === "NOME DO PRESO" || h.startsWith("NOME DO PRESO ")],
   ["rji", (h) => /\bRJI\b/.test(h)],
+  ["especie", (h) => h.includes("ESPECIE") && (h.includes("CAUTELAR") || h.includes("PRISAO"))],
   ["acao_penal", (h) => h.includes("ACAO PENAL")],
+  ["cautelar", (h) => h.includes("PROCESSO CAUTELAR") || (h.includes("CAUTELAR") && !h.includes("ESPECIE"))],
   ["ip", (h) => /\bIP\b/.test(h) || h.includes("INQUERITO")],
-  ["cautelar", (h) => h.includes("CAUTELAR")],
   ["andamento", (h) => h.includes("ANDAMENTO")],
-  ["termino", (h) => h.includes("TERMINO")],
+  ["termino", (h) => h.includes("TERMINO") && !h.includes("REAVALIACAO")],
   ["ultima_reav", (h) => h.includes("ULTIMA") && h.includes("REAVALIACAO")],
   ["prazo_reav", (h) => h.includes("PRAZO") && h.includes("REAVALIACAO")],
-  ["data_reav", (h) => h.includes("REAVALIACAO")],
-  ["data_prisao", (h) => h.includes("PRISAO")],
-  ["dias", (h) => h.includes("DIAS")],
+  ["data_reav", (h) => h.includes("DATA") && h.includes("REAVALIACAO") && !h.includes("ULTIMA")],
+  ["data_prisao", (h) => h.includes("DATA") && h.includes("PRISAO")],
+  ["dias", (h) => h.includes("DIAS") && h.includes("PRESO")],
   ["situacao", (h) => h.includes("SITUACAO")],
-  ["sistema", (h) => h.includes("SISTEMA")],
+  ["sistema", (h) => h === "SISTEMA" || h.startsWith("SISTEMA ")],
 ];
 
 export const ROTULOS_REU: Record<Campo, string> = {
