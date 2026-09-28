@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
@@ -44,37 +44,16 @@ const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
 function Pagina() {
   const { data } = useSuspenseQuery(presosQuery());
   const podeEditar = usePode("editar");
-  const administrador = useSessao().perfil === "administrador";
   const qc = useQueryClient();
   const [importar, setImportar] = useState(false);
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
   const [reav, setReav] = useState<ReuEditavel | null>(null);
   const [acoesAberta, setAcoesAberta] = useState<string | null>(null);
-  const [limpando, setLimpando] = useState(false);
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
   const atualizar = () => qc.invalidateQueries();
-  const limparDadosReusPresos = async () => {
-    if (!administrador || limpando) return;
-    const confirmado = window.confirm(
-      `ATENÇÃO: esta ação excluirá definitivamente ${data.length} registros atualmente marcados como réus presos.\n\nOs processos serão preservados. A ação é destinada à nova importação da planilha e não poderá ser desfeita pela tela.\n\nDeseja continuar?`
-    );
-    if (!confirmado) return;
-    setLimpando(true);
-    try {
-      const { data: resultado, error } = await supabase.rpc("limpar_reus_presos_admin" as never);
-      if (error) throw error;
-      const removidos = (resultado as { removidos?: number } | null)?.removidos ?? data.length;
-      toast.success(`${removidos} registros de réus presos foram removidos. Os processos foram preservados.`);
-      await atualizar();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível limpar os dados de réus presos.");
-    } finally {
-      setLimpando(false);
-    }
-  };
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
     if (error) { toast.error(error.message); return; }
@@ -107,17 +86,6 @@ function Pagina() {
         acao={podeEditar ? <div className="flex gap-2">
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted" onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar réu preso</button>
-          {administrador ? (
-            <button
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-urgente/40 bg-urgente-suave px-3 text-sm font-medium text-urgente hover:bg-urgente/10 disabled:opacity-60"
-              type="button"
-              disabled={limpando || data.length === 0}
-              onClick={limparDadosReusPresos}
-              title="Exclusivo para administrador: remove os réus presos atuais e preserva os processos"
-            >
-              <Trash2 className="size-4" /> {limpando ? "Limpando…" : "Limpar dados para nova importação"}
-            </button>
-          ) : null}
         </div> : undefined}
       />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
