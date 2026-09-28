@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -12,20 +12,12 @@ import { diasEntre, hojeISO } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
+import { presosQuery } from "@/lib/processos/reus-presos";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
   conferir: boolean; motivo_conferencia: string; processos: { numero: string } | null;
 }
-
-export const presosQuery = () => queryOptions({
-  queryKey: ["reus-presos"],
-  queryFn: async () => {
-    const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).order("nome");
-    if (error) throw new Error(error.message);
-    return (data ?? []) as unknown as Preso[];
-  },
-});
 
 export const Route = createFileRoute("/_authenticated/reus-presos")({
   head: () => ({
@@ -52,6 +44,7 @@ function Pagina() {
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
   const [reav, setReav] = useState<ReuEditavel | null>(null);
+  const [acoesAberta, setAcoesAberta] = useState<string | null>(null);
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
@@ -182,15 +175,20 @@ function Pagina() {
                         {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
                       </td>
                       {podeEditar ? (
-                        <td className="space-y-1 px-2 py-2 whitespace-nowrap">
-                          <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button></div>
-                          <div><button className={BTN_P} title={p.conferir ? "Indica que os dados importados deste cadastro foram revisados pelo servidor." : "Volta o selo Conferir para nova revisão do cadastro."} onClick={() => marcarConferencia(p.id, !p.conferir)}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>{p.conferir ? <div className="max-w-44 whitespace-normal text-[10px] text-muted-foreground">Indica que os dados importados deste cadastro foram revisados pelo servidor.</div> : null}</div>
-                          <div className="rounded border border-border p-1.5">
-                            <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">Ações da prisão</div>
-                            <div><button className={BTN_P} onClick={() => setForm({ reu: p })}>Atualizar prisão</button></div>
-                            <div><button className={BTN_P} onClick={() => setReav(p)}>Registrar reavaliação</button></div>
-                            <div><button className={BTN_P} onClick={() => setSoltar(p)}>Encerrar situação prisional</button></div>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.conferir ? "Conferir" : "Editar"}</button>
+                            <button className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted" type="button" aria-haspopup="menu" aria-expanded={acoesAberta === p.id} onClick={() => setAcoesAberta(acoesAberta === p.id ? null : p.id)}>Ações ▾</button>
                           </div>
+                          {acoesAberta === p.id ? (
+                            <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
+                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setForm({ reu: p }); setAcoesAberta(null); }}>Atualizar prisão</button>
+                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setReav(p); setAcoesAberta(null); }}>Registrar reavaliação</button>
+                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-urgente hover:bg-urgente-suave" onClick={() => { setSoltar(p); setAcoesAberta(null); }}>Encerrar situação prisional</button>
+                              <div className="my-1 border-t border-border" />
+                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { marcarConferencia(p.id, !p.conferir); setAcoesAberta(null); }}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>
+                            </div>
+                          ) : null}
                         </td>
                       ) : null}
                     </tr>
