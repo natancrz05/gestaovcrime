@@ -94,8 +94,10 @@ function Pagina() {
           .toLowerCase();
         if (!alvo.includes(t)) return false;
       }
-      if (status && p.status !== status) return false;
+            if (status && p.status !== status) return false;
       if (classe && p.classe !== classe) return false;
+      if (fase && p.fase !== fase) return false;
+      if (fluxo && fluxoAtual(p).fluxo !== fluxo) return false;
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
