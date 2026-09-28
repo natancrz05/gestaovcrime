@@ -36,7 +36,10 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const BTN_P = "text-xs text-primary hover:underline";
 
-// A espécie da planilha é a fonte de verdade para a classificação exibida.\n// O tipo legado do cadastro fica como fallback para registros sem espécie.\nconst tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>\n  p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
+// A espécie da planilha é a fonte de verdade para a classificação exibida.
+// O tipo legado do cadastro fica como fallback para registros sem espécie.
+const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
+  p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
 
 function Pagina() {
   const { data } = useSuspenseQuery(presosQuery());
@@ -61,7 +64,8 @@ function Pagina() {
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
     return data.filter((p) => {
-      const tipoAtual = tipoExibido(p);\n      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(tipoAtual) : tipo && tipoAtual !== tipo) return false;
+      const tipoAtual = tipoExibido(p);
+      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(tipoAtual) : tipo && tipoAtual !== tipo) return false;
       if (!t) return true;
       const campos = [p.nome, p.rji, p.processos?.numero ?? "", ...p.processos_relacionados.map((r) => r.numero)];
       return campos.some((c) => semAcento(c).includes(t) || (d.length >= 3 && c.replace(/\D/g, "").includes(d)));
