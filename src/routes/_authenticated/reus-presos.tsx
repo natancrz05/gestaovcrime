@@ -18,7 +18,7 @@ interface Preso extends ReuEditavel {
   conferir: boolean; motivo_conferencia: string; processos: { numero: string } | null;
 }
 
-const presosQuery = () => queryOptions({
+export const presosQuery = () => queryOptions({
   queryKey: ["reus-presos"],
   queryFn: async () => {
     const { data, error } = await supabase.from("reus").select("*, processos(numero)").eq("preso", true).order("nome");
