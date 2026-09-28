@@ -75,7 +75,8 @@ function Pagina() {
       p_erros: a.erros as unknown as Json, p_ignorados: a.duplicados as unknown as Json,
       p_aplicar_conflitos: conflitos, p_simular: true,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "Falha ao gerar a prévia.");
+    if (!data) throw new Error("A prévia não retornou resultado. Nenhuma alteração foi feita.");
     setSim(data as unknown as ResultadoSimulacao);
   }
 
@@ -84,11 +85,13 @@ function Pagina() {
     setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null);
     try {
       const a = await lerPlanilha(arquivo);
-      setAnalise(a);
       await simular(a, aplicarConflitos);
+      // Só troca a tela pela prévia quando o resultado da análise já está disponível.
+      setAnalise(a);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao analisar o arquivo.");
-      setAnalise(null);
+      setSim(null); setAnalise(null);
+      const msg = e instanceof Error ? e.message : (e as { message?: string })?.message;
+      setErro(`Não foi possível analisar a planilha. ${msg || "Falha desconhecida."} Nenhuma alteração foi feita.`);
     } finally { setOcupado(false); }
   }
 
