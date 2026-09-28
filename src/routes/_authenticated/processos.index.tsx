@@ -312,7 +312,7 @@ function Pagina() {
                           {p.numero}
                         </Link>
                         {(p as typeof p & { conferir?: boolean }).conferir ? (
-                          <span className="group/selo relative inline-flex align-middle">
+                          <span className="inline-flex items-center gap-1 align-middle">
                             <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" title="Processo sinalizado para conferência">
                               Conferir
                             </span>
@@ -321,8 +321,8 @@ function Pagina() {
                                 type="button"
                                 aria-label="Remover aviso Conferir deste processo"
                                 title="Remover o aviso Conferir"
-                                onClick={(e) => { e.stopPropagation(); void marcarConferencia(p.id, false); }}
-                                className="absolute -right-1.5 -top-1.5 hidden size-3.5 items-center justify-center rounded-full border border-alerta/40 bg-background text-[9px] font-bold leading-none text-alerta group-hover/selo:flex hover:bg-alerta hover:text-primary-foreground"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void marcarConferencia(p.id, false); }}
+                                className="inline-flex size-4 items-center justify-center rounded-full border border-alerta/40 bg-background text-[10px] font-bold leading-none text-alerta hover:bg-alerta hover:text-primary-foreground"
                               >
                                 ×
                               </button>
