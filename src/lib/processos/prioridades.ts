@@ -23,8 +23,8 @@ export const CATEGORIAS: {
   descricao: string;
   cor: "urgente" | "temporaria" | "atencao" | "alerta";
 }[] = [
-  { chave: "reu-preso", titulo: "Réus presos", descricao: "Processos com réu marcado como preso", cor: "urgente" },
-  { chave: "prisao-temporaria", titulo: "Prisões temporárias", descricao: "Réu com prisão temporária registrada", cor: "temporaria" },
+  { chave: "reu-preso", titulo: "Réus presos", descricao: "Pessoas atualmente custodiadas", cor: "urgente" },
+  { chave: "prisao-temporaria", titulo: "Prisões temporárias", descricao: "Pessoas com prisão temporária registrada", cor: "temporaria" },
   {
     chave: "sem-movimentacao",
     titulo: `+${CONFIG_PRIORIDADES.limiteDiasSemMovimentacao} dias sem movimentação`,
