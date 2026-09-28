@@ -30,6 +30,8 @@ const COLUNAS: Record<string, string> = {
   PROCESSO: "numero",
   CLASSE: "pje_classe_codigo",
   "DESCRICAO DA CLASSE": "classe",
+  "DESCRICAO CLASSE CNJ": "classe",
+  "DESCRICAO CLASSE": "classe",
   ASSUNTO: "assunto",
   "DATA AUTUACAO": "data_distribuicao",
   "DATA ULT MOV": "pje_ultima_mov_data",
