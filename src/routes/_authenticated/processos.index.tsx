@@ -82,7 +82,16 @@ function Pagina() {
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && sp[k]);
   const hoje = hojeISO();
 
-  const classes = useMemo(() => [...new Set(processos.map((p) => p.classe))].sort(), [processos]);
+  const classes = useMemo(() => {
+    const classesPorChave = new Map<string, string>();
+    for (const processo of processos) {
+      const valor = processo.classe?.trim();
+      if (!valor) continue;
+      const chave = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase();
+      if (!classesPorChave.has(chave)) classesPorChave.set(chave, valor);
+    }
+    return [...classesPorChave.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [processos]);
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
