@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -30,9 +30,22 @@ export const Route = createFileRoute("/_authenticated/")({
 function Dashboard() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const { data: presos } = useSuspenseQuery(presosQuery());
+  const navigate = useNavigate();
   const [categoria, setCategoria] = useState<CategoriaPrioridade | null>(null);
   const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
   const contagens = contarCategorias(atencao);
+  const contagensDashboard = {
+    ...contagens,
+    "reu-preso": presos.length,
+    "prisao-temporaria": presos.filter((p) => p.tipo_prisao === "Prisão temporária").length,
+  };
+  const selecionarCategoria = (c: CategoriaPrioridade | null) => {
+    if (c === "reu-preso" || c === "prisao-temporaria") {
+      navigate({ to: "/reus-presos" });
+      return;
+    }
+    setCategoria(c);
+  };
   const exibidos = categoria ? atencao.filter((x) => x.alertas.some((a) => a.categoria === categoria)) : atencao;
   const pendencias = listarPendenciasDe(processos);
   const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
@@ -59,7 +72,7 @@ function Dashboard() {
 
       <section aria-labelledby="indicadores" className="space-y-3">
         <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Situações prioritárias</h2>
-        <CartoesCategorias contagens={contagens} selecionada={categoria} onSelecionar={setCategoria} />
+        <CartoesCategorias contagens={contagensDashboard} selecionada={categoria} onSelecionar={selecionarCategoria} />
       </section>
 
       <h2 className="-mb-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agenda e acompanhamento</h2>
