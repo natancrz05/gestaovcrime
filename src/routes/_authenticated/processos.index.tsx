@@ -9,6 +9,8 @@ import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Opcoes } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
@@ -82,6 +84,12 @@ function Pagina() {
   const flag = (k: Chave) => sp[k] === "1";
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && sp[k]);
   const hoje = hojeISO();
+  const marcarConferencia = async (id: string, conferir: boolean) => {
+    const { error } = await supabase.from("processos").update({ conferir }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(conferir ? "Aviso de conferência reaberto" : "Aviso de conferência removido");
+    await qc.invalidateQueries({ queryKey: ["processos"] });
+  };
 
   const classes = useMemo(() => {
     const classesPorChave = new Map<string, string>();
@@ -299,9 +307,29 @@ function Pagina() {
                     onClick={() => navigate({ to: "/processos/$id", params: { id: p.id } })}
                   >
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo font-semibold text-primary hover:underline">
-                        {p.numero}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo font-semibold text-primary hover:underline">
+                          {p.numero}
+                        </Link>
+                        {(p as typeof p & { conferir?: boolean }).conferir ? (
+                          <span className="group/selo relative inline-flex align-middle">
+                            <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" title="Processo sinalizado para conferência">
+                              Conferir
+                            </span>
+                            {podeEditar ? (
+                              <button
+                                type="button"
+                                aria-label="Remover aviso Conferir deste processo"
+                                title="Remover o aviso Conferir"
+                                onClick={(e) => { e.stopPropagation(); void marcarConferencia(p.id, false); }}
+                                className="absolute -right-1.5 -top-1.5 hidden size-3.5 items-center justify-center rounded-full border border-alerta/40 bg-background text-[9px] font-bold leading-none text-alerta group-hover/selo:flex hover:bg-alerta hover:text-primary-foreground"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5">
                       {reu ? reu.nome : "—"}
