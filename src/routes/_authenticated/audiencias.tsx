@@ -436,11 +436,20 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
 function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void }) {
   const itens = useMemo(() => listarCentral(processos), [processos]);
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
+  const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
   const [busca, setBusca] = useState("");
   const termo = busca.trim().toLowerCase();
   const digitos = termo.replace(/\D/g, "");
+  const ehTermoCircunstanciado = (classe: string | null | undefined) =>
+    !!classe &&
+    classe.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase() === "TERMO CIRCUNSTANCIADO";
+  const itensTermo = itens.filter((i) => ehTermoCircunstanciado(i.processo.classe));
+  const itensDemais = itens.filter((i) => !ehTermoCircunstanciado(i.processo.classe));
   const exibidos = itens.filter(
     (i) =>
+      (filtroClasse === "todas" ||
+        (filtroClasse === "termo" && ehTermoCircunstanciado(i.processo.classe)) ||
+        (filtroClasse === "demais" && !ehTermoCircunstanciado(i.processo.classe))) &&
       (!nivel || i.nivel === nivel) &&
       (!termo ||
         i.reu.toLowerCase().includes(termo) ||
@@ -463,6 +472,25 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
             </button>
           );
         })}
+      </div>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {[
+          ["todas", "Todos", itens.length],
+          ["termo", "Termo Circunstanciado · Moderadora", itensTermo.length],
+          ["demais", "Demais processos · Serventia", itensDemais.length],
+        ].map(([chave, rotulo, qtd]) => (
+          <button
+            key={chave}
+            aria-pressed={filtroClasse === chave}
+            onClick={() => setFiltroClasse(chave as "todas" | "termo" | "demais")}
+            className={cn(
+              "rounded-full border border-border px-3 py-1 text-xs",
+              filtroClasse === chave ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+            )}
+          >
+            {rotulo} ({qtd})
+          </button>
+        ))}
       </div>
       <input className={cn(CLASSE_CAMPO, "mb-3 max-w-md")} placeholder="Buscar por número do processo ou réu/parte…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar na central" />
       {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum processo aguardando audiência{nivel || termo ? " com estes critérios" : ""}.</p> : (
