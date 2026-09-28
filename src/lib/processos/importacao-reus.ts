@@ -7,6 +7,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { paraData } from "./importacao";
 import { separarNumeros } from "./importacao-comparecimentos";
 
+
+/**
+ * Lê CSV sem depender da codificação padrão do navegador.
+ * UTF-8 válido é preservado; CSVs Windows-1252 são decodificados explicitamente.
+ * UTF-8 com BOM tem o BOM removido pelo TextDecoder.
+ */
+async function lerCsv(arquivo: File): Promise<string> {
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const temBomUtf8 = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+  const utf8 = new TextDecoder("utf-8", { fatal: true });
+  if (temBomUtf8) return utf8.decode(bytes);
+  try { return utf8.decode(bytes); }
+  catch { return new TextDecoder("windows-1252").decode(bytes); }
+}
+
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[_\s.:/-]+/g, " ").trim();
 
 type Campo = "nome" | "rji" | "especie" | "cautelar" | "ip" | "acao_penal" | "andamento" | "termino" | "ultima_reav" | "prazo_reav" | "data_reav" | "situacao" | "data_prisao" | "dias" | "sistema";
@@ -59,7 +74,7 @@ export async function lerPlanilhaReus(arquivo: File): Promise<AnaliseReu> {
   let wb;
   try {
     wb = /\.csv$/i.test(arquivo.name)
-      ? XLSX.read(await arquivo.text(), { type: "string", raw: true })
+      ? XLSX.read(await lerCsv(arquivo), { type: "string", raw: true })
       : XLSX.read(await arquivo.arrayBuffer(), { type: "array", cellDates: true });
   } catch { throw new Error("Não foi possível ler o arquivo. Ele pode estar corrompido."); }
   const aba = wb.SheetNames[0] ? wb.Sheets[wb.SheetNames[0]] : undefined;
