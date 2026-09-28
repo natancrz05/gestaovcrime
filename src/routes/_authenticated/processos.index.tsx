@@ -162,9 +162,17 @@ function Pagina() {
           <option value="">Todos os status</option>
           <Opcoes valores={STATUS_PROCESSO} />
         </select>
-        <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={classe} onChange={(e) => set("classe", e.target.value)} aria-label="Classe">
+                <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={classe} onChange={(e) => set("classe", e.target.value)} aria-label="Classe">
           <option value="">Todas as classes</option>
           <Opcoes valores={classes} />
+        </select>
+        <select className={CLASSE_CAMPO} value={fase} onChange={(e) => set("fase", e.target.value)} aria-label="Fase">
+          <option value="">Todas as fases</option>
+          <Opcoes valores={fases} />
+        </select>
+        <select className={CLASSE_CAMPO} value={fluxo} onChange={(e) => set("fluxo", e.target.value)} aria-label="Fluxo atual">
+          <option value="">Todos os fluxos</option>
+          <Opcoes valores={fluxos} />
         </select>
         <select className={CLASSE_CAMPO} value={preso} onChange={(e) => set("preso", e.target.value)} aria-label="Réu preso">
           <option value="">Réu preso: todos</option>
