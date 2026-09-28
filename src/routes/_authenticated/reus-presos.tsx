@@ -141,7 +141,7 @@ function Pagina() {
                           {p.nome}
                           {p.conferir ? (
                             <span className="group/selo relative ml-2 inline-flex align-middle" title={p.motivo_conferencia}>
-                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" : "rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta"}>Conferir</span>
+                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer" : undefined}><Etiqueta severidade="alerta">Conferir</Etiqueta></span>
                               {podeEditar ? (
                                 <button
                                   type="button"
