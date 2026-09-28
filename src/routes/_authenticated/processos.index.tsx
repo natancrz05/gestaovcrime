@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
@@ -71,6 +71,7 @@ const PERIODOS = [
 
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
+  const qc = useQueryClient();
   const navigate = useNavigate();
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
