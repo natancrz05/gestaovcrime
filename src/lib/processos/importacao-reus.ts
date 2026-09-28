@@ -56,9 +56,16 @@ export const ROTULOS_REU: Record<Campo, string> = {
 export function tipoPrisaoDe(especie: string): string {
   const t = norm(especie);
   if (t.includes("PREVENT")) return "Prisão preventiva";
-  if (t.includes("TEMPORARIA")) return "Prisão temporária";
+  if (t.includes("TEMPOR")) return "Prisão temporária";
   if (t.includes("FLAGRAN")) return "Prisão em flagrante";
   return "Outra";
+}
+
+function dataPlanilhaValida(valor: unknown): string | null {
+  const d = paraData(valor);
+  if (!d) return null;
+  const ano = Number(d.slice(0, 4));
+  return Number.isFinite(ano) && ano >= 2000 ? d : null;
 }
 
 export interface LinhaReu {
@@ -101,14 +108,22 @@ export async function lerPlanilhaReus(arquivo: File): Promise<AnaliseReu> {
     const probs: string[] = [];
     (["andamento", "termino", "ultima_reav", "prazo_reav", "data_reav", "dias", "sistema"] as Campo[]).forEach((c) => {
       if (["termino", "ultima_reav", "data_reav"].includes(c)) {
-        const d = paraData(v[c]);
-        if (d === null) probs.push(`${ROTULOS_REU[c]} não reconhecida ("${txt(c)}") — mantida como texto`);
-        const s = d ?? txt(c);
+        const d = dataPlanilhaValida(v[c]);
+        const bruto = txt(c);
+        if (bruto && d === null) probs.push(ROTULOS_REU[c] + " não reconhecida (\"" + bruto + "\") — ignorada");
+        if (d) dados[ROTULOS_REU[c]] = d;
+      } else if (c === "dias") {
+        const bruto = txt(c);
+        const n = Number(bruto.replace(",", "."));
+        if (bruto && Number.isFinite(n) && n >= 0 && n <= 5000) dados[ROTULOS_REU[c]] = String(Math.trunc(n));
+        else if (bruto) probs.push("Dias preso não reconhecido (\"" + bruto + "\") — ignorado");
+      } else {
+        const s = txt(c);
         if (s) dados[ROTULOS_REU[c]] = s;
-      } else { const s = txt(c); if (s) dados[ROTULOS_REU[c]] = s; }
+      }
     });
-    const dp = paraData(v.data_prisao);
-    if (dp === null) { probs.push(`data da prisão não reconhecida ("${txt("data_prisao")}")`); dados[ROTULOS_REU.data_prisao] = txt("data_prisao"); }
+    const dp = dataPlanilhaValida(v.data_prisao);
+    if (txt("data_prisao") && dp === null) probs.push("data da prisão não reconhecida (\"" + txt("data_prisao") + "\") — ignorada");
     if (probs.length) avisos.push({ linha: nLinha, nome, motivo: probs.join("; ") });
     const especie = txt("especie");
     const situacao = txt("situacao");
