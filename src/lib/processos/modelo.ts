@@ -140,8 +140,9 @@ export interface ProcessoCompleto {
   status: string;
   fase: string;
   observacao_geral: string;
-  responsavel: string;
+    responsavel: string;
   criado_em: string;
+  conferir?: boolean;
   /** Preparação para integração futura com PJe/TJBA. */
   origem?: string;
   id_externo?: string | null;
