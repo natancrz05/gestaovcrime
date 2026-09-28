@@ -105,10 +105,11 @@ export async function lerPlanilhaReus(arquivo: File): Promise<AnaliseReu> {
     });
   });
 
-  const chave = (l: LinhaReu) => l.rji.replace(/\s/g, "") || `${norm(l.nome)}|${[...l.cautelar, ...l.ip, ...l.acao_penal].map((n) => n.replace(/\D/g, "")).sort().join(",")}`;
+  // Duplicidade = mesmo preso E mesmos processos. Mesmo preso em processo diferente é outro vínculo.
+  const chave = (l: LinhaReu) => `${l.rji.replace(/\s/g, "") || norm(l.nome)}|${[...l.cautelar, ...l.ip, ...l.acao_penal].map((n) => n.replace(/\D/g, "") || norm(n)).sort().join(",")}`;
   const cont = new Map<string, number>();
   validas.forEach((l) => cont.set(chave(l), (cont.get(chave(l)) ?? 0) + 1));
-  const duplicados = validas.filter((l) => (cont.get(chave(l)) ?? 0) > 1).map((l) => ({ linha: l.linha, nome: l.nome, motivo: "possível duplicidade: mesmo preso repetido na planilha" }));
+  const duplicados = validas.filter((l) => (cont.get(chave(l)) ?? 0) > 1).map((l) => ({ linha: l.linha, nome: l.nome, motivo: "possível duplicidade: mesmo preso e mesmo processo repetidos na planilha" }));
   return { total, validas: validas.filter((l) => (cont.get(chave(l)) ?? 0) === 1), erros, duplicados, avisos };
 }
 
