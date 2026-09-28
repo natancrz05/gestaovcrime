@@ -37,7 +37,7 @@ BEGIN
              tipo_prisao = f.tipo,
              situacao = CASE WHEN f.situacao <> '' THEN left(f.situacao, 200) ELSE situacao END,
              data_prisao = COALESCE(f.data_prisao::date, data_prisao),
-             dados_planilha = COALESCE(dados_planilha, '{}'::jsonb) || COALESCE(f.dados, '{}'::jsonb)
+             dados_planilha = (COALESCE(dados_planilha, '{}'::jsonb) - ARRAY['Andamento do último procedimento','Término de eventual prazo','Última reavaliação','Prazo de reavaliação','Data de reavaliação','Dias preso (planilha)','Sistema']) || COALESCE(f.dados, '{}'::jsonb)
        WHERE id = alvo.id;
     END LOOP;
   END LOOP;
