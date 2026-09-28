@@ -68,6 +68,20 @@ export async function lerPlanilhaComparecimentos(arquivo: File): Promise<Analise
   } catch { throw new Error("Não foi possível ler o arquivo. Ele pode estar corrompido."); }
   const aba = wb.SheetNames[0] ? wb.Sheets[wb.SheetNames[0]] : undefined;
   if (!aba) throw new Error("A planilha está vazia.");
+  // Planilhas com formatação aplicada à coluna inteira declaram ~1 milhão de linhas vazias;
+  // ler esse intervalo com defval congela o navegador. Limita ao intervalo com conteúdo real.
+  let maxL = -1, maxC = -1;
+  for (const k of Object.keys(aba)) {
+    if (k[0] === "!") continue;
+    const cel = (aba as Record<string, { v?: unknown }>)[k];
+    if (cel?.v === undefined || cel.v === null || String(cel.v).trim() === "") continue;
+    const e = XLSX.utils.decode_cell(k);
+    if (e.r > maxL) maxL = e.r;
+    if (e.c > maxC) maxC = e.c;
+  }
+  if (maxL < 0) throw new Error("A planilha está vazia.");
+  aba["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxL, c: maxC } });
+  await new Promise((r) => setTimeout(r, 0)); // devolve o controle à tela antes de processar
   const matriz = XLSX.utils.sheet_to_json<unknown[]>(aba, { header: 1, raw: true, defval: "" });
   const mapear = (r: unknown[]) => r.map((c) => { const h = norm(String(c)); return h ? REGRAS.find(([, f]) => f(h))?.[0] ?? null : null; });
   const iCab = matriz.findIndex((r) => { const m = mapear(r); return m.includes("pessoa") && (m.includes("processo") || m.includes("acao_penal")); });
