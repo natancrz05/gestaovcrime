@@ -6,6 +6,7 @@ import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/
 import { formatarData } from "@/lib/dominio";
 import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { processosQuery } from "@/lib/processos/repositorio";
+import { presosQuery } from "@/lib/processos/reus-presos";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
@@ -21,13 +22,14 @@ export const Route = createFileRoute("/_authenticated/")({
       { property: "og:description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
-  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
+  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
 
 function Dashboard() {
   const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: presos } = useSuspenseQuery(presosQuery());
   const [categoria, setCategoria] = useState<CategoriaPrioridade | null>(null);
   const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
   const contagens = contarCategorias(atencao);
@@ -62,8 +64,13 @@ function Dashboard() {
 
       <h2 className="-mb-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agenda e acompanhamento</h2>
 
-      <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr]">
+      <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr]">
         <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
+        <Link to="/reus-presos" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Réus presos</p>
+          <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-urgente">{presos.length}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Pessoas atualmente custodiadas</p>
+        </Link>
         <Link to="/audiencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Audiências nos próximos 7 dias</p>
           <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-info">{aud7}</p>
