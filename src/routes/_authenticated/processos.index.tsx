@@ -252,7 +252,10 @@ function Pagina() {
                       {reu?.preso ? <div className="text-xs text-urgente">{reu.tipo_prisao}</div> : null}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">{p.classe}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{p.status}</td>
+                                        <td className="whitespace-nowrap px-3 py-2.5">
+                      <div>{p.status}</div>
+                      {p.conferir ? <div className="mt-1"><Etiqueta severidade="alerta">Conferir</Etiqueta></div> : null}
+                    </td>
                     <td className="min-w-40 px-3 py-2.5 text-xs font-medium" title={p.pje_tarefas ?? undefined}>{rotuloFluxo(p)}</td>
                     <td className="px-3 py-2.5">
                       <div>{formatarData(ult?.data ?? null)}</div>

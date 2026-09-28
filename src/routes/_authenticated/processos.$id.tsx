@@ -84,8 +84,9 @@ function Pagina() {
     <div className="space-y-5">
       <Voltar />
       <Cabecalho titulo={p.numero} subtitulo={`${p.classe} · ${p.assunto}`} acao={<AcoesProcesso p={p} />} />
-      <p className="-mt-3 text-xs text-muted-foreground">
+            <p className="-mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
+        {p.conferir ? <Etiqueta severidade="alerta">Conferir</Etiqueta> : null}
       </p>
       {p.pje_tarefas || p.pje_situacao || p.pje_concluso ? (() => { const fx = fluxoAtual(p); return (
         <div className="rounded-md border border-border bg-card px-4 py-3 text-sm">
