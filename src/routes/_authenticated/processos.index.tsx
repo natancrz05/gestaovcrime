@@ -12,7 +12,8 @@ import { formatarData } from "@/lib/dominio";
 import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
-  diasSemMovimentacao,
+    diasSemMovimentacao,
+  fluxoAtual,
   rotuloFluxo,
   hojeISO,
   pendenciasAbertas,
