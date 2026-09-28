@@ -75,7 +75,7 @@ function Pagina() {
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
   const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
-  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", ordem = sp.ordem ?? "processo";
+  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
   const flag = (k: Chave) => sp[k] === "1";
@@ -104,6 +104,10 @@ function Pagina() {
       if (flag("temporaria") && !p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária")) return false;
       if (flag("prioridade") && alertasDoProcesso(p, hoje).length === 0) return false;
       if (flag("pendencia") && pendenciasAbertas(p).length === 0) return false;
+      if (gestaoPrioridade === "com" && alertasDoProcesso(p, hoje).length === 0) return false;
+      if (gestaoPrioridade === "sem" && alertasDoProcesso(p, hoje).length > 0) return false;
+      if (gestaoPendencia === "com" && pendenciasAbertas(p).length === 0) return false;
+      if (gestaoPendencia === "sem" && pendenciasAbertas(p).length > 0) return false;
       if (flag("audiencia") && p.audiencias.length === 0) return false;
       if (flag("semMov")) { const d = diasSemMovimentacao(p, hoje); if (d === null || d <= CONFIG_PRIORIDADES.limiteDiasSemMovimentacao) return false; }
       if (movimentacao) {
@@ -166,7 +170,7 @@ function Pagina() {
       />
 
       <details open className="rounded-lg border border-border bg-card shadow-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">Filtros avançados</summary>
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">Filtros avançados {Object.keys(sp).filter((k) => k !== "ordem").length ? <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{Object.keys(sp).filter((k) => k !== "ordem").length} ativos</span> : null}</summary>
         <div className="grid gap-3 border-t border-border p-4 md:grid-cols-3 lg:grid-cols-6">
           <div className="relative md:col-span-3 lg:col-span-6">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -220,6 +224,16 @@ function Pagina() {
             <option value="realizada">Realizada</option>
             <option value="cancelada">Cancelada</option>
             <option value="sem">Sem audiência</option>
+          </select>
+          <select className={CLASSE_CAMPO} value={gestaoPrioridade} onChange={(e) => set("gestaoPrioridade", e.target.value)} aria-label="Prioridade">
+            <option value="">Prioridade: qualquer</option>
+            <option value="com">Com prioridade</option>
+            <option value="sem">Sem prioridade</option>
+          </select>
+          <select className={CLASSE_CAMPO} value={gestaoPendencia} onChange={(e) => set("gestaoPendencia", e.target.value)} aria-label="Pendência">
+            <option value="">Pendência: qualquer</option>
+            <option value="com">Com pendência</option>
+            <option value="sem">Sem pendência</option>
           </select>
           <select className={CLASSE_CAMPO} value={periodo} onChange={(e) => set("periodo", e.target.value)} aria-label="Última movimentação">
             {PERIODOS.map((p) => <option key={p.v} value={p.v}>{p.r}</option>)}
