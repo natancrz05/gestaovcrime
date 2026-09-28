@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "classe", "preso", "tipoPrisao", "periodo", "temporaria", "prioridade", "pendencia", "audiencia", "semMov", "ordem"] as const;
+const CHAVES = ["q", "status", "classe", "fase", "fluxo", "preso", "tipoPrisao", "periodo", "temporaria", "prioridade", "pendencia", "audiencia", "semMov", "ordem"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
 
