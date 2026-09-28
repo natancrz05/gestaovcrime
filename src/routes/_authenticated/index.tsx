@@ -7,6 +7,7 @@ import { formatarData } from "@/lib/dominio";
 import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
+import { tipoPrisaoDe } from "@/lib/processos/importacao-reus";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
@@ -37,7 +38,7 @@ function Dashboard() {
   const contagensDashboard = {
     ...contagens,
     "reu-preso": presos.length,
-    "prisao-temporaria": presos.filter((p) => p.tipo_prisao === "Prisão temporária").length,
+    "prisao-temporaria": presos.filter((p) => (p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao) === "Prisão temporária").length,
   };
   const selecionarCategoria = (c: CategoriaPrioridade | null) => {
     if (c === "reu-preso" || c === "prisao-temporaria") {
