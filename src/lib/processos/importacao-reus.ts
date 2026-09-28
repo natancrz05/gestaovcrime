@@ -28,21 +28,21 @@ type Campo = "nome" | "rji" | "especie" | "cautelar" | "ip" | "acao_penal" | "an
 
 /** Ordem importa: regras mais específicas primeiro. */
 const REGRAS: [Campo, (h: string) => boolean][] = [
-  ["especie", (h) => h.includes("ESPECIE")],
-  ["nome", (h) => h.includes("NOME")],
+  ["nome", (h) => h === "NOME DO PRESO" || h.startsWith("NOME DO PRESO ")],
   ["rji", (h) => /\bRJI\b/.test(h)],
+  ["especie", (h) => h.includes("ESPECIE") && (h.includes("CAUTELAR") || h.includes("PRISAO"))],
   ["acao_penal", (h) => h.includes("ACAO PENAL")],
+  ["cautelar", (h) => h.includes("PROCESSO CAUTELAR") || (h.includes("CAUTELAR") && !h.includes("ESPECIE"))],
   ["ip", (h) => /\bIP\b/.test(h) || h.includes("INQUERITO")],
-  ["cautelar", (h) => h.includes("CAUTELAR")],
   ["andamento", (h) => h.includes("ANDAMENTO")],
-  ["termino", (h) => h.includes("TERMINO")],
+  ["termino", (h) => h.includes("TERMINO") && !h.includes("REAVALIACAO")],
   ["ultima_reav", (h) => h.includes("ULTIMA") && h.includes("REAVALIACAO")],
   ["prazo_reav", (h) => h.includes("PRAZO") && h.includes("REAVALIACAO")],
-  ["data_reav", (h) => h.includes("REAVALIACAO")],
-  ["data_prisao", (h) => h.includes("PRISAO")],
-  ["dias", (h) => h.includes("DIAS")],
+  ["data_reav", (h) => h.includes("DATA") && h.includes("REAVALIACAO") && !h.includes("ULTIMA")],
+  ["data_prisao", (h) => h.includes("DATA") && h.includes("PRISAO")],
+  ["dias", (h) => h.includes("DIAS") && h.includes("PRESO")],
   ["situacao", (h) => h.includes("SITUACAO")],
-  ["sistema", (h) => h.includes("SISTEMA")],
+  ["sistema", (h) => h === "SISTEMA" || h.startsWith("SISTEMA ")],
 ];
 
 export const ROTULOS_REU: Record<Campo, string> = {
@@ -56,9 +56,16 @@ export const ROTULOS_REU: Record<Campo, string> = {
 export function tipoPrisaoDe(especie: string): string {
   const t = norm(especie);
   if (t.includes("PREVENT")) return "Prisão preventiva";
-  if (t.includes("TEMPORARIA")) return "Prisão temporária";
+  if (t.includes("TEMPOR")) return "Prisão temporária";
   if (t.includes("FLAGRAN")) return "Prisão em flagrante";
   return "Outra";
+}
+
+function dataPlanilhaValida(valor: unknown): string | null {
+  const d = paraData(valor);
+  if (!d) return null;
+  const ano = Number(d.slice(0, 4));
+  return Number.isFinite(ano) && ano >= 2000 ? d : null;
 }
 
 export interface LinhaReu {
@@ -89,20 +96,25 @@ export async function lerPlanilhaReus(arquivo: File): Promise<AnaliseReu> {
   const validas: LinhaReu[] = []; const erros: ProblemaReu[] = []; const avisos: ProblemaReu[] = [];
   let total = 0;
   matriz.slice(iCab + 1).forEach((r, k) => {
-    if (!r.some((c) => String(c ?? "").trim())) return;
-    total++;
-    const nLinha = iCab + k + 2;
-    const v: Partial<Record<Campo, unknown>> = {};
-    mapa.forEach((c, i) => { if (c) v[c] = r[i]; });
-    const txt = (c: Campo) => { const x = v[c]; return (x instanceof Date ? paraData(x) ?? "" : String(x ?? "")).trim(); };
-    const nome = txt("nome");
-    if (!nome) { erros.push({ linha: nLinha, nome: "—", motivo: "nome do preso vazio" }); return; }
-    const dados: Record<string, string> = {};
-    const probs: string[] = [];
-    (["andamento", "termino", "ultima_reav", "prazo_reav", "data_reav", "dias", "sistema"] as Campo[]).forEach((c) => {
+    if (!r.some((c) => String(c ?? "    (["andamento", "termino", "ultima_reav", "prazo_reav", "data_reav", "dias", "sistema"] as Campo[]).forEach((c) => {
       if (["termino", "ultima_reav", "data_reav"].includes(c)) {
-        const d = paraData(v[c]);
-        if (d === null) probs.push(`${ROTULOS_REU[c]} não reconhecida ("${txt(c)}") — mantida como texto`);
+        const d = dataPlanilhaValida(v[c]);
+        const bruto = txt(c);
+        if (bruto && d === null) probs.push(ROTULOS_REU[c] + " não reconhecida (\"" + bruto + "\") — ignorada");
+        if (d) dados[ROTULOS_REU[c]] = d;
+      } else if (c === "dias") {
+        const bruto = txt(c);
+        const n = Number(bruto.replace(",", "."));
+        if (bruto && Number.isFinite(n) && n >= 0 && n <= 5000) dados[ROTULOS_REU[c]] = String(Math.trunc(n));
+        else if (bruto) probs.push("Dias preso não reconhecido (\"" + bruto + "\") — ignorado");
+      } else {
+        const s = txt(c);
+        if (s) dados[ROTULOS_REU[c]] = s;
+      }
+    });
+    const dp = dataPlanilhaValida(v.data_prisao);
+    if (txt("data_prisao") && dp === null) probs.push("data da prisão não reconhecida (\"" + txt("data_prisao") + "\") — ignorada");
+sh(`${ROTULOS_REU[c]} não reconhecida ("${txt(c)}") — mantida como texto`);
         const s = d ?? txt(c);
         if (s) dados[ROTULOS_REU[c]] = s;
       } else { const s = txt(c); if (s) dados[ROTULOS_REU[c]] = s; }
