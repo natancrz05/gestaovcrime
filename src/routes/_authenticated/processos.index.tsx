@@ -75,7 +75,7 @@ function Pagina() {
   const navigate = useNavigate();
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
-  const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
+    const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", fase = sp.fase ?? "", fluxo = sp.fluxo ?? "", preso = sp.preso ?? "";
   const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
