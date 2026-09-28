@@ -476,7 +476,7 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
       <div className="mb-3 flex flex-wrap gap-1.5">
         {[
           ["todas", "Todos", itens.length],
-          ["termo", "Termo Circunstanciado · Moderadora", itensTermo.length],
+          ["termo", "Termo Circunstanciado", itensTermo.length],
           ["demais", "Demais processos · Serventia", itensDemais.length],
         ].map(([chave, rotulo, qtd]) => (
           <button
