@@ -159,7 +159,18 @@ export interface ResultadoReu {
 }
 
 export async function executarImportacaoReus(arquivo: string, linhas: LinhaReu[], erros: number, simular: boolean): Promise<ResultadoReu> {
-  const { data, error } = await supabase.rpc("importar_reus_presos" as never, { p_arquivo: arquivo, p_linhas: linhas, p_erros: erros, p_simular: simular } as never);
+  // A espécie da planilha é a fonte de verdade. Recalcula o tipo imediatamente
+  // antes do envio ao banco para que uma classificação legada não sobreviva à importação.
+  const linhasNormalizadas = linhas.map((linha) => ({
+    ...linha,
+    tipo_prisao: linha.preso ? tipoPrisaoDe(linha.especie) : "Não preso",
+  }));
+  const { data, error } = await supabase.rpc("importar_reus_presos" as never, {
+    p_arquivo: arquivo,
+    p_linhas: linhasNormalizadas,
+    p_erros: erros,
+    p_simular: simular,
+  } as never);
   if (error) throw new Error(error.message);
   return data as unknown as ResultadoReu;
 }
