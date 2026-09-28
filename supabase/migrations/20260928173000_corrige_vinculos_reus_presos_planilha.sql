@@ -24,7 +24,7 @@ BEGIN
            total_rji = 1
            OR EXISTS (
              SELECT 1
-               FROM jsonb_array_elements(f.relações) x
+               FROM jsonb_array_elements(f.relacoes) x
               WHERE regexp_replace(COALESCE(r.processos_relacionados::text, ''), '\D', '', 'g')
                     LIKE '%' || regexp_replace(x->>'numero', '\D', '', 'g') || '%'
            )
