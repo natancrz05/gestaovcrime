@@ -83,7 +83,9 @@ function Pagina() {
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && sp[k]);
   const hoje = hojeISO();
 
-  const classes = useMemo(() => [...new Set(processos.map((p) => p.classe))].sort(), [processos]);
+    const classes = useMemo(() => [...new Set(processos.map((p) => p.classe))].sort(), [processos]);
+  const fases = useMemo(() => [...new Set(processos.map((p) => p.fase).filter(Boolean))].sort(), [processos]);
+  const fluxos = useMemo(() => [...new Set(processos.map((p) => fluxoAtual(p).fluxo))].sort(), [processos]);
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
