@@ -8,6 +8,7 @@ import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
 import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, type ProcRel } from "@/lib/processos/importacao-reus";
 import { toast } from "sonner";
