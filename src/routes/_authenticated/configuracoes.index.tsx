@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, ShieldCheck, Users } from "lucide-react";
+import { ChevronRight, ShieldCheck, Tags, Users } from "lucide-react";
 import { usePode } from "@/lib/sessao";
 import { CONFIG_INTEGRACAO_PJE } from "@/lib/integracao/pje";
 import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
@@ -68,6 +68,17 @@ function Pagina() {
           <ChevronRight className="size-4 text-muted-foreground" />
         </Link>
       ) : null}
+      <Link
+        to="/configuracoes/etiquetas"
+        className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover"
+      >
+        <Tags className="size-5 text-primary" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Etiquetas</p>
+          <p className="text-xs text-muted-foreground">Cadastrar e organizar etiquetas utilizadas na gestão dos processos</p>
+        </div>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </Link>
       {admin ? (
         <Link
           to="/configuracoes/auditoria"
