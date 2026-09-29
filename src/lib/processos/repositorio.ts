@@ -152,6 +152,15 @@ export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId
   if (error && error.code !== "23505") throw error;
 }
 
+export async function removerEtiquetaDoProcesso(processoId: string, etiquetaId: string) {
+  const { error } = await supabase
+    .from("processos_etiquetas")
+    .delete()
+    .eq("processo_id", processoId)
+    .eq("etiqueta_id", etiquetaId);
+  if (error) throw error;
+}
+
 export interface NovoProcessoEntrada {
   numero: string;
   classe: string;
