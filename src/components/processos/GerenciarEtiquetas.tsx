@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { criarEtiqueta, listarEtiquetas, listarEtiquetasDoProcesso, removerEtiquetaDoProcesso, vincularEtiqueta } from "@/lib/processos/etiquetas";
+import { alternarFavoritaEtiqueta, criarEtiqueta, listarEtiquetas, listarEtiquetasDoProcesso, removerEtiquetaDoProcesso, vincularEtiqueta } from "@/lib/processos/etiquetas";
 import type { EtiquetaProcesso } from "@/lib/processos/modelo";
 import { usePode } from "@/lib/sessao";
 
@@ -125,8 +125,19 @@ export function AcoesEtiquetasProcesso({ processoId, etiquetas = [], className }
                       className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted disabled:cursor-default disabled:opacity-50">
                       <span className={cn("size-2 rounded-full", COR_CLASSES[e.cor]?.split(" ")[2] ?? "bg-muted-foreground")} />
                       <span>{e.nome}</span>
-                      {e.favorita ? <Star className="ml-auto size-3.5 fill-current text-atencao" /> : null}
-                      {ids.has(e.id) ? <span className="ml-auto text-[10px] text-muted-foreground">Já vinculada</span> : null}
+                      <button
+                        type="button"
+                        title={e.favorita ? "Remover dos favoritos" : "Marcar como favorita"}
+                        aria-label={e.favorita ? "Remover dos favoritos" : "Marcar como favorita"}
+                        className="ml-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-atencao"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void alternarFavoritaEtiqueta(e.id, !e.favorita).then(() => qc.invalidateQueries({ queryKey: ["etiquetas"] })).catch((err) => toast.error(err instanceof Error ? err.message : "Não foi possível atualizar a etiqueta."));
+                        }}
+                      >
+                        <Star className={cn("size-3.5", e.favorita && "fill-current text-atencao")} />
+                      </button>
+                      {ids.has(e.id) ? <span className="text-[10px] text-muted-foreground">Já vinculada</span> : null}
                     </button>
                   ))}
                 </div>
