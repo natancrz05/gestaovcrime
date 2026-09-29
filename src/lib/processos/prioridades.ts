@@ -15,7 +15,7 @@ export const CONFIG_PRIORIDADES = {
   limiteDiasSemMovimentacao: 100,
 };
 
-export type CategoriaPrioridade = "reu-preso" | "prisao-temporaria" | "sem-movimentacao" | "urgencia-audiencia" | "manual";
+export type CategoriaPrioridade = "reu-preso" | "prisao-temporaria" | "sem-movimentacao" | "urgencia-audiencia" | "etiqueta-urgente" | "manual";
 
 export const CATEGORIAS: {
   chave: CategoriaPrioridade;
@@ -31,6 +31,7 @@ export const CATEGORIAS: {
     descricao: "Tempo desde a última movimentação registrada",
     cor: "atencao",
   },
+  { chave: "etiqueta-urgente", titulo: "Etiquetas urgentes", descricao: "Processos marcados com etiqueta de urgência", cor: "urgente" },
   { chave: "manual", titulo: "Prioridades manuais", descricao: "Marcadas pelo servidor", cor: "alerta" },
 ];
 
@@ -47,6 +48,8 @@ export const NIVEIS = [
   { v: "baixa", r: "Baixa" },
 ] as const;
 
+export type EtiquetasPorProcesso = Record<string, { id: string; nome: string; cor: string; favorita: boolean }[]>;
+
 export interface AlertaGestao {
   categoria: CategoriaPrioridade;
   rotulo: string;
@@ -54,7 +57,7 @@ export interface AlertaGestao {
   manual?: PrioridadeProcesso;
 }
 
-export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO()): AlertaGestao[] {
+export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO(), etiquetasPorProcesso: EtiquetasPorProcesso = {}): AlertaGestao[] {
   const a: AlertaGestao[] = [];
   if (p.reus.some((r) => r.preso)) a.push({ categoria: "reu-preso", rotulo: "Réu preso", cor: "urgente" });
   if (p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária"))
@@ -62,6 +65,9 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO()): Alerta
   const dias = diasSemMovimentacao(p, hoje);
   if (dias !== null && dias > CONFIG_PRIORIDADES.limiteDiasSemMovimentacao)
     a.push({ categoria: "sem-movimentacao", rotulo: `${dias} dias sem movimentação`, cor: "atencao" });
+  const etiquetasUrgentes = (etiquetasPorProcesso[p.id] ?? []).filter((e) => e.cor === "urgente");
+  if (etiquetasUrgentes.length)
+    a.push({ categoria: "etiqueta-urgente", rotulo: `Etiqueta urgente — ${etiquetasUrgentes.map((e) => e.nome).join(", ")}`, cor: "urgente" });
   const c = itemCentral(p, hoje);
   if (c && c.dias !== null && c.nivel !== "normal")
     a.push({ categoria: "urgencia-audiencia", rotulo: `Urgência de audiência — ${c.dias} dias sem movimentação`, cor: c.nivel === "critica" ? "urgente" : "atencao" });
@@ -71,19 +77,19 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO()): Alerta
   return a;
 }
 
-export function temCategoria(p: ProcessoCompleto, c: CategoriaPrioridade, hoje = hojeISO()) {
-  return alertasDoProcesso(p, hoje).some((a) => a.categoria === c);
+export function temCategoria(p: ProcessoCompleto, c: CategoriaPrioridade, hoje = hojeISO(), etiquetasPorProcesso: EtiquetasPorProcesso = {}) {
+  return alertasDoProcesso(p, hoje, etiquetasPorProcesso).some((a) => a.categoria === c);
 }
 
-const ORDEM: CategoriaPrioridade[] = ["reu-preso", "prisao-temporaria", "sem-movimentacao", "urgencia-audiencia", "manual"];
+const ORDEM: CategoriaPrioridade[] = ["reu-preso", "prisao-temporaria", "etiqueta-urgente", "sem-movimentacao", "urgencia-audiencia", "manual"];
 
 /**
  * Ordena pela existência de alertas, na ordem fixa das categorias
  * (sem pontuação ou ranking jurídico).
  */
-export function processosQueRequeremAtencao(lista: ProcessoCompleto[], hoje = hojeISO()) {
+export function processosQueRequeremAtencao(lista: ProcessoCompleto[], hoje = hojeISO(), etiquetasPorProcesso: EtiquetasPorProcesso = {}) {
   return lista
-    .map((p) => ({ processo: p, alertas: alertasDoProcesso(p, hoje) }))
+    .map((p) => ({ processo: p, alertas: alertasDoProcesso(p, hoje, etiquetasPorProcesso) }))
     .filter((x) => x.alertas.length > 0)
     .sort((a, b) => {
       for (const c of ORDEM) {
