@@ -141,6 +141,9 @@ export function AssistenteChat() {
                 <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                   <ShieldCheck className="size-3" /> Uso interno
                 </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+                  Beta
+                </span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 Apoio à redação, consulta e organização das atividades da serventia.
