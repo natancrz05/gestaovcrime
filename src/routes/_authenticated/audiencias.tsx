@@ -22,6 +22,7 @@ import {
   type AudienciaListada,
 } from "@/lib/processos/audiencias";
 import { cn } from "@/lib/utils";
+import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 import { listarCentral, NIVEIS_AUDIENCIA, type NivelAudiencia } from "@/lib/processos/central";
 
 export const Route = createFileRoute("/_authenticated/audiencias")({
@@ -148,7 +149,7 @@ function Pagina() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Data", "Horário", "Processo", "Réu", "Tipo", "Modalidade", "Situação", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Data", "Horário", "Processo", "Réu", "Tipo", "Modalidade", "Situação", "Etiquetas", "Ações", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {listadas.map((a) => (
@@ -192,7 +193,7 @@ function Pagina() {
           <DialogHeader><DialogTitle>Detalhes da audiência</DialogTitle></DialogHeader>
           {detalhe ? (
             <div className="space-y-4">
-              <dl className="grid grid-cols-2 gap-3 text-sm">
+              <EtiquetasProcesso etiquetas={detalhe.etiquetas} />\n              <dl className="grid grid-cols-2 gap-3 text-sm">
                 {[
                   ["Processo", detalhe.numero], ["Réu", detalhe.reu], ["Tipo", detalhe.tipo],
                   ["Data", formatarData(detalhe.data)], ["Horário", horaCurta(detalhe.horario)], ["Modalidade", detalhe.modalidade],
