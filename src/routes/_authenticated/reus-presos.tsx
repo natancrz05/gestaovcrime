@@ -165,6 +165,15 @@ function Pagina() {
                                   Vincular processo
                                 </button>
                               ) : null}
+                              {podeEditar ? (
+                                <button
+                                  type="button"
+                                  className="text-[10px] font-medium text-destructive hover:underline"
+                                  onClick={() => void excluirCadastroSemProcesso(p)}
+                                >
+                                  Excluir
+                                </button>
+                              ) : null}
                             </div>
                           )}
                       </td>
