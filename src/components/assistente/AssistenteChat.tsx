@@ -1,9 +1,84 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, Search, Send, ShieldCheck, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 import { perguntarAoAssistente, type MensagemAssistente } from "@/lib/assistente";
 import { cn } from "@/lib/utils";
 
+function renderInlineMarkdown(texto: string): ReactNode[] {
+  const partes = texto.split(/(\\*\\*[^*]+\\*\\*|__[^_]+__|\\*[^*]+\\*|_[^_]+_|`[^`]+`|\\[[^\\]]+\\]\\([^\\)]+\\))/g).filter(Boolean);
+
+  return partes.map((parte, index) => {
+    if ((parte.startsWith("**") && parte.endsWith("**")) || (parte.startsWith("__") && parte.endsWith("__"))) {
+      return <strong key={index} className="font-semibold text-foreground">{parte.slice(2, -2)}</strong>;
+    }
+
+    if ((parte.startsWith("*") && parte.endsWith("*")) || (parte.startsWith("_") && parte.endsWith("_"))) {
+      return <em key={index}>{parte.slice(1, -1)}</em>;
+    }
+
+    if (parte.startsWith("`") && parte.endsWith("`")) {
+      return <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground">{parte.slice(1, -1)}</code>;
+    }
+
+    const link = parte.match(/^\\[([^\\]]+)\\]\\(([^\\)]+)\\)$/);
+    if (link) {
+      return <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">{link[1]}</a>;
+    }
+
+    return <Fragment key={index}>{parte}</Fragment>;
+  });
+}
+
+function MarkdownResposta({ texto }: { texto: string }) {
+  const linhas = texto.replace(/\\r\\n/g, "\\n").split("\\n");
+  const blocos: ReactNode[] = [];
+  let listaAtual: { texto: string; numerada: boolean }[] = [];
+
+  const descarregarLista = () => {
+    if (!listaAtual.length) return;
+    const numerada = listaAtual[0].numerada;
+    const Tag = numerada ? "ol" : "ul";
+    blocos.push(
+      <Tag key={"lista-" + blocos.length} className={cn("my-2 space-y-1.5 pl-5", numerada ? "list-decimal" : "list-disc")}>
+        {listaAtual.map((item, index) => <li key={index} className="pl-1">{renderInlineMarkdown(item.texto)}</li>)}
+      </Tag>,
+    );
+    listaAtual = [];
+  };
+
+  linhas.forEach((linha, index) => {
+    const lista = linha.match(/^\\s*(?:[-*•])\\s+(.+)$/);
+    const numerada = linha.match(/^\\s*\\d+[.)]\\s+(.+)$/);
+
+    if (lista || numerada) {
+      const item = lista ?? numerada;
+      const isNumerada = Boolean(numerada);
+      if (listaAtual.length && listaAtual[0].numerada !== isNumerada) descarregarLista();
+      listaAtual.push({ texto: item![1], numerada: isNumerada });
+      return;
+    }
+
+    descarregarLista();
+
+    if (!linha.trim()) {
+      blocos.push(<div key={"espaco-" + index} className="h-2" />);
+      return;
+    }
+
+    const titulo = linha.match(/^\\s*(#{1,3})\\s+(.+)$/);
+    if (titulo) {
+      const nivel = titulo[1].length;
+      const classes = nivel === 1 ? "mt-4 text-base font-semibold tracking-tight" : nivel === 2 ? "mt-3 text-[15px] font-semibold tracking-tight" : "mt-2 text-sm font-semibold";
+      blocos.push(<div key={"titulo-" + index} className={classes}>{renderInlineMarkdown(titulo[2])}</div>);
+      return;
+    }
+
+    blocos.push(<p key={"paragrafo-" + index} className="leading-6">{renderInlineMarkdown(linha)}</p>);
+  });
+
+  descarregarLista();
+  return <div className="space-y-1">{blocos}</div>;
+}
 const SUGESTOES = [
   {
     icon: FileText,
@@ -156,7 +231,7 @@ export function AssistenteChat() {
                     ? "rounded-br-md bg-primary text-primary-foreground"
                     : "rounded-bl-md border border-border/80 bg-background",
                 )}>
-                  <div className="whitespace-pre-wrap">{m.content}</div>
+                  <MarkdownResposta texto={m.content} />
                   {m.role === "assistant" && (
                     <button
                       type="button"
