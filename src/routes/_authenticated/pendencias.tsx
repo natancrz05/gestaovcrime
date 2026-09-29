@@ -94,7 +94,8 @@ function Pagina() {
                   <button className={cn("text-left font-medium hover:underline", p.concluidaFlag ? "line-through" : "text-foreground")} onClick={() => setDetalhe(p)}>{p.titulo || p.descricao}</button>
                   <div className="mt-1"><EtiquetasPendencia p={p} /></div>
                 </td>
-                <td className="px-4 py-2.5"><Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo text-xs text-primary hover:underline">{p.numero}</Link></td>\n                <td className="px-4 py-2.5"><EtiquetasProcesso etiquetas={processos.find((x) => x.id === p.processo_id)?.etiquetas} compact /></td>
+                <td className="px-4 py-2.5"><Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo text-xs text-primary hover:underline">{p.numero}</Link></td>
+                <td className="px-4 py-2.5"><EtiquetasProcesso etiquetas={processos.find((x) => x.id === p.processo_id)?.etiquetas} compact /></td>
                 <td className="px-4 py-2.5">{p.responsavel || "—"}</td>
                 <td className={cn("px-4 py-2.5", p.prioridade === "alta" && !p.concluidaFlag && "font-medium text-atencao")}>{rotuloPrioridade(p.prioridade)}</td>
                 <td className={cn("px-4 py-2.5 tabular-nums", p.atrasada && "font-medium text-urgente")}>{formatarData(p.prazo)}</td>
