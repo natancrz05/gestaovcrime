@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Plus, Upload } from "lucide-react";
+import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
 import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
-import { diasEntre, hojeISO } from "@/lib/processos/modelo";
+import { diasEntre, hojeISO, type EtiquetaProcesso } from "@/lib/processos/modelo";
 import { ROTULO_TIPO_PROC, tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
 import { toast } from "sonner";
 import { usePode, useSessao } from "@/lib/sessao";
@@ -16,7 +17,7 @@ import { presosQuery } from "@/lib/processos/reus-presos";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
-  conferir: boolean; motivo_conferencia: string; processos: { numero: string } | null;
+  conferir: boolean; motivo_conferencia: string; processos: { numero: string; processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] } | null;\n  etiquetas: EtiquetaProcesso[];
 }
 
 export const Route = createFileRoute("/_authenticated/reus-presos")({
@@ -135,7 +136,7 @@ function Pagina() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h, i, arr) => <th key={h} className={`px-2 py-2 font-medium ${podeEditar && i === arr.length - 1 ? "sticky right-0 z-20 bg-card shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]" : ""}`}>{h}</th>)}</tr>
+                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Etiquetas", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h, i, arr) => <th key={h} className={`px-2 py-2 font-medium ${podeEditar && i === arr.length - 1 ? "sticky right-0 z-20 bg-card shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]" : ""}`}>{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
@@ -223,7 +224,7 @@ function Pagina() {
                       <td className="px-2 py-2 text-xs">
                         {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
                       </td>
-                      {podeEditar ? (
+                      {podeEditar ? (\n                        <div className="flex items-center gap-2">\n                          {p.processo_id ? <AcoesEtiquetasProcesso processoId={p.processo_id} etiquetas={p.etiquetas} /> : null}\n
                         <td className="sticky right-0 z-10 bg-card px-2 py-2 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
                           <div className="flex items-center gap-2">
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
