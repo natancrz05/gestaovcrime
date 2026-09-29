@@ -129,6 +129,13 @@ export interface PrioridadeProcesso {
   criado_em: string;
 }
 
+export interface EtiquetaProcesso {
+  id: string;
+  nome: string;
+  cor: string;
+  favorita: boolean;
+}
+
 export interface ProcessoCompleto {
   id: string;
   numero: string;
@@ -164,6 +171,7 @@ export interface ProcessoCompleto {
   audiencias: AudienciaProcesso[];
   pendencias: PendenciaProcesso[];
   prioridades: PrioridadeProcesso[];
+  etiquetas?: EtiquetaProcesso[];
 }
 
 /** Data de hoje no formato ISO (AAAA-MM-DD), no fuso local. */
