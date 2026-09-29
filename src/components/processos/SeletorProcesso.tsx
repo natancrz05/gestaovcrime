@@ -12,7 +12,7 @@ const sem = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").to
 interface Opcao { id: string; numero: string; digitos: string; nome: string; classe: string; texto: string }
 
 function paraOpcao(p: ProcessoParaSelecao): Opcao {
-  const nome = p.reus[0]?.nome ?? p.pje_reu ?? p.partes[0]?.nome ?? "";
+  const nome = [...p.reus].sort((a, b) => a.ordem - b.ordem)[0]?.nome ?? p.pje_reu ?? p.partes[0]?.nome ?? "";
   const nomes = [nome, p.pje_reu ?? "", ...p.reus.map((r) => r.nome), ...p.partes.map((x) => x.nome)].join(" ");
   return { id: p.id, numero: p.numero, digitos: p.numero.replace(/\D/g, ""), nome, classe: p.classe, texto: sem(`${p.numero} ${nomes}`) };
 }
