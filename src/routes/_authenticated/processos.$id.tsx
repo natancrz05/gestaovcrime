@@ -18,6 +18,7 @@ import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
+import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,7 @@ function Pagina() {
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
       </p>
-      <Secao titulo="Etiquetas">
+      <Secao titulo="Etiquetas" acao={podeEditar ? <GerenciarEtiquetasProcesso processoId={p.id} etiquetasAtuais={etiquetas} /> : null}>
         {etiquetasCarregando ? (
           <p className="text-sm text-muted-foreground">Carregando etiquetas…</p>
         ) : etiquetasErro ? (
