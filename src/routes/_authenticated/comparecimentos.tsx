@@ -143,10 +143,11 @@ function Pagina() {
 
       <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-md border border-border">
+            <div className="min-w-[1050px]">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
@@ -169,13 +170,14 @@ function Pagina() {
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
                     <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
-                    <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="whitespace-nowrap px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </Secao>
