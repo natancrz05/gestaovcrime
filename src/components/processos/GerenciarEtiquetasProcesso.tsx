@@ -15,9 +15,11 @@ const BOTAO_SEC = "inline-flex h-9 items-center rounded-md border border-border 
 export function GerenciarEtiquetasProcesso({
   processoId,
   etiquetasAtuais,
+  children,
 }: {
   processoId: string;
   etiquetasAtuais: EtiquetaDoProcesso[];
+  children?: (abrir: () => void) => React.ReactNode;
 }) {
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
@@ -51,6 +53,7 @@ export function GerenciarEtiquetasProcesso({
     setErro("");
     try {
       await adicionarEtiquetaAoProcesso(processoId, etiquetaId);
+      await qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] });
       await qc.invalidateQueries({ queryKey: ["processos", processoId, "etiquetas"] });
       setAberto(false);
     } catch (e) {
@@ -62,9 +65,11 @@ export function GerenciarEtiquetasProcesso({
 
   return (
     <>
-      <button type="button" className={BOTAO_SEC} onClick={abrir}>
-        Adicionar etiqueta
-      </button>
+      {children ? children(abrir) : (
+        <button type="button" className={BOTAO_SEC} onClick={abrir}>
+          Adicionar etiqueta
+        </button>
+      )}
 
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent>
