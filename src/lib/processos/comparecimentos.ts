@@ -154,3 +154,8 @@ export async function registrarComparecimento(id: string, data: string, obs: str
   if (error) throw new Error(error.message);
   return r as string;
 }
+
+export async function encerrarComparecimento(id: string) {
+  const { error } = await supabase.from("comparecimentos").update({ situacao: "Encerrado" }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
