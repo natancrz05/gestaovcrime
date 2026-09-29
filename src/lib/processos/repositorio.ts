@@ -169,13 +169,13 @@ export interface ProcessoParaSelecao {
   classe: string;
   pje_reu: string | null;
   partes: { nome: string }[];
-  reus: { nome: string }[];
+  reus: { nome: string; ordem: number }[];
 }
 
 export async function listarProcessosParaSelecao(): Promise<ProcessoParaSelecao[]> {
   const { data, error } = await supabase
     .from("processos")
-    .select("id, numero, classe, pje_reu, partes(nome), reus(nome)")
+    .select("id, numero, classe, pje_reu, partes(nome), reus(nome, ordem)")
     .order("numero");
   if (error) throw error;
   return (data ?? []) as unknown as ProcessoParaSelecao[];
