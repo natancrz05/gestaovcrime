@@ -291,9 +291,21 @@ function Pagina() {
       {filtrados.length === 0 ? (
         <EstadoVazio titulo="Nenhum processo encontrado" descricao="Ajuste a pesquisa ou os filtros." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">
-          <div className="min-w-[1450px]">
-          <table className="w-full text-sm">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+          <table className="w-full table-fixed text-xs">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+              <col className="w-[7%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[6%]" />
+              <col className="w-[11%]" />
+              <col className="w-[7%]" />
+              <col className="w-[4%]" />
+              <col className="w-[4%]" />
+            </colgroup>
             <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
               <tr>
                 {["Número", "Réu principal", "Classe", "Situação", "Fluxo atual", "Última movimentação", "Dias s/ mov.", "Prioridade", "Próx. audiência", "Pendências", "Responsável"].map((h) => (
@@ -314,7 +326,7 @@ function Pagina() {
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => navigate({ to: "/processos/$id", params: { id: p.id } })}
                   >
-                    <td className="whitespace-nowrap px-3 py-2.5">
+                    <td className="break-words px-2 py-2">
                       <div className="flex items-center gap-2">
                         <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo font-semibold text-primary hover:underline">
                           {p.numero}
@@ -339,7 +351,7 @@ function Pagina() {
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="break-words px-2 py-2">
                       <div>{reu ? reu.nome : "—"}</div>
                       {(etiquetasPorProcesso[p.id] ?? []).length ? (
                         <div className="mt-1 flex flex-wrap gap-1">
@@ -353,28 +365,27 @@ function Pagina() {
                       {p.reus.length > 1 ? <span className="text-xs text-muted-foreground"> +{p.reus.length - 1}</span> : null}
                       {reu?.preso ? <div className="text-xs text-urgente">{reu.tipo_prisao}</div> : null}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{p.classe}</td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{p.status}</td>
-                    <td className="min-w-40 px-3 py-2.5 text-xs font-medium" title={p.pje_tarefas ?? undefined}>{rotuloFluxo(p)}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="break-words px-2 py-2 text-muted-foreground">{p.classe}</td>
+                    <td className="break-words px-2 py-2">{p.status}</td>
+                    <td className="break-words px-2 py-2 font-medium" title={p.pje_tarefas ?? undefined}>{rotuloFluxo(p)}</td>
+                    <td className="break-words px-2 py-2">
                       <div>{formatarData(ult?.data ?? null)}</div>
                       <div className="text-xs text-muted-foreground">{ult?.descricao}</div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 font-medium">{dias === null ? "—" : `${dias} dias`}</td>
-                    <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                    <td className="break-words px-2 py-2 font-medium">{dias === null ? "—" : `${dias} dias`}</td>
+                    <td className="break-words px-2 py-2 text-muted-foreground">
                       {(() => { const al = alertasDoProcesso(p, hoje); return al.length ? <div className="flex flex-wrap gap-1">{al.map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}</div> : "—"; })()}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5">{formatarData(aud?.data ?? null)}</td>
+                    <td className="break-words px-2 py-2">{formatarData(aud?.data ?? null)}</td>
                     <td className="px-3 py-2.5">
                       {pend ? <Etiqueta severidade="atencao">{pend}</Etiqueta> : "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">{p.responsavel || "—"}</td>
+                    <td className="break-words px-2 py-2 text-muted-foreground">{p.responsavel || "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          </div>
         </div>
       )}
     </div>
