@@ -53,3 +53,8 @@ export async function removerEtiquetaDoProcesso(processoId: string, etiquetaId: 
   const { error } = await supabase.from("processos_etiquetas").delete().eq("processo_id", processoId).eq("etiqueta_id", etiquetaId);
   if (error) throw error;
 }
+
+export async function alternarFavoritaEtiqueta(id: string, favorita: boolean) {
+  const { error } = await supabase.from("etiquetas").update({ favorita }).eq("id", id);
+  if (error) throw error;
+}
