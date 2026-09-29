@@ -3,7 +3,6 @@ import { formatarData } from "@/lib/dominio";
 import { diasSemMovimentacao, hojeISO, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "@/lib/processos/modelo";
 import { CATEGORIAS, COR_CLASSES, type AlertaGestao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
-import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 
 export function EtiquetaAlerta({ alerta }: { alerta: AlertaGestao }) {
   return (

@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
-import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 import {
   SITUACOES_COMP,
   comparecimentosQuery,
@@ -144,7 +143,7 @@ function Pagina() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", "Etiquetas", "Ações", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
@@ -183,7 +182,7 @@ function Pagina() {
           <DialogHeader><DialogTitle>Comparecimento — {detalhe?.pessoa}</DialogTitle></DialogHeader>
           {detalhe ? (
             <div className="space-y-4 text-sm">
-              <EtiquetasProcesso etiquetas={detalhe.etiquetas} />\n              <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
+              <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
               <dl className="grid grid-cols-2 gap-3">
                 {[["Processo", detalhe.numero], ["Data de início", formatarData(detalhe.data_inicio)], ["Periodicidade", detalhe.periodicidade === "Personalizado" ? `Personalizado — a cada ${detalhe.intervalo_meses} ${detalhe.intervalo_meses === 1 ? "mês" : "meses"}` : detalhe.periodicidade], ["Cadastro", detalhe.situacao]].map(([k, v]) => (
                   <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>

@@ -21,7 +21,6 @@ import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
 import { cn } from "@/lib/utils";
-import { EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 import { DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
 import { classificar, concluirPendencia, salvarPendencia, type PendenciaEntrada, type PendenciaListada } from "@/lib/processos/pendencias";
 import type { ProcessoCompleto } from "@/lib/processos/modelo";

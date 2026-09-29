@@ -4,7 +4,6 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
-import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 import { CONFIG_PRIORIDADES, alertasDoProcesso } from "@/lib/processos/prioridades";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
@@ -44,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "etiqueta", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "ordem"] as const;
+const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "ordem"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
 
@@ -79,7 +78,7 @@ function Pagina() {
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
   const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
-  const tipoPrisao = sp.tipoPrisao ?? "", etiqueta = sp.etiqueta ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", ordem = sp.ordem ?? "processo";
+  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
   const flag = (k: Chave) => sp[k] === "1";
@@ -119,7 +118,7 @@ function Pagina() {
       if (classe && p.classe !== classe) return false;
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
-      if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;\n      if (etiqueta && !p.etiquetas?.some((e) => e.id === etiqueta)) return false;
+      if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
       if (flag("temporaria") && !p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária")) return false;
       if (flag("prioridade") && alertasDoProcesso(p, hoje).length === 0) return false;
       if (flag("pendencia") && pendenciasAbertas(p).length === 0) return false;
@@ -289,7 +288,7 @@ function Pagina() {
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
               <tr>
-                {["Número", "Réu principal", "Classe", "Situação", "Fluxo atual", "Última movimentação", "Dias s/ mov.", "Prioridade", "Próx. audiência", "Pendências", "Etiquetas", "Responsável", "Ações"].map((h) => (
+                {["Número", "Réu principal", "Classe", "Situação", "Fluxo atual", "Última movimentação", "Dias s/ mov.", "Prioridade", "Próx. audiência", "Pendências", "Responsável"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-3 py-2.5 font-medium">{h}</th>
                 ))}
               </tr>

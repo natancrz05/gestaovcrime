@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { EtiquetaProcesso, ProcessoCompleto } from "./modelo";
+import type { ProcessoCompleto } from "./modelo";
 
 /**
  * Acesso a dados do módulo de Processos (banco persistente).
@@ -8,29 +8,18 @@ import type { EtiquetaProcesso, ProcessoCompleto } from "./modelo";
  */
 
 const SELECAO =
-  "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*), processos_etiquetas(etiquetas(id,nome,cor,favorita))";
+  "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*)";
 
 export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   const { data, error } = await supabase.from("processos").select(SELECAO).order("numero");
   if (error) throw error;
-  return (data ?? []).map((item) => ({
-    ...item,
-    etiquetas: ((item as { processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] }).processos_etiquetas ?? [])
-      .map((v) => v.etiquetas)
-      .filter(Boolean),
-  })) as unknown as ProcessoCompleto[];
+  return (data ?? []) as unknown as ProcessoCompleto[];
 }
 
 export async function obterProcesso(id: string): Promise<ProcessoCompleto | null> {
   const { data, error } = await supabase.from("processos").select(SELECAO).eq("id", id).maybeSingle();
   if (error) throw error;
-  if (!data) return null;
-  return {
-    ...data,
-    etiquetas: ((data as { processos_etiquetas?: { etiquetas?: ProcessoCompleto["etiquetas"][number] | null }[] }).processos_etiquetas ?? [])
-      .map((v) => v.etiquetas)
-      .filter(Boolean),
-  } as unknown as ProcessoCompleto;
+  return data as unknown as ProcessoCompleto | null;
 }
 
 export const processosQuery = () =>

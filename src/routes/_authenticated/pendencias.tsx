@@ -12,7 +12,6 @@ import {
   type PendenciaEntrada, type PendenciaListada,
 } from "@/lib/processos/pendencias";
 import { cn } from "@/lib/utils";
-import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 
 export const Route = createFileRoute("/_authenticated/pendencias")({
   head: () => ({
@@ -85,7 +84,7 @@ function Pagina() {
       <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr><th className="px-4 py-2">Título</th><th className="px-4 py-2">Processo</th><th className="px-4 py-2">Etiquetas</th><th className="px-4 py-2">Responsável</th><th className="px-4 py-2">Prioridade</th><th className="px-4 py-2">Prazo</th><th className="px-4 py-2">Status</th><th className="px-4 py-2" /></tr>
+            <tr><th className="px-4 py-2">Título</th><th className="px-4 py-2">Processo</th><th className="px-4 py-2">Responsável</th><th className="px-4 py-2">Prioridade</th><th className="px-4 py-2">Prazo</th><th className="px-4 py-2">Status</th><th className="px-4 py-2" /></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {lista.map((p) => (
@@ -95,7 +94,6 @@ function Pagina() {
                   <div className="mt-1"><EtiquetasPendencia p={p} /></div>
                 </td>
                 <td className="px-4 py-2.5"><Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo text-xs text-primary hover:underline">{p.numero}</Link></td>
-                <td className="px-4 py-2.5"><EtiquetasProcesso etiquetas={processos.find((x) => x.id === p.processo_id)?.etiquetas} compact /></td>
                 <td className="px-4 py-2.5">{p.responsavel || "—"}</td>
                 <td className={cn("px-4 py-2.5", p.prioridade === "alta" && !p.concluidaFlag && "font-medium text-atencao")}>{rotuloPrioridade(p.prioridade)}</td>
                 <td className={cn("px-4 py-2.5 tabular-nums", p.atrasada && "font-medium text-urgente")}>{formatarData(p.prazo)}</td>
@@ -105,7 +103,7 @@ function Pagina() {
                 </td>
               </tr>
             ))}
-            {lista.length === 0 ? <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">Nenhuma pendência encontrada.</td></tr> : null}
+            {lista.length === 0 ? <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Nenhuma pendência encontrada.</td></tr> : null}
           </tbody>
         </table>
       </div>

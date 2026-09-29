@@ -3,7 +3,7 @@
  * acompanhamento — não indica irregularidade nem excesso de prazo.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { diasEntre, hojeISO, reuPrincipal, type AudienciaProcesso, type EtiquetaProcesso, type ProcessoCompleto } from "./modelo";
+import { diasEntre, hojeISO, reuPrincipal, type AudienciaProcesso, type ProcessoCompleto } from "./modelo";
 
 export const CONFIG_AUDIENCIAS = {
   /** Audiência marcada para mais de X dias a partir de hoje. */
@@ -34,7 +34,7 @@ export function listarAudienciasDe(processos: ProcessoCompleto[], hoje = hojeISO
           reu: reuPrincipal(p)?.nome ?? "—",
           dias,
           prazoExtenso: dias > CONFIG_AUDIENCIAS.limiteDiasPrazoExtenso && estaPendente(a) && !a.aguardando_nova_data,
-          reuPreso: p.reus.some((r) => r.preso),\n          etiquetas: p.etiquetas ?? [],
+          reuPreso: p.reus.some((r) => r.preso),
         };
       }),
     )
