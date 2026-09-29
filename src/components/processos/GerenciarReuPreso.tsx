@@ -21,6 +21,7 @@ const BTN = "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium di
 
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
   const [proc, setProc] = useState("");
+  const [numeroProcesso, setNumeroProcesso] = useState("");
   const [reuId, setReuId] = useState<string>("novo");
   const [f, setF] = useState({ nome: "", rji: "", tipo_prisao: "Prisão preventiva", especie_cautelar: "", data_prisao: "", situacao: "", observacoes: "" });
   const [extras, setExtras] = useState<Record<string, string>>({});
@@ -28,7 +29,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
 
   useEffect(() => {
     if (!aberto) return;
-    setProc(reu?.processo_id ?? ""); setReuId(reu?.id ?? "novo");
+    setProc(reu?.processo_id ?? ""); setNumeroProcesso(""); setReuId(reu?.id ?? "novo");
     setF({ nome: reu?.nome ?? "", rji: reu?.rji ?? "", tipo_prisao: reu && TIPOS_CUSTODIA.includes(reu.tipo_prisao) ? reu.tipo_prisao : "Prisão preventiva",
       especie_cautelar: reu?.especie_cautelar ?? "", data_prisao: reu?.data_prisao ?? "", situacao: reu?.situacao ?? "", observacoes: reu?.observacoes ?? "" });
     setExtras(Object.fromEntries(EXTRAS.map((k) => [k, reu?.dados_planilha?.[k] ?? ""])));
@@ -51,21 +52,72 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
   };
 
   const salvar = async () => {
-    if (!proc) { toast.error("Selecione o processo"); return; }
+    if (!proc && !reu && !numeroProcesso.trim()) { toast.error("Selecione o processo"); return; }
     if (!f.nome.trim()) { toast.error("Informe o nome do réu"); return; }
     setSalvando(true);
-    const base = reu ?? vinculados.find((x) => x.id === reuId);
-    const dados = { ...((base?.dados_planilha ?? {}) as Record<string, string>) };
-    for (const k of EXTRAS) { if (extras[k]?.trim()) dados[k] = extras[k].trim(); else delete dados[k]; }
-    const linha = { processo_id: proc, nome: f.nome.trim(), rji: f.rji.trim(), tipo_prisao: f.tipo_prisao, especie_cautelar: f.especie_cautelar.trim(),
-      data_prisao: f.data_prisao || null, situacao: f.situacao.trim(), observacoes: f.observacoes, preso: true, dados_planilha: dados };
-    const id = reu?.id ?? (reuId !== "novo" ? reuId : null);
-    let error;
-    if (id) ({ error } = await supabase.from("reus").update(linha).eq("id", id));
-    else ({ error } = await supabase.from("reus").insert({ ...linha, ordem: vinculados.length }));
-    setSalvando(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Réu preso salvo"); onSalvo(); onFechar();
+
+    try {
+      let processoId = proc || null;
+
+      if (!processoId && numeroProcesso.trim()) {
+        const digitos = numeroProcesso.replace(/\D/g, "");
+        if (digitos.length !== 20) throw new Error("Informe o número CNJ completo (20 dígitos).");
+        const formatado = `${digitos.slice(0, 7)}-${digitos.slice(7, 9)}.${digitos.slice(9, 13)}.${digitos.slice(13, 14)}.${digitos.slice(14, 16)}.${digitos.slice(16, 20)}`;
+
+        const { data: existente, error: buscaErro } = await supabase
+          .from("processos")
+          .select("id")
+          .eq("numero", formatado)
+          .maybeSingle();
+        if (buscaErro) throw buscaErro;
+
+        if (existente) {
+          processoId = existente.id;
+        } else {
+          const { data: novoProcesso, error: criaErro } = await supabase
+            .from("processos")
+            .insert({ numero: formatado, classe: "Não informada", origem: "manual", conferir: true })
+            .select("id")
+            .single();
+          if (criaErro) throw criaErro;
+          processoId = novoProcesso.id;
+        }
+      }
+
+      const base = reu ?? vinculados.find((x) => x.id === reuId);
+      const dados = { ...((base?.dados_planilha ?? {}) as Record<string, string>) };
+      for (const k of EXTRAS) {
+        if (extras[k]?.trim()) dados[k] = extras[k].trim();
+        else delete dados[k];
+      }
+
+      const linha = {
+        processo_id: processoId,
+        nome: f.nome.trim(),
+        rji: f.rji.trim(),
+        tipo_prisao: f.tipo_prisao,
+        especie_cautelar: f.especie_cautelar.trim(),
+        data_prisao: f.data_prisao || null,
+        situacao: f.situacao.trim(),
+        observacoes: f.observacoes,
+        preso: true,
+        dados_planilha: dados,
+      };
+
+      const id = reu?.id ?? (reuId !== "novo" ? reuId : null);
+      let error;
+      if (id) ({ error } = await supabase.from("reus").update(linha).eq("id", id));
+      else ({ error } = await supabase.from("reus").insert({ ...linha, ordem: vinculados.length }));
+
+      if (error) throw error;
+      toast.success("Réu preso salvo");
+      onSalvo();
+      onFechar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o cadastro.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -75,7 +127,28 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>{reu ? "Editar réu preso" : "Adicionar réu preso"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Campo rotulo="Processo"><SeletorProcesso value={proc} onChange={(v) => { setProc(v); setReuId("novo"); }} /></Campo>
+          <Campo rotulo="Processo">
+            {proc ? (
+              <SeletorProcesso value={proc} onChange={(v) => { setProc(v); setNumeroProcesso(""); setReuId("novo"); }} />
+            ) : (
+              <div className="space-y-2">
+                <SeletorProcesso value={proc} onChange={(v) => { setProc(v); setNumeroProcesso(""); setReuId("novo"); }} />
+                {reu ? (
+                  <div className="rounded-md border border-alerta/30 bg-alerta-suave p-3">
+                    <p className="text-xs font-medium text-alerta">Este cadastro está sem processo vinculado.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Informe abaixo o número CNJ para localizar ou criar o processo e vincular o réu.</p>
+                    <input
+                      className={CLASSE_CAMPO + " mt-2"}
+                      value={numeroProcesso}
+                      onChange={(e) => setNumeroProcesso(e.target.value)}
+                      placeholder="0000000-00.0000.0.00.0000"
+                      inputMode="numeric"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </Campo>
           {!reu && proc ? (
             <Campo rotulo="Réu">
               <select className={CLASSE_CAMPO} value={reuId} onChange={(e) => escolherReu(e.target.value)}>
@@ -99,6 +172,30 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
           </div>
           <Campo rotulo="Observações"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} value={f.observacoes} onChange={set("observacoes")} /></Campo>
           <p className="text-xs text-muted-foreground">A última reavaliação é atualizada pela ação "Registrar reavaliação", que mantém o histórico.</p>
+          {reu ? (
+            <div className="border-t border-border pt-3">
+              <button
+                type="button"
+                className="text-xs font-medium text-destructive hover:underline"
+                onClick={async () => {
+                  if (!window.confirm("Excluir definitivamente este cadastro de réu preso? Esta ação não remove o processo, apenas o registro do réu nesta lista.")) return;
+                  setSalvando(true);
+                  const { error } = await supabase.from("reus").delete().eq("id", reu.id);
+                  setSalvando(false);
+                  if (error) {
+                    toast.error(error.message);
+                    return;
+                  }
+                  toast.success("Cadastro do réu preso excluído");
+                  onSalvo();
+                  onFechar();
+                }}
+                disabled={salvando}
+              >
+                Excluir cadastro do réu preso
+              </button>
+            </div>
+          ) : null;
           <div className="flex justify-end gap-2">
             <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
             <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={salvar}>{salvando ? "Salvando..." : "Salvar"}</button>
