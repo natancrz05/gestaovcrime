@@ -1,6 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto } from "./modelo";
+import {
+  listarEtiquetasLocais,
+  listarEtiquetasDoProcessoLocal,
+  listarEtiquetasPorProcessosLocal,
+  salvarEtiquetaLocal,
+  removerEtiquetaLocal,
+  adicionarEtiquetaAoProcessoLocal,
+} from "./etiquetas-local";
 
 /**
  * Acesso a dados do módulo de Processos (banco persistente).
@@ -35,52 +43,16 @@ export interface EtiquetaDoProcesso {
   favorita: boolean;
 }
 
-/** Leitura isolada das etiquetas da ficha individual. Não faz parte da consulta central de processos. */
+/**
+ * Etiquetas são uma camada administrativa local do navegador.
+ * Não entram na consulta central de processos e não exigem alteração no banco.
+ */
 export async function listarEtiquetasDoProcesso(processoId: string): Promise<EtiquetaDoProcesso[]> {
-  const { data: vinculos, error: vinculosError } = await supabase
-    .from("processos_etiquetas")
-    .select("etiqueta_id")
-    .eq("processo_id", processoId);
-  if (vinculosError) throw vinculosError;
-
-  const ids = (vinculos ?? []).map((x) => x.etiqueta_id);
-  if (!ids.length) return [];
-
-  const { data: etiquetas, error: etiquetasError } = await supabase
-    .from("etiquetas")
-    .select("id, nome, cor, favorita")
-    .in("id", ids)
-    .order("nome");
-  if (etiquetasError) throw etiquetasError;
-  return (etiquetas ?? []) as EtiquetaDoProcesso[];
+  return listarEtiquetasDoProcessoLocal(processoId);
 }
 
 export async function listarEtiquetasPorProcessos(processoIds: string[]): Promise<Record<string, EtiquetaDoProcesso[]>> {
-  if (!processoIds.length) return {};
-
-  const { data: vinculos, error: vinculosError } = await supabase
-    .from("processos_etiquetas")
-    .select("processo_id, etiqueta_id")
-    .in("processo_id", processoIds);
-  if (vinculosError) throw vinculosError;
-
-  const ids = [...new Set((vinculos ?? []).map((x) => x.etiqueta_id))];
-  if (!ids.length) return {};
-
-  const { data: etiquetas, error: etiquetasError } = await supabase
-    .from("etiquetas")
-    .select("id, nome, cor, favorita")
-    .in("id", ids)
-    .order("nome");
-  if (etiquetasError) throw etiquetasError;
-
-  const porId = new Map((etiquetas ?? []).map((e) => [e.id, e as EtiquetaDoProcesso]));
-  const resultado: Record<string, EtiquetaDoProcesso[]> = {};
-  for (const vinculo of vinculos ?? []) {
-    const etiqueta = porId.get(vinculo.etiqueta_id);
-    if (etiqueta) (resultado[vinculo.processo_id] ??= []).push(etiqueta);
-  }
-  return resultado;
+  return listarEtiquetasPorProcessosLocal(processoIds);
 }
 
 export const etiquetasDoProcessoQuery = (processoId: string) =>
@@ -98,15 +70,8 @@ export const etiquetasDosProcessosQuery = (processoIds: string[]) =>
     enabled: processoIds.length > 0,
   });
 
-/** Leitura isolada do catálogo de etiquetas. Não faz parte da consulta central de processos. */
 export async function listarEtiquetas(): Promise<EtiquetaDoProcesso[]> {
-  const { data, error } = await supabase
-    .from("etiquetas")
-    .select("id, nome, cor, favorita")
-    .order("favorita", { ascending: false })
-    .order("nome");
-  if (error) throw error;
-  return (data ?? []) as EtiquetaDoProcesso[];
+  return listarEtiquetasLocais();
 }
 
 export const etiquetasQuery = () =>
@@ -123,37 +88,15 @@ export interface EtiquetaEntrada {
 }
 
 export async function salvarEtiqueta(e: EtiquetaEntrada, id?: string) {
-  const payload = { nome: e.nome.trim(), cor: e.cor, favorita: e.favorita };
-  if (!payload.nome) throw new Error("Informe o nome da etiqueta.");
-
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("Usuário não autenticado.");
-
-  const resultado = id
-    ? await supabase.from("etiquetas").update(payload).eq("id", id)
-    : await supabase
-        .from("etiquetas")
-        .insert({ ...payload, criado_por: userData.user.id });
-
-  if (resultado.error) {
-    if (resultado.error.code === "23505") throw new Error("Já existe uma etiqueta com este nome.");
-    throw new Error(`${resultado.error.message} [${resultado.error.code ?? "sem código"}]`);
-  }
+  salvarEtiquetaLocal(e, id);
 }
 
 export async function removerEtiqueta(id: string) {
-  const { error } = await supabase.from("etiquetas").delete().eq("id", id);
-  if (error) throw error;
+  removerEtiquetaLocal(id);
 }
 
 export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId: string) {
-  const { error } = await supabase
-    .from("processos_etiquetas")
-    .insert({ processo_id: processoId, etiqueta_id: etiquetaId, criado_por: (await supabase.auth.getUser()).data.user?.id ?? null });
-  if (error) {
-    if (error.code === "23505") throw new Error("Esta etiqueta já está vinculada ao processo.");
-    throw error;
-  }
+  adicionarEtiquetaAoProcessoLocal(processoId, etiquetaId);
 }
 
 export interface NovoProcessoEntrada {
