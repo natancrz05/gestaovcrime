@@ -5,7 +5,10 @@ import { pode } from "@/lib/permissoes";
 
 export function useItensNav() {
   const { perfil } = useSessao();
-  return ITENS_NAV.filter((i) =>\n    (i.para !== "/relatorios" || pode(perfil, "relatorios")) &&\n    (i.para !== "/assistente" || pode(perfil, "usar-assistente")),\n  );
+  return ITENS_NAV.filter((i) =>
+    (i.para !== "/relatorios" || pode(perfil, "relatorios")) &&
+    (i.para !== "/assistente" || pode(perfil, "usar-assistente")),
+  );
 }
 import {
   LayoutDashboard,
