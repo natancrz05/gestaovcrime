@@ -17,7 +17,8 @@ export type Acao =
   | "editar" // cadastrar/editar processos, movimentações, audiências, pendências, prioridades
   | "excluir-processo"
   | "gerenciar-usuarios"
-  | "relatorios"\n  | "usar-assistente";
+  | "relatorios"
+  | "usar-assistente";
 
 const MATRIZ: Record<Perfil, Acao[]> = {
   administrador: ["editar", "excluir-processo", "gerenciar-usuarios", "relatorios", "usar-assistente"],
