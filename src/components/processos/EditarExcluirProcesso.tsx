@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { STATUS_PROCESSO, type ProcessoCompleto } from "@/lib/processos/modelo";
 import { usePode } from "@/lib/sessao";
+import { AcoesEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-9 items-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:opacity-60";
@@ -57,7 +58,7 @@ export function AcoesProcesso({ p }: { p: ProcessoCompleto }) {
 
   return (
     <div className="flex gap-2">
-      {podeEditar ? <button className={BOTAO_SEC} onClick={abrir}>Editar processo</button> : null}
+      <AcoesEtiquetasProcesso processoId={p.id} etiquetas={p.etiquetas} />\n      {podeEditar ? <button className={BOTAO_SEC} onClick={abrir}>Editar processo</button> : null}
       {podeExcluir ? <button className={BOTAO_PERIGO} onClick={() => { setErro(""); setConfirmar(true); }}>Excluir processo</button> : null}
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
