@@ -42,7 +42,7 @@ const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
   p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
 
 function Pagina() {
-  const { data } = useSuspenseQuery(presosQuery());
+  const data = useSuspenseQuery(presosQuery()).data as unknown as Preso[];
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
   const [importar, setImportar] = useState(false);
