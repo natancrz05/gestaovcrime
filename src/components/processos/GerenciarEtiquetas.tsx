@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { criarEtiqueta, listarEtiquetas, listarEtiquetasDoProcesso, removerEtiquetaDoProcesso, vincularEtiqueta } from "@/lib/processos/etiquetas";
-import type { Etiqueta } from "@/lib/processos/etiquetas";
 import type { EtiquetaProcesso } from "@/lib/processos/modelo";
 import { usePode } from "@/lib/sessao";
 
