@@ -130,16 +130,14 @@ export async function salvarEtiqueta(e: EtiquetaEntrada, id?: string) {
   if (!userData.user) throw new Error("Usuário não autenticado.");
 
   const resultado = id
-    ? await supabase.from("etiquetas").update(payload).eq("id", id).select("id").single()
+    ? await supabase.from("etiquetas").update(payload).eq("id", id)
     : await supabase
         .from("etiquetas")
-        .insert({ ...payload, criado_por: userData.user.id })
-        .select("id")
-        .single();
+        .insert({ ...payload, criado_por: userData.user.id });
 
   if (resultado.error) {
     if (resultado.error.code === "23505") throw new Error("Já existe uma etiqueta com este nome.");
-    throw resultado.error;
+    throw new Error(`${resultado.error.message} [${resultado.error.code ?? "sem código"}]`);
   }
 }
 
