@@ -54,6 +54,34 @@ export const etiquetasDoProcessoQuery = (processoId: string) =>
     queryFn: () => listarEtiquetasDoProcesso(processoId),
   });
 
+/** Leitura isolada do catálogo de etiquetas. Não faz parte da consulta central de processos. */
+export async function listarEtiquetas(): Promise<EtiquetaDoProcesso[]> {
+  const { data, error } = await supabase
+    .from("etiquetas")
+    .select("id, nome, cor, favorita")
+    .order("favorita", { ascending: false })
+    .order("nome");
+  if (error) throw error;
+  return (data ?? []) as EtiquetaDoProcesso[];
+}
+
+export const etiquetasQuery = () =>
+  queryOptions({
+    queryKey: ["etiquetas"],
+    staleTime: 30_000,
+    queryFn: listarEtiquetas,
+  });
+
+export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId: string) {
+  const { error } = await supabase
+    .from("processos_etiquetas")
+    .insert({ processo_id: processoId, etiqueta_id: etiquetaId });
+  if (error) {
+    if (error.code === "23505") throw new Error("Esta etiqueta já está vinculada ao processo.");
+    throw error;
+  }
+}
+
 export interface NovoProcessoEntrada {
   numero: string;
   classe: string;
