@@ -139,15 +139,20 @@ function Pagina() {
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
+                  const temProcessoValido = Boolean(
+                    p.processos?.numero?.trim() ||
+                    p.processos_relacionados.some((r) => r.numero?.trim()),
+                  );
+                  const semProcessoValido = !temProcessoValido;
                   const rel = p.processos_relacionados.length ? p.processos_relacionados
-                    : p.processo_id ? [{ tipo: "", numero: p.processos?.numero ?? "", processo_id: p.processo_id, situacao: "encontrado" }] : [];
+                    : p.processo_id && p.processos?.numero ? [{ tipo: "", numero: p.processos.numero, processo_id: p.processo_id, situacao: "encontrado" }] : [];
                   const dias = p.data_prisao ? diasEntre(p.data_prisao, hoje) : null;
                   const dp = p.dados_planilha ?? {};
                   const rev = situacaoRevisao(tipoExibido(p), dp["Última reavaliação"] || undefined, hoje, diasEntre);
                   return (
                     <tr key={p.id}>
                       <td className="px-2 py-2 text-xs whitespace-nowrap">
-                        {p.processo_id ? <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">{p.processos?.numero}</Link>
+                        {p.processo_id && p.processos?.numero ? <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">{p.processos.numero}</Link>
                           : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : (
                             <div className="flex items-center gap-2">
                               <span className="text-muted-foreground">Não vinculado</span>
@@ -213,7 +218,7 @@ function Pagina() {
                         <td className="px-2 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.processo_id ? (p.conferir ? "Conferir" : "Editar") : "Vincular processo"}</button>
-                            {!p.processo_id ? (
+                            {semProcessoValido ? (
                               <button
                                 className="text-xs text-destructive hover:underline"
                                 type="button"
