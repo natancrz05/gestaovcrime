@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { pode } from "@/lib/permissoes";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
@@ -11,7 +11,7 @@ import {
   TIPOS_PARTE,
   TIPOS_PRISAO,
 } from "@/lib/processos/modelo";
-import { criarProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
+import { adicionarEtiquetaAoProcesso, criarProcesso, etiquetasQuery, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/novo")({
   beforeLoad: ({ context }) => {
@@ -46,6 +46,8 @@ function Pagina() {
   const [mov, setMov] = useState({ data: "", descricao: "", tipo: "Despacho" });
   const [obsGeral, setObsGeral] = useState("");
   const [obsInterna, setObsInterna] = useState("");
+  const [etiquetasSelecionadas, setEtiquetasSelecionadas] = useState<string[]>([]);
+  const { data: etiquetas = [] } = useQuery(etiquetasQuery());
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
@@ -72,6 +74,9 @@ function Pagina() {
         movimentacao: mov.descricao.trim() ? mov : null,
         observacao_interna: obsInterna,
       });
+      if (etiquetasSelecionadas.length) {
+        await Promise.all(etiquetasSelecionadas.map((etiquetaId) => adicionarEtiquetaAoProcesso(novoId, etiquetaId)));
+      }
       await qc.invalidateQueries({ queryKey: ["processos"] });
       navigate({ to: "/processos/$id", params: { id: novoId } });
     } catch (err) {
@@ -165,6 +170,20 @@ function Pagina() {
             </div>
           ))}
         </div>
+      </Secao>
+
+      <Secao titulo="Etiquetas">
+        <Campo rotulo="Etiquetas do processo">
+          <select
+            multiple
+            className={`${CLASSE_CAMPO} min-h-28 py-2`}
+            value={etiquetasSelecionadas}
+            onChange={(e) => setEtiquetasSelecionadas(Array.from(e.target.selectedOptions, (option) => option.value))}
+          >
+            {etiquetas.map((etiqueta) => <option key={etiqueta.id} value={etiqueta.id}>{etiqueta.nome}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">Opcional. Use Ctrl (Windows) ou Cmd (Mac) para selecionar mais de uma.</p>
+        </Campo>
       </Secao>
 
       <Secao titulo="Última movimentação">
