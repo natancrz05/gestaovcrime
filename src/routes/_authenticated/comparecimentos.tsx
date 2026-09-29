@@ -143,9 +143,16 @@ function Pagina() {
 
       <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
-          <div className="overflow-x-auto rounded-md border border-border">
-            <div className="min-w-[1050px]">
-            <table className="w-full text-sm">
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col className="w-[22%]" />
+                <col className="w-[28%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
@@ -166,18 +173,17 @@ function Pagina() {
                         ) : null}
                       </span>
                     ) : null}</td>
-                    <td className="whitespace-nowrap px-2 py-2">{c.processo_id ? <><span className="numero-processo">{c.numero}</span>{etiquetasPorProcesso[c.processo_id]?.length ? <div className="mt-1 flex flex-wrap gap-1">{etiquetasPorProcesso[c.processo_id].map((e: EtiquetaDoProcesso) => <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>)}</div> : null}</> : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
+                    <td className="break-words px-2 py-2">{c.processo_id ? <><span className="numero-processo">{c.numero}</span>{etiquetasPorProcesso[c.processo_id]?.length ? <div className="mt-1 flex flex-wrap gap-1">{etiquetasPorProcesso[c.processo_id].map((e: EtiquetaDoProcesso) => <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>)}</div> : null}</> : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
                     <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
-                    <td className="whitespace-nowrap px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            </div>
           </div>
         )}
       </Secao>
