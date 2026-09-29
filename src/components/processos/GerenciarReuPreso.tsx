@@ -57,16 +57,17 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
 
     let processoId = proc;
     if (!processoId) {
-      const numero = numeroProcesso.replace(/\D/g, "");
+      const numero = numeroProcesso.trim();
       if (!numero) {
         setSalvando(false);
         toast.error("Informe o número do processo");
         return;
       }
+      const numeroNumerico = numero.replace(/\D/g, "");
       const { data: existente, error: buscaErro } = await supabase
         .from("processos")
         .select("id")
-        .eq("numero", numero)
+        .or(`numero.eq.${numero},numero.eq.${numeroNumerico}`)
         .maybeSingle();
       if (buscaErro) {
         setSalvando(false);
