@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { ProcessoCompleto } from "./modelo";
+import type { EtiquetaProcesso, ProcessoCompleto } from "./modelo";
 
 /**
  * Acesso a dados do módulo de Processos (banco persistente).
@@ -15,7 +15,7 @@ export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   if (error) throw error;
   return (data ?? []).map((item) => ({
     ...item,
-    etiquetas: ((item as { processos_etiquetas?: { etiquetas?: ProcessoCompleto["etiquetas"][number] | null }[] }).processos_etiquetas ?? [])
+    etiquetas: ((item as { processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] }).processos_etiquetas ?? [])
       .map((v) => v.etiquetas)
       .filter(Boolean),
   })) as unknown as ProcessoCompleto[];
