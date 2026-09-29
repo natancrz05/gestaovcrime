@@ -28,7 +28,7 @@ export const ITENS_NAV = [
   { para: "/", rotulo: "Dashboard", icone: LayoutDashboard, exato: true },
   { para: "/processos", rotulo: "Processos", icone: FolderOpen, exato: false },
   { para: "/assistente", rotulo: "Assistente da Vara", icone: Sparkles, exato: false },
-  { para: "/reus-presos", rotulo: "Réus Presos", icone: Lock, exato: false },
+  { para: "/reus-presos", rotulo: "Presos Provisórios", icone: Lock, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
   { para: "/pendencias", rotulo: "Pendências", icone: ClipboardList, exato: false },
