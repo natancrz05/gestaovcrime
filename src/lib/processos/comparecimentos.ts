@@ -58,12 +58,23 @@ export function situacaoPorData(proximo: string, hoje = hojeISO()): SituacaoComp
 }
 
 async function listar(): Promise<Comparecimento[]> {
-  const { data, error } = await supabase
-    .from("comparecimentos")
-    .select("*, processos(numero), comparecimento_registros(*)")
-    .order("proximo");
-  if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as Comparecimento[];
+  const pagina = 1000;
+  const todos: Comparecimento[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("comparecimentos")
+      .select("*, processos(numero), comparecimento_registros(*)")
+      .order("proximo")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw new Error(error.message);
+
+    const lote = (data ?? []) as unknown as Comparecimento[];
+    todos.push(...lote);
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
 }
 
 export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], staleTime: 30_000, queryFn: listar });
