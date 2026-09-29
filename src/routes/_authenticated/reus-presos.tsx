@@ -215,6 +215,7 @@ function Pagina() {
                         ))}
                         {dp["Sistema"] ? <div className="text-muted-foreground">Sistema: {dp["Sistema"]}</div> : null}
                       </td>
+                      <td className="px-2 py-2"><EtiquetasProcesso etiquetas={p.etiquetas} compact /></td>
                       <td className="px-2 py-2 text-xs">
                         {dp["Última reavaliação"] ? <div>{formatarData(dp["Última reavaliação"])}</div> : <div className="text-muted-foreground">—</div>}
                         {dp["Data de reavaliação"] ? <div className="text-muted-foreground">Próxima: {formatarData(dp["Data de reavaliação"])}</div> : null}
@@ -228,6 +229,7 @@ function Pagina() {
                       {podeEditar ? (
                         <td className="sticky right-0 z-10 bg-card px-2 py-2 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
                           <div className="flex items-center gap-2">
+                            {p.processo_id ? <AcoesEtiquetasProcesso processoId={p.processo_id} etiquetas={p.etiquetas} /> : null}
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
                             {semProcessoValido ? (
                               <button
