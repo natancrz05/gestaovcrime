@@ -37,14 +37,50 @@ export interface EtiquetaDoProcesso {
 
 /** Leitura isolada das etiquetas da ficha individual. Não faz parte da consulta central de processos. */
 export async function listarEtiquetasDoProcesso(processoId: string): Promise<EtiquetaDoProcesso[]> {
-  const { data, error } = await supabase
+  const { data: vinculos, error: vinculosError } = await supabase
     .from("processos_etiquetas")
-    .select("etiquetas(id, nome, cor, favorita)")
+    .select("etiqueta_id")
     .eq("processo_id", processoId);
-  if (error) throw error;
-  return ((data ?? []) as unknown as { etiquetas: EtiquetaDoProcesso | null }[])
-    .map((x) => x.etiquetas)
-    .filter((x): x is EtiquetaDoProcesso => Boolean(x));
+  if (vinculosError) throw vinculosError;
+
+  const ids = (vinculos ?? []).map((x) => x.etiqueta_id);
+  if (!ids.length) return [];
+
+  const { data: etiquetas, error: etiquetasError } = await supabase
+    .from("etiquetas")
+    .select("id, nome, cor, favorita")
+    .in("id", ids)
+    .order("nome");
+  if (etiquetasError) throw etiquetasError;
+  return (etiquetas ?? []) as EtiquetaDoProcesso[];
+}
+
+export async function listarEtiquetasPorProcessos(processoIds: string[]): Promise<Record<string, EtiquetaDoProcesso[]>> {
+  if (!processoIds.length) return {};
+
+  const { data: vinculos, error: vinculosError } = await supabase
+    .from("processos_etiquetas")
+    .select("processo_id, etiqueta_id")
+    .in("processo_id", processoIds);
+  if (vinculosError) throw vinculosError;
+
+  const ids = [...new Set((vinculos ?? []).map((x) => x.etiqueta_id))];
+  if (!ids.length) return {};
+
+  const { data: etiquetas, error: etiquetasError } = await supabase
+    .from("etiquetas")
+    .select("id, nome, cor, favorita")
+    .in("id", ids)
+    .order("nome");
+  if (etiquetasError) throw etiquetasError;
+
+  const porId = new Map((etiquetas ?? []).map((e) => [e.id, e as EtiquetaDoProcesso]));
+  const resultado: Record<string, EtiquetaDoProcesso[]> = {};
+  for (const vinculo of vinculos ?? []) {
+    const etiqueta = porId.get(vinculo.etiqueta_id);
+    if (etiqueta) (resultado[vinculo.processo_id] ??= []).push(etiqueta);
+  }
+  return resultado;
 }
 
 export const etiquetasDoProcessoQuery = (processoId: string) =>
@@ -52,6 +88,14 @@ export const etiquetasDoProcessoQuery = (processoId: string) =>
     queryKey: ["processos", processoId, "etiquetas"],
     staleTime: 30_000,
     queryFn: () => listarEtiquetasDoProcesso(processoId),
+  });
+
+export const etiquetasDosProcessosQuery = (processoIds: string[]) =>
+  queryOptions({
+    queryKey: ["processos", "etiquetas", [...processoIds].sort()],
+    staleTime: 30_000,
+    queryFn: () => listarEtiquetasPorProcessos(processoIds),
+    enabled: processoIds.length > 0,
   });
 
 /** Leitura isolada do catálogo de etiquetas. Não faz parte da consulta central de processos. */
@@ -75,7 +119,7 @@ export const etiquetasQuery = () =>
 export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId: string) {
   const { error } = await supabase
     .from("processos_etiquetas")
-    .insert({ processo_id: processoId, etiqueta_id: etiquetaId });
+    .insert({ processo_id: processoId, etiqueta_id: etiquetaId, criado_por: (await supabase.auth.getUser()).data.user?.id ?? null });
   if (error) {
     if (error.code === "23505") throw new Error("Esta etiqueta já está vinculada ao processo.");
     throw error;
