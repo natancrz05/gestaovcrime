@@ -17,7 +17,8 @@ import { presosQuery } from "@/lib/processos/reus-presos";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
-  conferir: boolean; motivo_conferencia: string; processos: { numero: string; processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] } | null;\n  etiquetas: EtiquetaProcesso[];
+  conferir: boolean; motivo_conferencia: string; processos: { numero: string; processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] } | null;
+  etiquetas: EtiquetaProcesso[];
 }
 
 export const Route = createFileRoute("/_authenticated/reus-presos")({
