@@ -53,7 +53,7 @@ function Pagina() {
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
-  const atualizar = () => qc.invalidateQueries();
+  const atualizar = () => qc.invalidateQueries({ queryKey: ["reus-presos"] });
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
     if (error) { toast.error(error.message); return; }
