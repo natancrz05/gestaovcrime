@@ -20,7 +20,7 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("A IA não está configurada no servidor.");
     const sb = context.supabase;
-    const pergunta = data.messages[data.messages.length - 1].content;
+    const pergunta = data.messages[data.messages.length - 1]?.content ?? "";
     const ctx: string[] = [];
 
     const numero = pergunta.match(/\b\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{2}\.\d{4}\b/)?.[0];

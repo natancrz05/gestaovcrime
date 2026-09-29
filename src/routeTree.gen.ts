@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 import { Route as AuthenticatedComparecimentosRouteImport } from './routes/_authenticated/comparecimentos'
 import { Route as AuthenticatedPendenciasRouteImport } from './routes/_authenticated/pendencias'
@@ -41,6 +42,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAssistenteRoute = AuthenticatedAssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
@@ -138,6 +144,7 @@ const AuthenticatedProcessosNovoRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/_authenticated/pendencias': typeof AuthenticatedPendenciasRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/assistente'
     | '/audiencias'
     | '/comparecimentos'
     | '/pendencias'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/assistente'
     | '/audiencias'
     | '/comparecimentos'
     | '/pendencias'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/assistente'
     | '/_authenticated/audiencias'
     | '/_authenticated/comparecimentos'
     | '/_authenticated/pendencias'
@@ -287,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assistente': {
+      id: '/_authenticated/assistente'
+      path: '/assistente'
+      fullPath: '/assistente'
+      preLoaderRoute: typeof AuthenticatedAssistenteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/audiencias': {
@@ -405,6 +424,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedComparecimentosRoute: typeof AuthenticatedComparecimentosRoute
   AuthenticatedPendenciasRoute: typeof AuthenticatedPendenciasRoute
@@ -425,6 +445,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedComparecimentosRoute: AuthenticatedComparecimentosRoute,
   AuthenticatedPendenciasRoute: AuthenticatedPendenciasRoute,
