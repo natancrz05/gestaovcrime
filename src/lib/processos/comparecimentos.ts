@@ -1,7 +1,7 @@
 /** Controle de comparecimentos periódicos (mensais). Apenas acompanhamento administrativo. */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { diasEntre, hojeISO } from "./modelo";
+import { diasEntre, hojeISO, type EtiquetaProcesso } from "./modelo";
 
 export const CONFIG_COMPARECIMENTOS = { diasVencendo: 7 };
 
@@ -38,7 +38,7 @@ export interface Comparecimento {
   observacao: string;
   situacao: string;
   criado_em: string;
-  processos: { numero: string } | null;
+  processos: { numero: string; processos_etiquetas?: { etiquetas?: EtiquetaProcesso | null }[] } | null;
   comparecimento_registros: RegistroComparecimento[];
 }
 
@@ -60,7 +60,7 @@ export function situacaoPorData(proximo: string, hoje = hojeISO()): SituacaoComp
 async function listar(): Promise<Comparecimento[]> {
   const { data, error } = await supabase
     .from("comparecimentos")
-    .select("*, processos(numero), comparecimento_registros(*)")
+    .select("*, processos(numero, processos_etiquetas(etiquetas(id,nome,cor,favorita))), comparecimento_registros(*)")
     .order("proximo");
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as Comparecimento[];
