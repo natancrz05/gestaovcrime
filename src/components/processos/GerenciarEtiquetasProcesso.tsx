@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import {
   adicionarEtiquetaAoProcesso,
   etiquetasQuery,
+  removerEtiquetaDoProcesso,
   type EtiquetaDoProcesso,
 } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
@@ -19,7 +20,7 @@ export function GerenciarEtiquetasProcesso({
 }: {
   processoId: string;
   etiquetasAtuais: EtiquetaDoProcesso[];
-  children?: (abrir: () => void) => React.ReactNode;
+  children?: (abrir: () => void) => ReactNode;
 }) {
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
@@ -43,6 +44,22 @@ export function GerenciarEtiquetasProcesso({
     setEtiquetaId("");
     setAberto(true);
   };
+
+  async function remover(etiqueta: EtiquetaDoProcesso) {
+    setSalvando(true);
+    setErro("");
+    try {
+      await removerEtiquetaDoProcesso(processoId, etiqueta.id);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
+        qc.invalidateQueries({ queryKey: ["processos", processoId, "etiquetas"] }),
+      ]);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível remover a etiqueta.");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   async function salvar() {
     if (!etiquetaId) {
@@ -74,6 +91,29 @@ export function GerenciarEtiquetasProcesso({
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent>
           <DialogHeader><DialogTitle>Adicionar etiqueta</DialogTitle></DialogHeader>
+
+          {etiquetasAtuais.length > 0 ? (
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Etiquetas deste processo</p>
+              <div className="flex flex-wrap gap-2">
+                {etiquetasAtuais.map((e) => (
+                  <span key={e.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs">
+                    {e.nome}
+                    <button
+                      type="button"
+                      className="rounded-full px-1 text-muted-foreground hover:bg-urgente-suave hover:text-urgente disabled:opacity-50"
+                      aria-label={"Remover etiqueta " + e.nome}
+                      title={"Remover etiqueta " + e.nome}
+                      disabled={salvando}
+                      onClick={() => void remover(e)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando etiquetas…</p>
