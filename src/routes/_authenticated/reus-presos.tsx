@@ -217,7 +217,7 @@ function Pagina() {
                       {podeEditar ? (
                         <td className="px-2 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.processo_id ? (p.conferir ? "Conferir" : "Editar") : "Vincular processo"}</button>
+                            <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
                             {semProcessoValido ? (
                               <button
                                 className="text-xs text-destructive hover:underline"
