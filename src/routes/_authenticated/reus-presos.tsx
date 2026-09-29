@@ -23,9 +23,9 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
   head: () => ({
     meta: [
       { title: "Presos Provisórios — Gestão da Vara Criminal" },
-      { name: "description", content: "Réus custodiados da Vara Criminal, com processos relacionados e importação de planilha." },
+      { name: "description", content: "Presos provisórios da Vara Criminal, com processos relacionados e importação de planilha." },
       { property: "og:title", content: "Presos Provisórios — Gestão da Vara Criminal" },
-      { property: "og:description", content: "Réus custodiados da Vara Criminal, com processos relacionados e importação de planilha." },
+      { property: "og:description", content: "Presos provisórios da Vara Criminal, com processos relacionados e importação de planilha." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(presosQuery()),
@@ -131,7 +131,7 @@ function Pagina() {
         </div>
       </div>
       <Secao titulo={`Presos provisórios (${exibidos.length})`}>
-        {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu preso encontrado.</p> : (
+        {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum preso provisório encontrado.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
