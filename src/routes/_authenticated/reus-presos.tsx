@@ -132,7 +132,20 @@ function Pagina() {
                     <tr key={p.id}>
                       <td className="px-2 py-2 text-xs whitespace-nowrap">
                         {p.processo_id ? <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">{p.processos?.numero}</Link>
-                          : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : <span className="text-muted-foreground">Não vinculado</span>}
+                          : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Não vinculado</span>
+                              {podeEditar ? (
+                                <button
+                                  type="button"
+                                  className="rounded border border-primary/30 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                                  onClick={() => setForm({ reu: p })}
+                                >
+                                  Vincular processo
+                                </button>
+                              ) : null}
+                            </div>
+                          )}
                       </td>
                       <td className="px-2 py-2">
                         <div className="font-medium">
