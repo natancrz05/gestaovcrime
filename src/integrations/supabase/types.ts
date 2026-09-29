@@ -672,7 +672,15 @@ export type Database = {
           ultima_sincronizacao?: string | null
           unidade?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "processos_etiquetas_processo_id_fkey"
+            columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "processos_etiquetas"
+            referencedColumns: ["processo_id"]
+          },
+        ]
       }
       reu_prisoes_encerradas: {
         Row: {
