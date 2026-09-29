@@ -20,7 +20,7 @@ export async function perguntarAoAssistente(
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
   if (!url || !key) throw new Error("Integração com o sistema não configurada.");
 
-  const resposta = await fetch(`${url}/functions/v1/assistente`, {
+  const resposta = await fetch(`${url}/functions/v1/swift-task`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
