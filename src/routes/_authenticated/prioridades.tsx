@@ -1,15 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
-import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from "@/lib/processos/repositorio";
+import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual, etiquetasDosProcessosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { NIVEIS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import type { PrioridadeProcesso } from "@/lib/processos/modelo";
+
 
 export const Route = createFileRoute("/_authenticated/prioridades")({
   head: () => ({
@@ -33,8 +34,10 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const qc = useQueryClient();
   const podeEditar = usePode("editar");
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const [filtro, setFiltro] = useState<CategoriaPrioridade | null>(null);
-  const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
+  const atencao = useMemo(() => processosQueRequeremAtencao(processos, undefined, etiquetasPorProcesso), [processos, etiquetasPorProcesso]);
   const contagens = contarCategorias(atencao);
   const automaticas = atencao
     .map((x) => ({ ...x, alertas: x.alertas.filter((a) => a.categoria !== "manual") }))
