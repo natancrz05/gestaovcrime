@@ -193,7 +193,8 @@ function Pagina() {
           <DialogHeader><DialogTitle>Detalhes da audiência</DialogTitle></DialogHeader>
           {detalhe ? (
             <div className="space-y-4">
-              <EtiquetasProcesso etiquetas={detalhe.etiquetas} />\n              <dl className="grid grid-cols-2 gap-3 text-sm">
+              <EtiquetasProcesso etiquetas={detalhe.etiquetas} />
+              <dl className="grid grid-cols-2 gap-3 text-sm">
                 {[
                   ["Processo", detalhe.numero], ["Réu", detalhe.reu], ["Tipo", detalhe.tipo],
                   ["Data", formatarData(detalhe.data)], ["Horário", horaCurta(detalhe.horario)], ["Modalidade", detalhe.modalidade],
