@@ -181,7 +181,7 @@ export function RetirarPrisao({ reu, onFechar, onSalvo }: { reu: ReuEditavel | n
     <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Encerrar situação prisional — {reu?.nome}</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">O réu deixará as listas de Réus Presos e Prisões Temporárias. O processo, o cadastro do réu, os processos relacionados e o histórico são preservados. Uma nova prisão poderá ser registrada depois sem apagar esta.</p>
+        <p className="text-sm text-muted-foreground">O preso provisório deixará as listas de Presos Provisórios e Prisões Temporárias. O processo, o cadastro do réu, os processos relacionados e o histórico são preservados. Uma nova prisão poderá ser registrada depois sem apagar esta.</p>
         <div className="space-y-3">
           <Campo rotulo="Data do encerramento"><input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} /></Campo>
           <Campo rotulo="Motivo / observação (opcional)"><textarea className={`${CLASSE_CAMPO} h-16 py-2`} value={motivo} onChange={(e) => setMotivo(e.target.value)} /></Campo>
