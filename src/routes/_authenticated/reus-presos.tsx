@@ -22,14 +22,14 @@ interface Preso extends ReuEditavel {
 export const Route = createFileRoute("/_authenticated/reus-presos")({
   head: () => ({
     meta: [
-      { title: "Réus Presos — Gestão da Vara Criminal" },
+      { title: "Presos Provisórios — Gestão da Vara Criminal" },
       { name: "description", content: "Réus custodiados da Vara Criminal, com processos relacionados e importação de planilha." },
-      { property: "og:title", content: "Réus Presos — Gestão da Vara Criminal" },
+      { property: "og:title", content: "Presos Provisórios — Gestão da Vara Criminal" },
       { property: "og:description", content: "Réus custodiados da Vara Criminal, com processos relacionados e importação de planilha." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(presosQuery()),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar réus presos" descricao={error.message} />,
+  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar presos provisórios" descricao={error.message} />,
   component: Pagina,
 });
 
@@ -97,16 +97,16 @@ function Pagina() {
         <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={atualizar} />
       </> : null}
       <Cabecalho
-        titulo="Réus Presos"
+        titulo="Presos Provisórios"
         subtitulo={`${data.length} réus custodiados — prioridade máxima de tramitação`}
         acao={podeEditar ? <div className="flex gap-2">
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted" onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
-          <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar réu preso</button>
+          <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar preso provisório</button>
         </div> : undefined}
       />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {([
-          ["", "Réus presos", data.length],
+          ["", "Presos provisórios", data.length],
           ["Prisão temporária", "Prisões temporárias", data.filter((p) => tipoExibido(p) === "Prisão temporária").length],
           ["Prisão preventiva", "Prisões preventivas", data.filter((p) => tipoExibido(p) === "Prisão preventiva").length],
           ["outras", "Outras prisões", data.filter((p) => !["Prisão temporária", "Prisão preventiva"].includes(tipoExibido(p))).length],
@@ -120,7 +120,7 @@ function Pagina() {
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full max-w-md">
-          <label htmlFor="pesq-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Pesquisar réus presos</label>
+          <label htmlFor="pesq-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Pesquisar presos provisórios</label>
           <input id="pesq-presos" type="search" className={CLASSE_CAMPO} placeholder="Nome, RJI, processo cautelar, IP ou ação penal..." value={termo} onChange={(e) => setTermo(e.target.value)} />
         </div>
         <div>
@@ -130,7 +130,7 @@ function Pagina() {
           </select>
         </div>
       </div>
-      <Secao titulo={`Réus presos (${exibidos.length})`}>
+      <Secao titulo={`Presos provisórios (${exibidos.length})`}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu preso encontrado.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-sm">
