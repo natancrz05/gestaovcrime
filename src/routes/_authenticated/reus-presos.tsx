@@ -133,9 +133,9 @@ function Pagina() {
       <Secao titulo={`Réus presos (${exibidos.length})`}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum réu preso encontrado.</p> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[1180px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h, i, arr) => <th key={h} className={`px-2 py-2 font-medium ${podeEditar && i === arr.length - 1 ? "sticky right-0 z-20 bg-card shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]" : ""}`}>{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
@@ -224,7 +224,7 @@ function Pagina() {
                         {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
                       </td>
                       {podeEditar ? (
-                        <td className="px-2 py-2 whitespace-nowrap">
+                        <td className="sticky right-0 z-10 bg-card px-2 py-2 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
                           <div className="flex items-center gap-2">
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
                             {semProcessoValido ? (
