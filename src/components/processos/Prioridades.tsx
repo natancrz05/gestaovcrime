@@ -80,7 +80,7 @@ export function ListaAtencao({ itens }: { itens: { processo: ProcessoCompleto; a
               <div>
                 <dt className="text-muted-foreground">Situação prisional</dt>
                 <dd className="mt-0.5 font-medium">
-                  {presos.length ? presos.map((r) => `${r.nome}: ${r.tipo_prisao}`).join("; ") : "Nenhum réu preso registrado"}
+                  {presos.length ? presos.map((r) => `${r.nome}: ${r.tipo_prisao}`).join("; ") : "Nenhum preso provisório registrado"}
                 </dd>
               </div>
               <div>
