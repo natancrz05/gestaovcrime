@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
 import { formatarData } from "@/lib/dominio";
 import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
-import { processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { tipoPrisaoDe } from "@/lib/processos/importacao-reus";
 import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
@@ -34,6 +34,8 @@ function Dashboard() {
   const navigate = useNavigate();
   const [categoria, setCategoria] = useState<CategoriaPrioridade | null>(null);
   const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
+  const processoIds = useMemo(() => [...new Set(atencao.map((x) => x.processo.id))], [atencao]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const contagens = contarCategorias(atencao);
   const contagensDashboard = {
     ...contagens,
@@ -153,7 +155,7 @@ function Dashboard() {
             </div>
             <Link to="/prioridades" className="text-sm font-medium text-primary hover:underline">Gerenciar prioridades</Link>
           </div>
-          <ListaAtencao itens={exibidos} />
+          <ListaAtencao itens={exibidos} etiquetasPorProcesso={etiquetasPorProcesso} />
         </section>
 
         <section aria-labelledby="proximas-acoes" className="space-y-3">
