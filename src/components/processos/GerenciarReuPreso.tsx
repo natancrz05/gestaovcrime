@@ -117,7 +117,7 @@ export function RetirarPrisao({ reu, onFechar, onSalvo }: { reu: ReuEditavel | n
   useEffect(() => { if (reu) { setData(hojeISO()); setMotivo(""); } }, [reu]);
   const { data: hist = [] } = useQuery({
     queryKey: ["prisoes-encerradas", reu?.id], enabled: !!reu,
-    queryFn: async () => ((await (supabase.from as never as (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { order: (c: string, o: object) => Promise<{ data: { id: string; tipo_prisao: string; data_prisao: string | null; data_encerramento: string; motivo: string }[] | null }> } } }>("reu_prisoes_encerradas").select("*").eq("reu_id", reu!.id).order("data_encerramento", { ascending: false })).data) ?? [],
+    queryFn: async () => ((await (supabase.from as never as (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { order: (c: string, o: object) => Promise<{ data: { id: string; tipo_prisao: string; data_prisao: string | null; data_encerramento: string; motivo: string }[] | null }> } } })("reu_prisoes_encerradas").select("*").eq("reu_id", reu!.id).order("data_encerramento", { ascending: false })).data) ?? [],
   });
   const confirmar = async () => {
     if (!reu) return;
