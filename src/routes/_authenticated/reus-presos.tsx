@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -13,6 +13,9 @@ import { ROTULO_TIPO_PROC, tipoPrisaoDe, type ProcRel } from "@/lib/processos/im
 import { toast } from "sonner";
 import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
+import { etiquetasDosProcessosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
@@ -45,6 +48,11 @@ function Pagina() {
   const data = useSuspenseQuery(presosQuery()).data as unknown as Preso[];
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
+  const processoIds = useMemo(
+    () => [...new Set(data.map((p) => p.processo_id).filter((id): id is string => Boolean(id)))],
+    [data],
+  );
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const [importar, setImportar] = useState(false);
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
@@ -199,6 +207,13 @@ function Pagina() {
                         {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Revisão do cadastro: concluída</div> : null}
                         {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
                         {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
+                        {p.processo_id && etiquetasPorProcesso[p.processo_id]?.length ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {etiquetasPorProcesso[p.processo_id].map((e: EtiquetaDoProcesso) => (
+                              <Etiqueta key={e.id} severidade="info">{e.nome}</Etiqueta>
+                            ))}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-2 py-2">{tipoExibido(p)}{p.especie_cautelar ? <div className="text-xs text-muted-foreground">{p.especie_cautelar}</div> : null}</td>
                       <td className="px-2 py-2">{formatarData(p.data_prisao)}</td>
@@ -243,6 +258,22 @@ function Pagina() {
                             <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setForm({ reu: p }); setAcoesAberta(null); }}>Atualizar prisão</button>
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setReav(p); setAcoesAberta(null); }}>Registrar reavaliação</button>
+                              {p.processo_id ? (
+                                <GerenciarEtiquetasProcesso
+                                  processoId={p.processo_id}
+                                  etiquetasAtuais={etiquetasPorProcesso[p.processo_id] ?? []}
+                                >
+                                  {(abrir) => (
+                                    <button
+                                      type="button"
+                                      className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted"
+                                      onClick={() => { setAcoesAberta(null); abrir(); }}
+                                    >
+                                      Adicionar etiqueta
+                                    </button>
+                                  )}
+                                </GerenciarEtiquetasProcesso>
+                              ) : null}
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-urgente hover:bg-urgente-suave" onClick={() => { setSoltar(p); setAcoesAberta(null); }}>Encerrar situação prisional</button>
                               <div className="my-1 border-t border-border" />
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { marcarConferencia(p.id, !p.conferir); setAcoesAberta(null); }}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>
