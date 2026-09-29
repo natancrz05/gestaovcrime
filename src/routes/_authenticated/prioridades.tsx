@@ -7,7 +7,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
-import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual, etiquetasDosProcessosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual, etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { NIVEIS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import type { PrioridadeProcesso } from "@/lib/processos/modelo";
 
