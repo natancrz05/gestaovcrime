@@ -4,7 +4,7 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { CheckCircle2, Pencil, Plus, Upload } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
 import { ImportarComparecimentos } from "@/components/processos/ImportarComparecimentos";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
@@ -23,6 +23,7 @@ import {
   preparar,
   registrarComparecimento,
   salvarComparecimento,
+  encerrarComparecimento,
   somarMeses,
   mesesDe,
   PERIODICIDADES,
@@ -82,6 +83,17 @@ function Pagina() {
     if (error) { toast.error(error.message); return; }
     toast.success("Selo Conferir removido");
     recarregar();
+  };
+
+  const encerrar = async (id: string) => {
+    if (!window.confirm("Encerrar este comparecimento? O cadastro será mantido no histórico, mas deixará de aparecer entre os comparecimentos ativos.")) return;
+    try {
+      await encerrarComparecimento(id);
+      toast.success("Comparecimento encerrado");
+      await recarregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível encerrar o comparecimento.");
+    }
   };
 
   const detalhe = lista.find((c) => c.id === busca.id) ?? null;
@@ -194,9 +206,14 @@ function Pagina() {
               <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-3">
                 {detalhe.processo_id ? <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link> : <span className="text-muted-foreground">Processo não vinculado — edite para vincular</span>}
                 {podeEditar ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id ?? "", pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
-                    {detalhe.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
+                    {detalhe.situacao !== "Encerrado" ? (
+                      <>
+                        <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button>
+                        <button className={BOTAO_SEC} onClick={() => void encerrar(detalhe.id)} title="Retirar este cadastro dos comparecimentos ativos"><XCircle className="size-3.5" /> Encerrar comparecimento</button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
