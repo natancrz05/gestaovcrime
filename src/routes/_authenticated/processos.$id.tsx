@@ -14,6 +14,7 @@ import { alertasDoProcesso } from "@/lib/processos/prioridades";
 import { classificar as classificarPend } from "@/lib/processos/pendencias";
 import { horaCurta } from "@/lib/processos/audiencias";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Cabecalho";
@@ -39,6 +40,7 @@ import {
   adicionarParte,
   adicionarReu,
   processoQuery,
+  etiquetasDoProcessoQuery,
 } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/$id")({
@@ -67,6 +69,7 @@ function Pagina() {
   const { data } = useSuspenseQuery(processoQuery(id));
   const qc = useQueryClient();
   const podeEditar = usePode("editar");
+  const { data: etiquetas = [] } = useQuery(etiquetasDoProcessoQuery(id));
   const [aba, setAba] = useState<(typeof ABAS)[number]>("Informações gerais");
   if (!data) return null;
   const p = data;
@@ -86,6 +89,23 @@ function Pagina() {
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
       </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Etiquetas:</span>
+        {etiquetas.length ? etiquetas.map((e) => (
+          <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+            {e.nome}
+          </Etiqueta>
+        )) : <span className="text-xs text-muted-foreground">Nenhuma</span>}
+        {podeEditar ? (
+          <GerenciarEtiquetasProcesso processoId={p.id} etiquetasAtuais={etiquetas}>
+            {(abrir) => (
+              <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={abrir}>
+                Gerenciar etiquetas
+              </button>
+            )}
+          </GerenciarEtiquetasProcesso>
+        ) : null}
+      </div>
       {p.pje_tarefas || p.pje_situacao || p.pje_concluso ? (() => { const fx = fluxoAtual(p); return (
         <div className="rounded-md border border-border bg-card px-4 py-3 text-sm">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Fluxo atual</div>
