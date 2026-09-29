@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CLASSE_CAMPO } from "./campos";
-import { processosQuery } from "@/lib/processos/repositorio";
-import { reuPrincipal, type ProcessoCompleto } from "@/lib/processos/modelo";
+import { processosSeletorQuery, type ProcessoParaSelecao } from "@/lib/processos/repositorio";
 import { cn } from "@/lib/utils";
 
 const LIMITE = 15;
@@ -12,14 +11,14 @@ const sem = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").to
 
 interface Opcao { id: string; numero: string; digitos: string; nome: string; classe: string; texto: string }
 
-function paraOpcao(p: ProcessoCompleto): Opcao {
-  const nome = reuPrincipal(p)?.nome ?? p.pje_reu ?? p.partes[0]?.nome ?? "";
+function paraOpcao(p: ProcessoParaSelecao): Opcao {
+  const nome = p.reus[0]?.nome ?? p.pje_reu ?? p.partes[0]?.nome ?? "";
   const nomes = [nome, p.pje_reu ?? "", ...p.reus.map((r) => r.nome), ...p.partes.map((x) => x.nome)].join(" ");
   return { id: p.id, numero: p.numero, digitos: p.numero.replace(/\D/g, ""), nome, classe: p.classe, texto: sem(`${p.numero} ${nomes}`) };
 }
 
 export function SeletorProcesso({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const { data: processos = [] } = useQuery(processosQuery());
+  const { data: processos = [] } = useQuery(processosSeletorQuery());
   const opcoes = useMemo(() => processos.map(paraOpcao), [processos]);
   const [termo, setTermo] = useState("");
   const [aberto, setAberto] = useState(false);
