@@ -213,7 +213,17 @@ function Pagina() {
                         <td className="px-2 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{p.processo_id ? (p.conferir ? "Conferir" : "Editar") : "Vincular processo"}</button>
-                            <button className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted" type="button" aria-haspopup="menu" aria-expanded={acoesAberta === p.id} onClick={() => setAcoesAberta(acoesAberta === p.id ? null : p.id)}>Ações ▾</button>
+                            {!p.processo_id ? (
+                              <button
+                                className="text-xs text-destructive hover:underline"
+                                type="button"
+                                onClick={() => void excluirCadastroSemProcesso(p)}
+                              >
+                                Excluir cadastro
+                              </button>
+                            ) : (
+                              <button className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted" type="button" aria-haspopup="menu" aria-expanded={acoesAberta === p.id} onClick={() => setAcoesAberta(acoesAberta === p.id ? null : p.id)}>Ações ▾</button>
+                            )}
                           </div>
                           {acoesAberta === p.id ? (
                             <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
