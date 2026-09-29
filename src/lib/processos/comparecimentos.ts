@@ -66,7 +66,7 @@ async function listar(): Promise<Comparecimento[]> {
   return (data ?? []) as unknown as Comparecimento[];
 }
 
-export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], queryFn: listar });
+export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], staleTime: 30_000, queryFn: listar });
 
 /** Último comparecimento: o mais recente entre o histórico e a "Data da última assinatura" importada. */
 function ultimoDe(registro: string | undefined, dados: unknown): string | null {
