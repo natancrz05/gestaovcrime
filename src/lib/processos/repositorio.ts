@@ -28,6 +28,32 @@ export const processosQuery = () =>
 export const processoQuery = (id: string) =>
   queryOptions({ queryKey: ["processos", id], staleTime: 30_000, queryFn: () => obterProcesso(id) });
 
+export interface EtiquetaDoProcesso {
+  id: string;
+  nome: string;
+  cor: string;
+  favorita: boolean;
+}
+
+/** Leitura isolada das etiquetas da ficha individual. Não faz parte da consulta central de processos. */
+export async function listarEtiquetasDoProcesso(processoId: string): Promise<EtiquetaDoProcesso[]> {
+  const { data, error } = await supabase
+    .from("processos_etiquetas")
+    .select("etiquetas(id, nome, cor, favorita)")
+    .eq("processo_id", processoId);
+  if (error) throw error;
+  return ((data ?? []) as unknown as { etiquetas: EtiquetaDoProcesso | null }[])
+    .map((x) => x.etiquetas)
+    .filter((x): x is EtiquetaDoProcesso => Boolean(x));
+}
+
+export const etiquetasDoProcessoQuery = (processoId: string) =>
+  queryOptions({
+    queryKey: ["processos", processoId, "etiquetas"],
+    staleTime: 30_000,
+    queryFn: () => listarEtiquetasDoProcesso(processoId),
+  });
+
 export interface NovoProcessoEntrada {
   numero: string;
   classe: string;
