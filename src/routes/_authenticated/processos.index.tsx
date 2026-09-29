@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
@@ -22,7 +22,7 @@ import {
   reuPrincipal,
   ultimaMovimentacao,
 } from "@/lib/processos/modelo";
-import { processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, etiquetasQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/")({
   head: () => ({
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "ordem"] as const;
+const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "ordem"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
 
@@ -77,8 +77,10 @@ function Pagina() {
   const navigate = useNavigate();
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
+  const { data: etiquetas = [] } = useQuery(etiquetasQuery());
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processos.map((p) => p.id)));
   const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
-  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", ordem = sp.ordem ?? "processo";
+  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
   const flag = (k: Chave) => sp[k] === "1";
@@ -116,6 +118,7 @@ function Pagina() {
       if (situacao === "suspensos" && p.status !== "Suspenso") return false;
       if (situacao === "arquivados" && !["Arquivado", "Baixado"].includes(p.status)) return false;
       if (classe && p.classe !== classe) return false;
+      if (etiqueta && !(etiquetasPorProcesso[p.id] ?? []).some((e) => e.id === etiqueta)) return false;
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
@@ -218,6 +221,10 @@ function Pagina() {
             <option value="">Réu preso: todos</option>
             <option value="sim">Com réu preso</option>
             <option value="nao">Sem réu preso</option>
+          </select>
+          <select className={CLASSE_CAMPO} value={etiqueta} onChange={(e) => set("etiqueta", e.target.value)} aria-label="Etiqueta">
+            <option value="">Etiqueta: todas</option>
+            {etiquetas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
           </select>
           <select className={CLASSE_CAMPO} value={tipoPrisao} onChange={(e) => set("tipoPrisao", e.target.value)} aria-label="Tipo de prisão">
             <option value="">Prisão: qualquer</option>
@@ -332,7 +339,16 @@ function Pagina() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      {reu ? reu.nome : "—"}
+                      <div>{reu ? reu.nome : "—"}</div>
+                      {(etiquetasPorProcesso[p.id] ?? []).length ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(etiquetasPorProcesso[p.id] ?? []).map((e: EtiquetaDoProcesso) => (
+                            <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                              {e.nome}
+                            </Etiqueta>
+                          ))}
+                        </div>
+                      ) : null}
                       {p.reus.length > 1 ? <span className="text-xs text-muted-foreground"> +{p.reus.length - 1}</span> : null}
                       {reu?.preso ? <div className="text-xs text-urgente">{reu.tipo_prisao}</div> : null}
                     </td>
