@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes } from "@/components/processos/campos";
 import { BOTAO, BOTAO_SEC, DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
 import { formatarData } from "@/lib/dominio";
-import { processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import {
   PRIORIDADES_PENDENCIA, STATUS_PENDENCIA, concluirPendencia, listarPendenciasDe, rotuloPrioridade, salvarPendencia,
   type PendenciaEntrada, type PendenciaListada,
@@ -41,6 +42,8 @@ function Pagina() {
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
   const podeEditar = usePode("editar");
   const todas = useMemo(() => listarPendenciasDe(processos), [processos]);
+  const processoIds = useMemo(() => [...new Set(todas.map((p) => p.processo_id))], [todas]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const [status, setStatus] = useState("");
   const [prioridade, setPrioridade] = useState("");
   const [responsavel, setResponsavel] = useState("");
@@ -93,7 +96,18 @@ function Pagina() {
                   <button className={cn("text-left font-medium hover:underline", p.concluidaFlag ? "line-through" : "text-foreground")} onClick={() => setDetalhe(p)}>{p.titulo || p.descricao}</button>
                   <div className="mt-1"><EtiquetasPendencia p={p} /></div>
                 </td>
-                <td className="px-4 py-2.5"><Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo text-xs text-primary hover:underline">{p.numero}</Link></td>
+                <td className="px-4 py-2.5">
+                  <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo text-xs text-primary hover:underline">{p.numero}</Link>
+                  {(etiquetasPorProcesso[p.processo_id] ?? []).length ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(etiquetasPorProcesso[p.processo_id] ?? []).map((e: EtiquetaDoProcesso) => (
+                        <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                          {e.nome}
+                        </Etiqueta>
+                      ))}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-2.5">{p.responsavel || "—"}</td>
                 <td className={cn("px-4 py-2.5", p.prioridade === "alta" && !p.concluidaFlag && "font-medium text-atencao")}>{rotuloPrioridade(p.prioridade)}</td>
                 <td className={cn("px-4 py-2.5 tabular-nums", p.atrasada && "font-medium text-urgente")}>{formatarData(p.prazo)}</td>
