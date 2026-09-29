@@ -10,6 +10,7 @@ import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from "@/lib/processos/repositorio";
 import { NIVEIS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import type { PrioridadeProcesso } from "@/lib/processos/modelo";
+import { AcoesEtiquetasProcesso, EtiquetasProcesso } from "@/components/processos/GerenciarEtiquetas";
 
 export const Route = createFileRoute("/_authenticated/prioridades")({
   head: () => ({
@@ -118,7 +119,7 @@ function Pagina() {
                   {m.observacao ? ` · ${m.observacao}` : ""}
                 </p>
               </div>
-              {podeEditar ? <div className="flex gap-1">
+              {podeEditar ? <div className="flex items-center gap-1">\n                <AcoesEtiquetasProcesso processoId={m.processo_id} etiquetas={processos.find((p) => p.id === m.processo_id)?.etiquetas} />
                 <button aria-label="Editar" className="rounded-md border border-border p-1.5 hover:bg-muted" onClick={() => { setEditando(m.id); setForm({ processo_id: m.processo_id, titulo: m.titulo || m.motivo, nivel: m.nivel, observacao: m.observacao }); }}>
                   <Pencil className="size-3.5" />
                 </button>
