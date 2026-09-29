@@ -11,9 +11,23 @@ const SELECAO =
   "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*)";
 
 export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
-  const { data, error } = await supabase.from("processos").select(SELECAO).order("numero");
-  if (error) throw error;
-  return (data ?? []) as unknown as ProcessoCompleto[];
+  const pagina = 1000;
+  const todos: ProcessoCompleto[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("processos")
+      .select(SELECAO)
+      .order("numero")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = (data ?? []) as unknown as ProcessoCompleto[];
+    todos.push(...lote);
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
 }
 
 export async function obterProcesso(id: string): Promise<ProcessoCompleto | null> {
@@ -306,12 +320,23 @@ export interface ProcessoParaSelecao {
 }
 
 export async function listarProcessosParaSelecao(): Promise<ProcessoParaSelecao[]> {
-  const { data, error } = await supabase
-    .from("processos")
-    .select("id, numero, classe, pje_reu, partes(nome), reus(nome, ordem)")
-    .order("numero");
-  if (error) throw error;
-  return (data ?? []) as unknown as ProcessoParaSelecao[];
+  const pagina = 1000;
+  const todos: ProcessoParaSelecao[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("processos")
+      .select("id, numero, classe, pje_reu, partes(nome), reus(nome, ordem)")
+      .order("numero")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = (data ?? []) as unknown as ProcessoParaSelecao[];
+    todos.push(...lote);
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
 }
 
 export const processosSeletorQuery = () =>
