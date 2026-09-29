@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -11,12 +11,13 @@ import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import {
   SITUACOES_COMP,
   comparecimentosQuery,
@@ -61,6 +62,8 @@ function Pagina() {
   const ativos = lista.filter((c) => c.situacao !== "Encerrado");
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
+  const processoIds = useMemo(() => [...new Set(lista.map((c) => c.processo_id).filter((id): id is string => Boolean(id)))], [lista]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const porSituacao = filtro ? ativos.filter((c) => c.status === filtro) : lista;
   const exibidos = useMemo(() => {
     const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -162,7 +165,7 @@ function Pagina() {
                         ) : null}
                       </span>
                     ) : null}</td>
-                    <td className={cn("whitespace-nowrap px-2 py-2", c.processo_id ? "numero-processo" : "text-muted-foreground")}>{c.processo_id ? c.numero : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
+                    <td className="whitespace-nowrap px-2 py-2">{c.processo_id ? <><span className="numero-processo">{c.numero}</span>{etiquetasPorProcesso[c.processo_id]?.length ? <div className="mt-1 flex flex-wrap gap-1">{etiquetasPorProcesso[c.processo_id].map((e: EtiquetaDoProcesso) => <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>)}</div> : null}</> : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
                     <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
