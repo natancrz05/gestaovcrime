@@ -81,7 +81,7 @@ function Dashboard() {
       <section aria-labelledby="painel-audiencias" className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr]">
         <h2 id="painel-audiencias" className="sr-only">Audiências</h2>
         <Link to="/reus-presos" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Réus presos</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Presos provisórios</p>
           <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-urgente">{presos.length}</p>
           <p className="mt-1 text-xs text-muted-foreground">Pessoas atualmente custodiadas</p>
         </Link>
