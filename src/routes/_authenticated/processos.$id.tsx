@@ -39,6 +39,7 @@ import {
   adicionarObservacao,
   adicionarParte,
   adicionarReu,
+  etiquetasDoProcessoQuery,
   processoQuery,
 } from "@/lib/processos/repositorio";
 
@@ -66,6 +67,7 @@ const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm f
 function Pagina() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(processoQuery(id));
+  const { data: etiquetas = [], isLoading: etiquetasCarregando, error: etiquetasErro } = useQuery(etiquetasDoProcessoQuery(id));
   const qc = useQueryClient();
   const podeEditar = usePode("editar");
   const [aba, setAba] = useState<(typeof ABAS)[number]>("Informações gerais");
@@ -87,6 +89,21 @@ function Pagina() {
       <p className="-mt-3 text-xs text-muted-foreground">
         Origem: <span className="font-medium text-foreground">{rotuloOrigem(p.origem)}</span>
       </p>
+      <Secao titulo="Etiquetas">
+        {etiquetasCarregando ? (
+          <p className="text-sm text-muted-foreground">Carregando etiquetas…</p>
+        ) : etiquetasErro ? (
+          <p className="text-sm text-muted-foreground">Não foi possível carregar as etiquetas deste processo.</p>
+        ) : etiquetas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma etiqueta vinculada.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {etiquetas.map((e) => (
+              <Etiqueta key={e.id} severidade="info">{e.nome}</Etiqueta>
+            ))}
+          </div>
+        )}
+      </Secao>
       {p.pje_tarefas || p.pje_situacao || p.pje_concluso ? (() => { const fx = fluxoAtual(p); return (
         <div className="rounded-md border border-border bg-card px-4 py-3 text-sm">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Fluxo atual</div>
