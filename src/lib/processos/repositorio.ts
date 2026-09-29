@@ -23,10 +23,10 @@ export async function obterProcesso(id: string): Promise<ProcessoCompleto | null
 }
 
 export const processosQuery = () =>
-  queryOptions({ queryKey: ["processos"], queryFn: listarProcessosCompletos });
+  queryOptions({ queryKey: ["processos"], staleTime: 30_000, queryFn: listarProcessosCompletos });
 
 export const processoQuery = (id: string) =>
-  queryOptions({ queryKey: ["processos", id], queryFn: () => obterProcesso(id) });
+  queryOptions({ queryKey: ["processos", id], staleTime: 30_000, queryFn: () => obterProcesso(id) });
 
 export interface NovoProcessoEntrada {
   numero: string;
@@ -184,5 +184,6 @@ export async function listarProcessosParaSelecao(): Promise<ProcessoParaSelecao[
 export const processosSeletorQuery = () =>
   queryOptions({
     queryKey: ["processos-seletor"],
+    staleTime: 30_000,
     queryFn: listarProcessosParaSelecao,
   });
