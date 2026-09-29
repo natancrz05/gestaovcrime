@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -14,7 +14,7 @@ import {
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { pode } from "@/lib/permissoes";
-import { processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
@@ -146,6 +146,10 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
   const s = (k: string) => (x: string) => setF((p) => ({ ...p, [k]: x }));
   const classes = useMemo(() => [...new Set(processos.map((p) => p.classe))].sort(), [processos]);
   const numeros = useMemo(() => processos.map((p) => p.numero).sort(), [processos]);
+  const processoIds = useMemo(() => [...new Set(processos.map((p) => p.id))], [processos]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
+  const etiquetasDo = (processoId: string) =>
+    (etiquetasPorProcesso[processoId] ?? []).map((e: EtiquetaDoProcesso) => e.nome).join(" · ") || "—";
 
   let filtros: ReactNode = null;
   let colunas: string[] = [];
@@ -162,7 +166,7 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
         <Sel rotulo="Situação prisional" valor={v("prisao")} set={s("prisao")} opcoes={[{ v: "preso", r: "Com réu preso" }, { v: "solto", r: "Sem réu preso" }]} />
       </>
     );
-    colunas = ["Processo", "Classe", "Assunto", "Status", "Distribuição", "Última movimentação", "Dias sem movimentação", "Réus"];
+    colunas = ["Processo", "Etiquetas", "Classe", "Assunto", "Status", "Distribuição", "Última movimentação", "Dias sem movimentação", "Réus"];
     linhas = processos
       .filter((p) => noPeriodo(p.data_distribuicao, v("de"), v("ate")))
       .filter((p) => !v("status") || p.status === v("status"))
@@ -174,28 +178,28 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
         return {
           chave: p.id,
           processoId: p.id,
-          celulas: [p.numero, p.classe, p.assunto || "—", p.status, fmt(p.data_distribuicao), u ? `${fmt(u.data)} — ${u.descricao}` : "—", diasSemMovimentacao(p) ?? "—", p.reus.length],
+          celulas: [p.numero, etiquetasDo(p.id), p.classe, p.assunto || "—", p.status, fmt(p.data_distribuicao), u ? `${fmt(u.data)} — ${u.descricao}` : "—", diasSemMovimentacao(p) ?? "—", p.reus.length],
         };
       });
   } else if (tipo === "reus-presos" || tipo === "prisoes-temporarias") {
     const temp = tipo === "prisoes-temporarias";
     if (!temp)
       filtros = <Sel rotulo="Tipo de prisão" valor={v("tipoPrisao")} set={s("tipoPrisao")} opcoes={TIPOS_PRISAO.filter((t) => t !== "Não preso")} />;
-    colunas = ["Processo", "Réu", "Situação", "Tipo de prisão", "Data da prisão", "Observações"];
+    colunas = ["Processo", "Etiquetas", "Réu", "Situação", "Tipo de prisão", "Data da prisão", "Observações"];
     linhas = processos
       .flatMap((p) => p.reus.filter((r) => r.preso).map((r) => ({ p, r })))
       .filter(({ r }) => (temp ? r.tipo_prisao === "Prisão temporária" : !v("tipoPrisao") || r.tipo_prisao === v("tipoPrisao")))
       .sort((a, b) => a.p.numero.localeCompare(b.p.numero))
-      .map(({ p, r }) => ({ chave: r.id, processoId: p.id, celulas: [p.numero, r.nome, r.situacao || "—", r.tipo_prisao, fmt(r.data_prisao), r.observacoes || "—"] }));
+      .map(({ p, r }) => ({ chave: r.id, processoId: p.id, celulas: [p.numero, etiquetasDo(p.id), r.nome, r.situacao || "—", r.tipo_prisao, fmt(r.data_prisao), r.observacoes || "—"] }));
   } else if (tipo === "sem-movimentacao") {
     const lim = CONFIG_PRIORIDADES.limiteDiasSemMovimentacao;
     nota = `Processos com mais de ${lim} dias desde a última movimentação registrada. Critério administrativo de acompanhamento.`;
-    colunas = ["Processo", "Réu", "Última movimentação", "Data da última movimentação", "Dias sem movimentação"];
+    colunas = ["Processo", "Etiquetas", "Réu", "Última movimentação", "Data da última movimentação", "Dias sem movimentação"];
     linhas = processos
       .map((p) => ({ p, d: diasSemMovimentacao(p), u: ultimaMovimentacao(p) }))
       .filter((x) => x.d !== null && x.d > lim)
       .sort((a, b) => (b.d ?? 0) - (a.d ?? 0))
-      .map(({ p, d, u }) => ({ chave: p.id, processoId: p.id, destaque: "atencao" as const, celulas: [p.numero, reuPrincipal(p)?.nome ?? "—", u?.descricao ?? "—", fmt(u?.data), d ?? "—"] }));
+      .map(({ p, d, u }) => ({ chave: p.id, processoId: p.id, destaque: "atencao" as const, celulas: [p.numero, etiquetasDo(p.id), reuPrincipal(p)?.nome ?? "—", u?.descricao ?? "—", fmt(u?.data), d ?? "—"] }));
   } else if (tipo === "audiencias") {
     filtros = (
       <>
@@ -207,14 +211,14 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
         <Sel rotulo="Status" valor={v("situacao")} set={s("situacao")} opcoes={SITUACOES_AUDIENCIA} />
       </>
     );
-    colunas = ["Data", "Horário", "Processo", "Réu", "Tipo", "Modalidade", "Status"];
+    colunas = ["Data", "Horário", "Processo", "Etiquetas", "Réu", "Tipo", "Modalidade", "Status"];
     linhas = listarAudienciasDe(processos)
       .filter((a) => noPeriodo(a.data, v("de"), v("ate")))
       .filter((a) => !v("numero") || a.numero === v("numero"))
       .filter((a) => !v("tipoAud") || a.tipo === v("tipoAud"))
       .filter((a) => !v("modalidade") || a.modalidade === v("modalidade"))
       .filter((a) => !v("situacao") || a.situacao === v("situacao"))
-      .map((a) => ({ chave: a.id, processoId: a.processo_id, celulas: [fmt(a.data), horaCurta(a.horario), a.numero, a.reu, a.tipo, a.modalidade, a.situacao] }));
+      .map((a) => ({ chave: a.id, processoId: a.processo_id, celulas: [fmt(a.data), horaCurta(a.horario), a.numero, etiquetasDo(a.processo_id), a.reu, a.tipo, a.modalidade, a.situacao] }));
   } else if (tipo === "pendencias") {
     const todas = listarPendenciasDe(processos);
     const visao = v("visao") || "abertas";
@@ -235,19 +239,19 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
         ))}
       </div>
     );
-    colunas = ["Pendência", "Processo", "Responsável", "Prioridade", "Prazo", "Status"];
+    colunas = ["Pendência", "Processo", "Etiquetas", "Responsável", "Prioridade", "Prazo", "Status"];
     linhas = todas
       .filter((p) => (visao === "atrasadas" ? p.atrasada : visao === "concluidas" ? p.concluidaFlag : !p.concluidaFlag))
       .map((p) => ({
         chave: p.id,
         processoId: p.processo_id,
         destaque: p.atrasada ? ("urgente" as const) : p.concluidaFlag ? ("sucesso" as const) : undefined,
-        celulas: [p.titulo || p.descricao, p.numero, p.responsavel || "—", rotuloPrioridade(p.prioridade), fmt(p.prazo), p.atrasada ? `${p.status} (atrasada)` : p.status],
+        celulas: [p.titulo || p.descricao, p.numero, etiquetasDo(p.processo_id), p.responsavel || "—", rotuloPrioridade(p.prioridade), fmt(p.prazo), p.atrasada ? `${p.status} (atrasada)` : p.status],
       }));
   } else {
     filtros = <Sel rotulo="Origem" valor={v("origem")} set={s("origem")} opcoes={[{ v: "auto", r: "Automática" }, { v: "manual", r: "Manual" }]} />;
     nota = "Alertas de gestão; não representam conclusão jurídica.";
-    colunas = ["Processo", "Réu", "Origem", "Motivo / tipo"];
+    colunas = ["Processo", "Etiquetas", "Réu", "Origem", "Motivo / tipo"];
     linhas = processos
       .flatMap((p) => alertasDoProcesso(p).map((a, i) => ({ p, a, i })))
       .filter(({ a }) => !v("origem") || (v("origem") === "manual") === (a.categoria === "manual"))
@@ -255,7 +259,7 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
       .map(({ p, a, i }) => ({
         chave: `${p.id}-${i}`,
         processoId: p.id,
-        celulas: [p.numero, reuPrincipal(p)?.nome ?? "—", a.categoria === "manual" ? "Manual" : "Automática", a.manual?.observacao ? `${a.rotulo} — ${a.manual.observacao}` : a.rotulo],
+        celulas: [p.numero, etiquetasDo(p.id), reuPrincipal(p)?.nome ?? "—", a.categoria === "manual" ? "Manual" : "Automática", a.manual?.observacao ? `${a.rotulo} — ${a.manual.observacao}` : a.rotulo],
       }));
   }
 
