@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
-import { processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, etiquetasQuery, processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import {
   CONFIG_AUDIENCIAS,
   MODALIDADES,
@@ -41,6 +41,15 @@ export const Route = createFileRoute("/_authenticated/audiencias")({
 const BOTAO = "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted";
 
+function SeloEtiqueta({ etiqueta }: { etiqueta: EtiquetaDoProcesso }) {
+  const classe =
+    etiqueta.cor === "urgente" ? "border-urgente/25 bg-urgente-suave text-urgente" :
+    etiqueta.cor === "alerta" ? "border-atencao/25 bg-atencao-suave text-atencao" :
+    etiqueta.cor === "concluido" ? "border-concluido/25 bg-concluido-suave text-concluido" :
+    "border-info/25 bg-info-suave text-info";
+  return <span className={cn("inline-flex rounded border px-1.5 py-0.5 text-[10px] font-medium", classe)}>{etiqueta.nome}</span>;
+}
+
 function EtiquetaExtenso() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-atencao/25 bg-atencao-suave px-2 py-0.5 text-[11px] font-medium text-atencao">
@@ -68,6 +77,8 @@ const SeloAguardando = () => (
 
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: etiquetas = [] } = useQuery(etiquetasQuery());
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processos.map((p) => p.id)));
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
   const prox = futuras(todas);
@@ -79,8 +90,13 @@ function Pagina() {
   const [detalhe, setDetalhe] = useState<AudienciaListada | null>(null);
   const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
   const [filtroSit, setFiltroSit] = useState("Todas");
+  const [filtroEtiqueta, setFiltroEtiqueta] = useState("");
   const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
-  const filtrar = (s: string) => (s === "Todas" ? todas : s === "A realizar" ? todas.filter(estaPendente) : todas.filter((a) => rotuloSit(a.situacao) === s));
+  const filtrar = (s: string) => {
+    const base = s === "Todas" ? todas : s === "A realizar" ? todas.filter(estaPendente) : todas.filter((a) => rotuloSit(a.situacao) === s);
+    if (!filtroEtiqueta) return base;
+    return base.filter((a) => (etiquetasPorProcesso[a.processo_id] ?? []).some((e) => e.id === filtroEtiqueta));
+  };
   const listadas = filtrar(filtroSit);
   const mostrarSelo = (a: AudienciaListada) => a.reuPreso && !a.ocultar_selo_reu_preso && estaPendente(a);
   async function removerSelo(a: AudienciaListada) {
@@ -138,6 +154,10 @@ function Pagina() {
 
       <Secao titulo="Todas as audiências">
         <div className="mb-3 flex flex-wrap gap-1.5">
+          <select className={cn(CLASSE_CAMPO, "max-w-xs")} value={filtroEtiqueta} onChange={(e) => setFiltroEtiqueta(e.target.value)} aria-label="Filtrar por etiqueta">
+            <option value="">Etiquetas: todas</option>
+            {etiquetas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
           {["Todas", "A realizar", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
             <button key={s} aria-pressed={filtroSit === s} onClick={() => setFiltroSit(s)} className={cn("rounded-full border border-border px-3 py-1 text-xs", filtroSit === s ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
               {s === "Todas" || s === "A realizar" ? s : s + "s"} ({filtrar(s).length})
@@ -156,7 +176,15 @@ function Pagina() {
                     <td className="whitespace-nowrap px-2 py-2 font-medium">{formatarData(a.data)}</td>
                     <td className="px-2 py-2">{horaCurta(a.horario)}</td>
                     <td className="numero-processo whitespace-nowrap px-2 py-2">{a.numero}</td>
-                    <td className="px-2 py-2">{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</td>
+                    <td className="px-2 py-2">
+                      <div>{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</td>
+                      </div>
+                      {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => <SeloEtiqueta key={e.id} etiqueta={e} />)}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-2">{a.tipo}</td>
                     <td className="px-2 py-2">{a.modalidade}</td>
                     <td className="px-2 py-2">{rotuloSit(a.situacao)}{a.aguardando_nova_data ? <div><SeloAguardando /></div> : null}</td>
@@ -206,6 +234,7 @@ function Pagina() {
               <div className="flex flex-wrap gap-2">
                 {detalhe.prazoExtenso ? <EtiquetaExtenso /> : null}
                 {detalhe.aguardando_nova_data ? <SeloAguardando /> : null}
+                {(etiquetasPorProcesso[detalhe.processo_id] ?? []).map((e) => <SeloEtiqueta key={e.id} etiqueta={e} />)}
                 {mostrarSelo(detalhe) ? <SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(detalhe)} /> : null}
               </div>
               {detalhe.datas_anteriores?.length ? (
