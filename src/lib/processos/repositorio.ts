@@ -8,18 +8,29 @@ import type { ProcessoCompleto } from "./modelo";
  */
 
 const SELECAO =
-  "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*)";
+  "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*), processos_etiquetas(etiquetas(id,nome,cor,favorita))";
 
 export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   const { data, error } = await supabase.from("processos").select(SELECAO).order("numero");
   if (error) throw error;
-  return (data ?? []) as unknown as ProcessoCompleto[];
+  return (data ?? []).map((item) => ({
+    ...item,
+    etiquetas: ((item as { processos_etiquetas?: { etiquetas?: ProcessoCompleto["etiquetas"][number] | null }[] }).processos_etiquetas ?? [])
+      .map((v) => v.etiquetas)
+      .filter(Boolean),
+  })) as unknown as ProcessoCompleto[];
 }
 
 export async function obterProcesso(id: string): Promise<ProcessoCompleto | null> {
   const { data, error } = await supabase.from("processos").select(SELECAO).eq("id", id).maybeSingle();
   if (error) throw error;
-  return data as unknown as ProcessoCompleto | null;
+  if (!data) return null;
+  return {
+    ...data,
+    etiquetas: ((data as { processos_etiquetas?: { etiquetas?: ProcessoCompleto["etiquetas"][number] | null }[] }).processos_etiquetas ?? [])
+      .map((v) => v.etiquetas)
+      .filter(Boolean),
+  } as unknown as ProcessoCompleto;
 }
 
 export const processosQuery = () =>
