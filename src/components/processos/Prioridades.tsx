@@ -3,6 +3,7 @@ import { formatarData } from "@/lib/dominio";
 import { diasSemMovimentacao, hojeISO, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "@/lib/processos/modelo";
 import { CATEGORIAS, COR_CLASSES, type AlertaGestao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
+import type { EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 
 export function EtiquetaAlerta({ alerta }: { alerta: AlertaGestao }) {
   return (
@@ -48,7 +49,7 @@ export function CartoesCategorias({
   );
 }
 
-export function ListaAtencao({ itens }: { itens: { processo: ProcessoCompleto; alertas: AlertaGestao[] }[] }) {
+export function ListaAtencao({ itens, etiquetasPorProcesso = {} }: { itens: { processo: ProcessoCompleto; alertas: AlertaGestao[] }[]; etiquetasPorProcesso?: Record<string, EtiquetaDoProcesso[]> }) {
   const hoje = hojeISO();
   if (itens.length === 0)
     return <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhum processo nesta categoria.</p>;
@@ -67,6 +68,11 @@ export function ListaAtencao({ itens }: { itens: { processo: ProcessoCompleto; a
                 <Link to="/processos/$id" params={{ id: p.id }} className="numero-processo text-sm font-semibold text-primary hover:underline">
                   {p.numero}
                 </Link>
+                {(etiquetasPorProcesso[p.id] ?? []).length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {(etiquetasPorProcesso[p.id] ?? []).map((e) => <span key={e.id} className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{e.nome}</span>)}
+                  </div>
+                ) : null}
                 <p className="mt-0.5 text-sm text-foreground">
                   {reu?.nome ?? "Sem réu cadastrado"}
                   {p.reus.length > 1 ? <span className="text-xs text-muted-foreground"> +{p.reus.length - 1} réu(s)</span> : null}
