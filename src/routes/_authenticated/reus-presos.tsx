@@ -224,7 +224,7 @@ function Pagina() {
                       <td className="px-2 py-2 text-xs">
                         {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
                       </td>
-                      {podeEditar ? (\n                        <div className="flex items-center gap-2">\n                          {p.processo_id ? <AcoesEtiquetasProcesso processoId={p.processo_id} etiquetas={p.etiquetas} /> : null}\n
+                      {podeEditar ? (
                         <td className="sticky right-0 z-10 bg-card px-2 py-2 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
                           <div className="flex items-center gap-2">
                             <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
