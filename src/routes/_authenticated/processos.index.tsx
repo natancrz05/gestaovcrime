@@ -292,6 +292,7 @@ function Pagina() {
         <EstadoVazio titulo="Nenhum processo encontrado" descricao="Ajuste a pesquisa ou os filtros." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">
+          <div className="min-w-[1450px]">
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
               <tr>
@@ -373,6 +374,7 @@ function Pagina() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
