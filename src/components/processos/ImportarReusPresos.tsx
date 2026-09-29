@@ -45,7 +45,7 @@ export function ImportarReusPresos({ aberto, onFechar, onConcluir }: { aberto: b
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && fechar()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader><DialogTitle>Importar planilha de réus presos</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Importar planilha de presos provisórios</DialogTitle></DialogHeader>
         {!final ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <input type="file" accept=".xlsx,.csv" onChange={(e) => { limpar(); setArquivo(e.target.files?.[0] ?? null); }} />
@@ -62,7 +62,7 @@ export function ImportarReusPresos({ aberto, onFechar, onConcluir }: { aberto: b
             {final ? <p className="rounded-md bg-concluido-suave p-2 font-medium text-concluido">Importação concluída e registrada na auditoria.</p> : null}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
-                ["Presos encontrados", analise.total], [final ? "Novos criados" : "Novos presos", r.novos.length],
+                ["Presos provisórios encontrados", analise.total], [final ? "Novos criados" : "Novos presos provisórios", r.novos.length],
                 [final ? "Atualizados" : "Serão atualizados", r.atualizados.length], ["Sem alteração", r.sem_alteracao],
                 ["Processos encontrados", r.processos_encontrados], [final ? "Processos criados" : "Processos a criar", r.processos_criados.length],
                 ["Processos não vinculados", r.nao_vinculados.length], ["Possíveis duplicidades", analise.duplicados.length],
@@ -71,7 +71,7 @@ export function ImportarReusPresos({ aberto, onFechar, onConcluir }: { aberto: b
                 <div key={k} className="rounded-md border border-border p-2"><div className="text-xs text-muted-foreground">{k}</div><div className="text-xl font-semibold tabular-nums">{v}</div></div>
               ))}
             </div>
-            <Lista titulo="Novos presos" itens={r.novos} />
+            <Lista titulo="Novos presos provisórios" itens={r.novos} />
             <Lista titulo="Atualizações" itens={r.atualizados} />
             {r.processos_criados.length ? (
               <Bloco titulo={`Processos ${final ? "criados" : "que serão criados"} (sinalizados para conferência)`}
