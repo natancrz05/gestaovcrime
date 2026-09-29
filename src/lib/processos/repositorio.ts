@@ -160,3 +160,29 @@ export async function removerAudiencia(id: string) {
   const { error } = await supabase.from("audiencias").delete().eq("id", id);
   if (error) throw error;
 }
+
+
+/** Consulta enxuta usada por campos de seleção de processo. */
+export interface ProcessoParaSelecao {
+  id: string;
+  numero: string;
+  classe: string;
+  pje_reu: string | null;
+  partes: { nome: string }[];
+  reus: { nome: string }[];
+}
+
+export async function listarProcessosParaSelecao(): Promise<ProcessoParaSelecao[]> {
+  const { data, error } = await supabase
+    .from("processos")
+    .select("id, numero, classe, pje_reu, partes(nome), reus(nome)")
+    .order("numero");
+  if (error) throw error;
+  return (data ?? []) as unknown as ProcessoParaSelecao[];
+}
+
+export const processosSeletorQuery = () =>
+  queryOptions({
+    queryKey: ["processos-seletor"],
+    queryFn: listarProcessosParaSelecao,
+  });
