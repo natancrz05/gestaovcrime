@@ -1,4 +1,4 @@
-/** Cadastro/edição manual, retirada da prisão e reavaliação de réus presos (mesmo registro da tabela reus). */
+/** Cadastro/edição manual, retirada da prisão e reavaliação de presos provisórios (mesmo registro da tabela reus). */
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -101,7 +101,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     else ({ error } = await supabase.from("reus").insert({ ...linha, ordem: vinculados.length }));
     setSalvando(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Réu preso salvo"); onSalvo(); onFechar();
+    toast.success("Preso provisório salvo"); onSalvo(); onFechar();
   };
 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -109,7 +109,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader><DialogTitle>{reu ? "Editar réu preso" : "Adicionar réu preso"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{reu ? "Editar preso provisório" : "Adicionar preso provisório"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           {proc ? (
             <Campo rotulo="Processo"><SeletorProcesso value={proc} onChange={(v) => { setProc(v); setReuId("novo"); }} /></Campo>
