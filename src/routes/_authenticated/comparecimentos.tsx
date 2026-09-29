@@ -13,6 +13,8 @@ import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { processosQuery } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import {
@@ -75,6 +77,12 @@ function Pagina() {
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["comparecimentos"] });
+  const removerSelo = async (id: string) => {
+    const { error } = await supabase.from("comparecimentos").update({ conferir: false }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Selo Conferir removido");
+    recarregar();
+  };
 
   const detalhe = lista.find((c) => c.id === busca.id) ?? null;
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
@@ -128,7 +136,20 @@ function Pagina() {
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="px-2 py-2 font-medium">{c.pessoa}{c.conferir ? <span title={c.motivo_conferencia} className="ml-2 rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span> : null}</td>
+                    <td className="px-2 py-2 font-medium">{c.pessoa}{c.conferir ? (
+                      <span className="group/selo relative ml-2 inline-flex align-middle" title={c.motivo_conferencia}>
+                        <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span>
+                        {podeEditar ? (
+                          <button
+                            type="button"
+                            aria-label="Remover selo Conferir deste cadastro"
+                            title="Remover o selo Conferir (os dados do cadastro são mantidos)"
+                            onClick={(e) => { e.stopPropagation(); removerSelo(c.id); }}
+                            className="absolute -right-1.5 -top-1.5 hidden size-3.5 items-center justify-center rounded-full border border-alerta/40 bg-background text-[9px] font-bold leading-none text-alerta group-hover/selo:flex hover:bg-alerta hover:text-primary-foreground"
+                          >×</button>
+                        ) : null}
+                      </span>
+                    ) : null}</td>
                     <td className={cn("whitespace-nowrap px-2 py-2", c.processo_id ? "numero-processo" : "text-muted-foreground")}>{c.processo_id ? c.numero : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
