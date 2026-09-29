@@ -61,6 +61,22 @@ function Pagina() {
     atualizar();
   };
 
+  const excluirCadastroSemProcesso = async (p: Preso) => {
+    if (p.processo_id) return;
+    const confirmar = window.confirm(
+      `Excluir definitivamente o cadastro de "${p.nome}"? Este registro não possui processo vinculado. A exclusão não remove nenhum processo.`,
+    );
+    if (!confirmar) return;
+
+    const { error } = await supabase.from("reus").delete().eq("id", p.id);
+    if (error) {
+      toast.error(`Não foi possível excluir o cadastro: ${error.message}`);
+      return;
+    }
+    toast.success("Cadastro excluído");
+    atualizar();
+  };
+
   const exibidos = useMemo(() => {
     const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
     return data.filter((p) => {
@@ -206,6 +222,14 @@ function Pagina() {
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-urgente hover:bg-urgente-suave" onClick={() => { setSoltar(p); setAcoesAberta(null); }}>Encerrar situação prisional</button>
                               <div className="my-1 border-t border-border" />
                               <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { marcarConferencia(p.id, !p.conferir); setAcoesAberta(null); }}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>
+                              {!p.processo_id ? (
+                                <button
+                                  className="block w-full rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
+                                  onClick={() => { setAcoesAberta(null); void excluirCadastroSemProcesso(p); }}
+                                >
+                                  Excluir cadastro
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
                         </td>
