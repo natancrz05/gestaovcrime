@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { usePode } from "@/lib/sessao";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
-import { processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import {
   CONFIG_AUDIENCIAS,
   MODALIDADES,
@@ -70,6 +71,8 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
+  const processoIds = useMemo(() => [...new Set(todas.map((a) => a.processo_id))], [todas]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const prox = futuras(todas);
   const deHoje = prox.filter((a) => a.dias === 0);
   const em7 = prox.filter((a) => a.dias > 0 && a.dias <= 7);
@@ -156,7 +159,16 @@ function Pagina() {
                     <td className="whitespace-nowrap px-2 py-2 font-medium">{formatarData(a.data)}</td>
                     <td className="px-2 py-2">{horaCurta(a.horario)}</td>
                     <td className="numero-processo whitespace-nowrap px-2 py-2">{a.numero}</td>
-                    <td className="px-2 py-2">{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</td>
+                    <td className="px-2 py-2">
+                      <div>{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</div>
+                      {etiquetasPorProcesso[a.processo_id]?.length ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {etiquetasPorProcesso[a.processo_id].map((e: EtiquetaDoProcesso) => (
+                            <Etiqueta key={e.id} severidade="info">{e.nome}</Etiqueta>
+                          ))}
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-2">{a.tipo}</td>
                     <td className="px-2 py-2">{a.modalidade}</td>
                     <td className="px-2 py-2">{rotuloSit(a.situacao)}{a.aguardando_nova_data ? <div><SeloAguardando /></div> : null}</td>
