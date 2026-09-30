@@ -237,8 +237,8 @@ function Pagina() {
       p_erros: p.erros as unknown as Json, p_ignorados: p.ignorados as unknown as Json,
       p_aplicar_conflitos: aplicarConflitos, p_simular: false,
     });
-    setOcupado(false);
     if (error) {
+      setOcupado(false);
       setErro(`A importação falhou e nenhuma alteração foi gravada. Motivo: ${error.message}`);
       return;
     }
@@ -259,7 +259,7 @@ function Pagina() {
       enriquecimento = await enriquecerAcervo(analise.validas, sim?.conflitos ?? []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "falha desconhecida";
-      setErro(`Os processos foram importados, mas houve falha ao completar alguns réus: ${msg}`);
+      setErro(`Os processos foram importados, mas houve falha em parte do enriquecimento inteligente do acervo: ${msg}`);
     }
 
     const { data: imp } = await supabase.from("importacoes").select("*").eq("id", id).single();
@@ -269,6 +269,7 @@ function Pagina() {
     qc.invalidateQueries({ queryKey: ["processos"] });
     qc.invalidateQueries({ queryKey: ["processos-seletor"] });
     qc.invalidateQueries({ queryKey: ["importacoes"] });
+    setOcupado(false);
   }
 
   const ultimaDesfazivel = historico.data?.find((i) => !i.desfeita_em && i.status !== "Falhou");
@@ -277,7 +278,7 @@ function Pagina() {
     <div className="space-y-6">
       <Cabecalho
         titulo="Importar / Atualizar em lote"
-        subtitulo="Planilha XLSX do PJe. Processos ausentes na planilha nunca são excluídos ou alterados, e os dados internos da serventia são preservados."
+        subtitulo="Planilha XLSX, XLS ou ODS do PJe. Processos ausentes na planilha nunca são excluídos ou alterados, e os dados internos da serventia são preservados."
         acao={<Link to="/processos" className={BOTAO_SEC}><ArrowLeft className="size-4" /> Voltar aos processos</Link>}
       />
 
