@@ -566,9 +566,11 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
   const [busca, setBusca] = useState("");
   const termo = busca.trim().toLowerCase();
   const digitos = termo.replace(/\D/g, "");
-  const ehTermoCircunstanciado = (classe: string | null | undefined) =>
-    !!classe &&
-    classe.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase() === "TERMO CIRCUNSTANCIADO";
+  const ehTermoCircunstanciado = (classe: string | null | undefined) => {
+    if (!classe) return false;
+    const normalizada = classe.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    return /^TERMO CIRCUNSTANCIADO(?:\s*\(\d+\))?$/.test(normalizada);
+  };
   const itensTermo = itens.filter((i) => ehTermoCircunstanciado(i.processo.classe));
   const itensDemais = itens.filter((i) => !ehTermoCircunstanciado(i.processo.classe));
   const exibidos = itens.filter(
