@@ -301,8 +301,7 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   const horario = e.horario ? e.horario.slice(0, 5) : null;
   let consulta = supabase
     .from("audiencias")
-    .select("id, tipo, horario")
-    .eq("processo_id", e.processo_id)
+    .select("id, processo_id, tipo, horario")
     .eq("data", e.data);
 
   consulta = horario ? consulta.eq("horario", horario) : consulta.is("horario", null);
@@ -310,17 +309,28 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   if (consultaError) throw consultaError;
 
   const finalidade = tipoAudienciaCanonico(e.tipo);
-  const duplicada = (existentes ?? []).find((a) =>
-    a.id !== id &&
+  const doMesmoProcesso = (existentes ?? []).filter((a) => a.id !== id && a.processo_id === e.processo_id);
+
+  const duplicada = doMesmoProcesso.find((a) =>
     tipoAudienciaCanonico(a.tipo) === finalidade &&
     (a.horario ?? "").slice(0, 5) === (horario ?? ""),
   );
   if (duplicada) throw new Error("Esta audiência já está cadastrada para o processo, na mesma data, horário e finalidade.");
 
-  const mesmoHorario = (existentes ?? []).find((a) =>
-    a.id !== id && (a.horario ?? "").slice(0, 5) === (horario ?? ""),
+  const mesmoHorario = doMesmoProcesso.find((a) =>
+    (a.horario ?? "").slice(0, 5) === (horario ?? ""),
   );
   if (mesmoHorario) throw new Error("O processo já possui outra audiência neste mesmo horário.");
+
+  const mesmaFinalidadeOutroProcesso = (existentes ?? []).find((a) =>
+    a.id !== id &&
+    a.processo_id !== e.processo_id &&
+    tipoAudienciaCanonico(a.tipo) === finalidade &&
+    (a.horario ?? "").slice(0, 5) === (horario ?? ""),
+  );
+  if (mesmaFinalidadeOutroProcesso) {
+    throw new Error("Já existe outra audiência no mesmo horário com a mesma finalidade.");
+  }
 
   const payload = { ...e, tipo: finalidade, horario };
   const { error } = id
