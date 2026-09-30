@@ -128,13 +128,13 @@ function situacaoCanonica(s: string): LinhaPautaAudiencia["situacao"] | null {
   return null;
 }
 
-function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidade"> {
+function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidade"> | null {
   const t = norm(s);
+  if (!t || t === "." || t === "-") return null;
   if (/VIDEOCONFER|VIRTUAL|TEAMS|ZOOM/.test(t)) return { local: "Videoconferência", modalidade: "Virtual" };
   if (/JURI/.test(t)) return { local: "Sala do Júri", modalidade: "Presencial" };
-  // O PJe frequentemente usa o nome da sala/pauta (ex.: "Audiência Conciliação e Preliminar")
+  // O PJe pode usar o nome da sala/pauta (ex.: "Audiência Conciliação e Preliminar")
   // em vez do nome físico. Para a classificação rígida do sistema, isso corresponde à sala comum.
-  if (t && t !== "." && t !== "-") return { local: "Sala de Audiências", modalidade: "Presencial" };
   return { local: "Sala de Audiências", modalidade: "Presencial" };
 }
 
@@ -287,6 +287,8 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   if (!classe) faltas.push("classe não identificada");
   if (!tipoOriginal || !tipoReconhecido) faltas.push(`tipo de audiência não reconhecido ("${tipoOriginal || "vazio"}")`);
   if (!situacao) faltas.push(`situação não reconhecida ("${situacaoOriginal || "vazia"}")`);
+  if (!orgao) faltas.push("órgão julgador não identificado");
+  if (!sala) faltas.push("sala/local não identificado");
   if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
   if (reus.some((r) => !r.cpf)) faltas.push("CPF de réu/autor do fato não identificado");
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
@@ -294,7 +296,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   return {
     linha: {
       pagina, data: data!, horario, numero, orgao, classe,
-      tipo, tipoOriginal, salaOriginal, local: sala.local, modalidade: sala.modalidade,
+      tipo, tipoOriginal, salaOriginal, local: sala!.local, modalidade: sala!.modalidade,
       situacao: situacao!, situacaoOriginal, pessoas, reus,
     },
   };
@@ -392,6 +394,11 @@ export function analisarPautaAudiencias(
     }
     primeiraPorChave.add(k);
     linhasUnicas.push(l);
+  }
+
+  const orgaos = new Set(linhasUnicas.map((l) => norm(l.orgao)).filter(Boolean));
+  if (orgaos.size > 1) {
+    erros.push({ pagina: 0, motivo: "A pauta contém mais de um órgão julgador. Importe apenas a pauta da mesma unidade por vez." });
   }
 
   // O mesmo processo deve ter uma única classe na pauta.
