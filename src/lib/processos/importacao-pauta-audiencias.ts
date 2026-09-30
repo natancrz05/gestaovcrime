@@ -131,11 +131,16 @@ function situacaoCanonica(s: string): LinhaPautaAudiencia["situacao"] | null {
 function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidade"> | null {
   const t = norm(s);
   if (!t || t === "." || t === "-") return null;
+  if (/HIBRID/.test(t)) return { local: "Sala de Audiências", modalidade: "Híbrida" };
   if (/VIDEOCONFER|VIRTUAL|TEAMS|ZOOM/.test(t)) return { local: "Videoconferência", modalidade: "Virtual" };
   if (/JURI/.test(t)) return { local: "Sala do Júri", modalidade: "Presencial" };
   // O PJe pode usar o nome da sala/pauta (ex.: "Audiência Conciliação e Preliminar")
-  // em vez do nome físico. Para a classificação rígida do sistema, isso corresponde à sala comum.
-  return { local: "Sala de Audiências", modalidade: "Presencial" };
+  // em vez do nome físico. Nomes inequivocamente ligados à pauta de audiência
+  // são convertidos para a opção rígida "Sala de Audiências"; outros ficam como "Outro".
+  if (/AUDIENCIA|CONCILIACAO|PRELIMINAR|INSTRUCAO|CUSTODIA/.test(t)) {
+    return { local: "Sala de Audiências", modalidade: "Presencial" };
+  }
+  return { local: "Outro", modalidade: "Presencial" };
 }
 
 function papelEhReu(papel: string) {
