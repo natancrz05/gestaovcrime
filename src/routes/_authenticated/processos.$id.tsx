@@ -18,6 +18,7 @@ import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiq
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Cabecalho";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
 import { cn } from "@/lib/utils";
