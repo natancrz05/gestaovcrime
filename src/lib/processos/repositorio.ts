@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto } from "./modelo";
+import { tipoAudienciaCanonico } from "./audiencias";
 
 /**
  * Acesso a dados do módulo de Processos (banco persistente).
@@ -297,9 +298,34 @@ export interface AudienciaEntrada {
 }
 
 export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
+  const horario = e.horario ? e.horario.slice(0, 5) : null;
+  let consulta = supabase
+    .from("audiencias")
+    .select("id, tipo, horario")
+    .eq("processo_id", e.processo_id)
+    .eq("data", e.data);
+
+  consulta = horario ? consulta.eq("horario", horario) : consulta.is("horario", null);
+  const { data: existentes, error: consultaError } = await consulta;
+  if (consultaError) throw consultaError;
+
+  const finalidade = tipoAudienciaCanonico(e.tipo);
+  const duplicada = (existentes ?? []).find((a) =>
+    a.id !== id &&
+    tipoAudienciaCanonico(a.tipo) === finalidade &&
+    (a.horario ?? "").slice(0, 5) === (horario ?? ""),
+  );
+  if (duplicada) throw new Error("Esta audiência já está cadastrada para o processo, na mesma data, horário e finalidade.");
+
+  const mesmoHorario = (existentes ?? []).find((a) =>
+    a.id !== id && (a.horario ?? "").slice(0, 5) === (horario ?? ""),
+  );
+  if (mesmoHorario) throw new Error("O processo já possui outra audiência neste mesmo horário.");
+
+  const payload = { ...e, tipo: finalidade, horario };
   const { error } = id
-    ? await supabase.from("audiencias").update(e as never).eq("id", id)
-    : await supabase.from("audiencias").insert(e as never);
+    ? await supabase.from("audiencias").update(payload as never).eq("id", id)
+    : await supabase.from("audiencias").insert(payload as never);
   if (error) throw error;
 }
 
