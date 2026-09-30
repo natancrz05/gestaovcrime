@@ -88,6 +88,9 @@ const norm = (s: string) =>
 const normNome = (s: string) =>
   norm(s).replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
 
+const normClasse = (s: string) =>
+  norm(s).replace(/\(\d+\)/g, "").replace(/[^A-Z0-9]/g, "");
+
 export const normalizarNumeroProcesso = (s: string) => s.replace(/\D/g, "");
 
 function formatarNumeroCnj(digitos: string): string {
@@ -458,8 +461,11 @@ export function analisarPautaAudiencias(
     }
     const processo = candidatos[0];
     if (processo) {
-      const classeSistema = norm(processo.classe ?? "");
-      const classePauta = norm(l.classe);
+      // O código CNJ da classe entre parênteses pode existir na pauta e estar
+      // ausente em cadastros antigos. Compara a classe sem esse código para não
+      // gerar falso conflito (ex.: "TERMO CIRCUNSTANCIADO" x "... (278)").
+      const classeSistema = normClasse(processo.classe ?? "");
+      const classePauta = normClasse(l.classe);
       if (classeSistema && classePauta && classeSistema !== classePauta) {
         return {
           ...l, processoId: processo.id, processoNovo: false, reusNovos: [], estado: "conflito",
