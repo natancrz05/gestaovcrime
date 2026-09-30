@@ -222,6 +222,33 @@ export type Database = {
           },
         ]
       }
+      etiquetas: {
+        Row: {
+          cor: string
+          criado_em: string
+          criado_por: string | null
+          favorita: boolean
+          id: string
+          nome: string
+        }
+        Insert: {
+          cor?: string
+          criado_em?: string
+          criado_por?: string | null
+          favorita?: boolean
+          id?: string
+          nome: string
+        }
+        Update: {
+          cor?: string
+          criado_em?: string
+          criado_por?: string | null
+          favorita?: boolean
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       importacao_itens: {
         Row: {
           acao: string
@@ -673,6 +700,42 @@ export type Database = {
           unidade?: string
         }
         Relationships: []
+      }
+      processos_etiquetas: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          etiqueta_id: string
+          processo_id: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          etiqueta_id: string
+          processo_id: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          etiqueta_id?: string
+          processo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_etiquetas_etiqueta_id_fkey"
+            columns: ["etiqueta_id"]
+            isOneToOne: false
+            referencedRelation: "etiquetas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_etiquetas_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reu_prisoes_encerradas: {
         Row: {
