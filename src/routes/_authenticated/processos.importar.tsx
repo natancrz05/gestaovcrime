@@ -391,8 +391,9 @@ function Previa({ analise, sim, aplicarConflitos, onConflitos, ocupado, onCancel
           <Numero n={analise.erros.length} r="Linhas com erro" />
         </div>
         <p className="text-xs text-muted-foreground">
-          Aba utilizada: <strong>{analise.aba}</strong>. Colunas reconhecidas: {analise.reconhecidas.join(", ")}.
-          {analise.naoReconhecidas.length ? ` Colunas não utilizadas pelo sistema: ${analise.naoReconhecidas.join(", ")}.` : ""}
+          Aba utilizada: <strong>{analise.aba}</strong>. Colunas usadas na atualização: {analise.reconhecidas.join(", ")}.
+          {analise.contextuais.length ? ` Colunas contextuais reconhecidas (sem sobrescrever o cadastro): ${analise.contextuais.join(", ")}.` : ""}
+          {analise.naoReconhecidas.length ? ` Colunas desconhecidas/ignoradas: ${analise.naoReconhecidas.join(", ")}.` : ""}
           {` ${analise.reusInferidosTotal} ocorrência(s) de réu foram interpretadas para conferência/enriquecimento do acervo.`}
         </p>
       </div>
