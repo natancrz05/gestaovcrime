@@ -198,6 +198,8 @@ export function ImportarPautaAudiencias({
                       <th className="px-2 py-2 font-medium">Processo</th>
                       <th className="px-2 py-2 font-medium">Classe</th>
                       <th className="px-2 py-2 font-medium">Finalidade</th>
+                      <th className="px-2 py-2 font-medium">Sala/local</th>
+                      <th className="px-2 py-2 font-medium">Situação</th>
                       <th className="px-2 py-2 font-medium">Réu(s)</th>
                       <th className="px-2 py-2 font-medium">Ação</th>
                     </tr>
@@ -210,8 +212,27 @@ export function ImportarPautaAudiencias({
                         <td className="px-2 py-2">{i.classe}</td>
                         <td className="px-2 py-2">{i.tipo}</td>
                         <td className="px-2 py-2">
-                          {i.reus.map((r) => r.nome).join(", ")}
-                          {i.reusNovos.length ? <span className="block text-[11px] text-atencao">+ {i.reusNovos.length} a cadastrar</span> : null}
+                          <span>{i.local}</span>
+                          {i.salaOriginal && i.salaOriginal !== i.local ? (
+                            <span className="block text-[10px] text-muted-foreground">PJe: {i.salaOriginal}</span>
+                          ) : null}
+                        </td>
+                        <td className="px-2 py-2">
+                          <span>{i.situacao}</span>
+                          {i.situacaoOriginal && i.situacaoOriginal.toLowerCase() !== i.situacao.toLowerCase() ? (
+                            <span className="block text-[10px] text-muted-foreground">PJe: {i.situacaoOriginal}</span>
+                          ) : null}
+                        </td>
+                        <td className="px-2 py-2">
+                          <div className="space-y-1">
+                            {i.reus.map((r) => (
+                              <div key={`${r.nome}-${r.cpf}`}>
+                                <span>{r.nome}</span>
+                                <span className="block text-[10px] text-muted-foreground">CPF: {r.cpf}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {i.reusNovos.length ? <span className="mt-1 block text-[11px] text-atencao">+ {i.reusNovos.length} a cadastrar</span> : null}
                         </td>
                         <td className="px-2 py-2">
                           {i.estado === "nova" ? (
