@@ -10,7 +10,20 @@ export const CONFIG_AUDIENCIAS = {
   limiteDiasPrazoExtenso: 90,
 };
 
-export const TIPOS_AUDIENCIA = ["Audiência de custódia", "Instrução", "Continuação", "Oitiva", "Tribunal do Júri", "Outro"] as const;
+export const TIPOS_AUDIENCIA = [
+  "Audiência de custódia",
+  "Audiência preliminar",
+  "Audiência de instrução e julgamento",
+  "Continuação de audiência",
+  "Oitiva",
+  "Tribunal do Júri",
+  "Audiência admonitória",
+  "Audiência de justificação",
+  "Audiência de conciliação",
+  "Audiência de suspensão condicional do processo",
+  "Audiência de proposta de ANPP",
+  "Outra",
+] as const;
 export const MODALIDADES = ["Presencial", "Virtual", "Híbrida"] as const;
 export const SITUACOES_AUDIENCIA = ["Agendada", "Redesignada", "Realizada", "Cancelada"] as const;
 
