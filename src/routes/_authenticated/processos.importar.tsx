@@ -60,6 +60,7 @@ async function enriquecerAcervo(linhas: LinhaValida[], conflitos: ResultadoSimul
   );
 
   let reusAdicionados = 0;
+  let reusInstitucionaisRemovidos = 0;
   let movimentacoesPjeAcrescentadas = 0;
   let conflitosPjeReconciliados = 0;
   let naoLocalizados = 0;
@@ -94,17 +95,43 @@ async function enriquecerAcervo(linhas: LinhaValida[], conflitos: ResultadoSimul
       }
     }
 
+    // Corrige resíduos de importações antigas que cadastraram órgão público,
+    // Ministério Público, polícia ou juízo como se fossem réus. A remoção é
+    // conservadora: só alcança o nome institucional exatamente identificado na
+    // planilha e apenas quando o registro não tem prisão, situação ou observação
+    // manual associada.
+    if (linha.partesInstitucionaisIgnoradas.length) {
+      const institucionais = new Set(linha.partesInstitucionaisIgnoradas.map(normalizarNome));
+      for (const reu of processo.reus) {
+        if (
+          institucionais.has(normalizarNome(reu.nome)) &&
+          !reu.preso &&
+          !reu.situacao.trim() &&
+          !reu.observacoes.trim()
+        ) {
+          const { error: deleteError } = await supabase.from("reus").delete().eq("id", reu.id);
+          if (deleteError) throw deleteError;
+          reusInstitucionaisRemovidos++;
+        }
+      }
+
+      if (!linha.reusInferidos.length && processo.pje_reu) {
+        const { error: limparError } = await supabase.from("processos").update({ pje_reu: null }).eq("id", processo.id);
+        if (limparError) throw limparError;
+      }
+    }
+
     // O importador antigo comparava a data do PJe com qualquer movimentação
     // interna. Uma anotação manual mais recente podia impedir a atualização do
     // retrato do PJe. Aqui reconciliamos apenas esse caso, sem apagar a
     // movimentação manual nem mexer na data de autuação.
     const numeroNormalizado = linha.numero.replace(/\D/g, "");
     if (conflitosMovimentacao.has(numeroNormalizado) && linha.campos.pje_ultima_mov_data) {
-      const patch: Record<string, string | number> = {
+      const patch = {
         pje_ultima_mov_data: linha.campos.pje_ultima_mov_data,
+        pje_ultima_mov_descricao: linha.campos.pje_ultima_mov_descricao ?? processo.pje_ultima_mov_descricao,
+        pje_qtde_dias: linha.campos.pje_qtde_dias ? Number(linha.campos.pje_qtde_dias) : processo.pje_qtde_dias,
       };
-      if (linha.campos.pje_ultima_mov_descricao) patch.pje_ultima_mov_descricao = linha.campos.pje_ultima_mov_descricao;
-      if (linha.campos.pje_qtde_dias) patch.pje_qtde_dias = Number(linha.campos.pje_qtde_dias);
 
       const { error: updateError } = await supabase.from("processos").update(patch).eq("id", processo.id);
       if (updateError) throw updateError;
@@ -130,7 +157,7 @@ async function enriquecerAcervo(linhas: LinhaValida[], conflitos: ResultadoSimul
     }
   }
 
-  return { reusAdicionados, movimentacoesPjeAcrescentadas, conflitosPjeReconciliados, naoLocalizados };
+  return { reusAdicionados, reusInstitucionaisRemovidos, movimentacoesPjeAcrescentadas, conflitosPjeReconciliados, naoLocalizados };
 }
 
 function Pagina() {
@@ -145,6 +172,7 @@ function Pagina() {
   const [resultado, setResultado] = useState<Importacao | null>(null);
   const [enriquecimento, setEnriquecimento] = useState<{
     reusAdicionados: number;
+    reusInstitucionaisRemovidos: number;
     movimentacoesPjeAcrescentadas: number;
     conflitosPjeReconciliados: number;
     naoLocalizados: number;
@@ -220,6 +248,7 @@ function Pagina() {
     // leitor completa apenas réus ausentes, sem apagar cadastros manuais.
     let enriquecimento = {
       reusAdicionados: 0,
+      reusInstitucionaisRemovidos: 0,
       movimentacoesPjeAcrescentadas: 0,
       conflitosPjeReconciliados: 0,
       naoLocalizados: 0,
@@ -283,6 +312,7 @@ function Pagina() {
             <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
               <p>
                 Enriquecimento do acervo: <strong>{enriquecimento.reusAdicionados}</strong> réu(s) ausente(s) acrescentado(s),
+                {" "}<strong>{enriquecimento.reusInstitucionaisRemovidos}</strong> cadastro(s) institucional(is) incorreto(s) removido(s),
                 {" "}<strong>{enriquecimento.conflitosPjeReconciliados}</strong> retrato(s) de movimentação do PJe reconciliado(s)
                 e <strong>{enriquecimento.movimentacoesPjeAcrescentadas}</strong> movimentação(ões) do PJe acrescentada(s) sem apagar registros internos.
               </p>
