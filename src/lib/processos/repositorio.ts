@@ -73,28 +73,54 @@ export async function listarEtiquetasDoProcesso(processoId: string): Promise<Eti
 }
 
 export async function listarEtiquetasPorProcessos(processoIds: string[]): Promise<Record<string, EtiquetaDoProcesso[]>> {
-  if (!processoIds.length) return {};
-  const { data: vinculos, error } = await supabase
-    .from("processos_etiquetas")
-    .select("processo_id, etiqueta_id")
-    .in("processo_id", processoIds);
-  if (error) throw error;
-  const ids = [...new Set((vinculos ?? []).map((x) => x.etiqueta_id))];
-  if (!ids.length) return {};
-  const { data: etiquetas, error: etiquetasError } = await supabase
-    .from("etiquetas")
-    .select("id, nome, cor, favorita")
-    .in("id", ids)
-    .order("nome");
-  if (etiquetasError) throw etiquetasError;
-  const porId = new Map((etiquetas ?? []).map((e) => [e.id, e as EtiquetaDoProcesso]));
-  const resultado: Record<string, EtiquetaDoProcesso[]> = {};
-  for (const processoId of processoIds) {
-    resultado[processoId] = (vinculos ?? [])
-      .filter((v) => v.processo_id === processoId)
-      .map((v) => porId.get(v.etiqueta_id))
-      .filter((e): e is EtiquetaDoProcesso => Boolean(e));
+  const unicos = [...new Set(processoIds.filter(Boolean))];
+  if (!unicos.length) return {};
+
+  // Evita enviar centenas/milhares de UUIDs em um único filtro `.in()`.
+  // Em telas grandes (ex.: acervo com ~1.000 processos), a URL do PostgREST
+  // pode ultrapassar o limite e a consulta de etiquetas falhar silenciosamente
+  // na interface. Lotes menores mantêm a mesma fonte de dados para todo o sistema.
+  const TAMANHO_LOTE = 100;
+  const vinculos: { processo_id: string; etiqueta_id: string }[] = [];
+
+  for (let i = 0; i < unicos.length; i += TAMANHO_LOTE) {
+    const lote = unicos.slice(i, i + TAMANHO_LOTE);
+    const { data, error } = await supabase
+      .from("processos_etiquetas")
+      .select("processo_id, etiqueta_id")
+      .in("processo_id", lote);
+    if (error) throw error;
+    vinculos.push(...(data ?? []));
   }
+
+  const ids = [...new Set(vinculos.map((x) => x.etiqueta_id))];
+  const resultado: Record<string, EtiquetaDoProcesso[]> = Object.fromEntries(
+    unicos.map((id) => [id, [] as EtiquetaDoProcesso[]]),
+  );
+  if (!ids.length) return resultado;
+
+  const etiquetas: EtiquetaDoProcesso[] = [];
+  for (let i = 0; i < ids.length; i += TAMANHO_LOTE) {
+    const lote = ids.slice(i, i + TAMANHO_LOTE);
+    const { data, error } = await supabase
+      .from("etiquetas")
+      .select("id, nome, cor, favorita")
+      .in("id", lote)
+      .order("nome");
+    if (error) throw error;
+    etiquetas.push(...((data ?? []) as EtiquetaDoProcesso[]));
+  }
+
+  const porId = new Map(etiquetas.map((e) => [e.id, e]));
+  for (const vinculo of vinculos) {
+    const etiqueta = porId.get(vinculo.etiqueta_id);
+    if (etiqueta) resultado[vinculo.processo_id]?.push(etiqueta);
+  }
+
+  for (const lista of Object.values(resultado)) {
+    lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+
   return resultado;
 }
 
