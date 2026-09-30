@@ -237,7 +237,6 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   const digitos = normalizarNumeroProcesso(colunas.processo.join(""));
   const numero = formatarNumeroCnj(digitos);
   const orgao = limparTexto(colunas.orgao.join(" "));
-  const classe = limparClasse(classeTokens.join(" "));
   const tipoOriginal = limparTexto(colunas.tipo.join(" ")).replace(/[.\s]+$/g, "").trim();
   const tipo = tipoAudienciaCanonico(tipoOriginal);
   const tipoReconhecido = (TIPOS_AUDIENCIA as readonly string[]).includes(tipo);
@@ -254,6 +253,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
     return (t.match(/\(/g)?.length ?? 0) - (t.match(/\)/g)?.length ?? 0);
   };
   while (saldoParenteses() > 0 && classeTokens.length) partesTokens.push(classeTokens.shift()!);
+  const classe = limparClasse(classeTokens.join(" "));
   const pessoas = extrairPessoas(limparTexto(partesTokens.join(" ")));
   const reus = pessoas.filter((p) => p.reu);
   const sala = salaCanonica(salaOriginal);
