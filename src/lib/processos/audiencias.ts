@@ -27,6 +27,25 @@ export const TIPOS_AUDIENCIA = [
 export const MODALIDADES = ["Presencial", "Virtual", "Híbrida"] as const;
 export const SITUACOES_AUDIENCIA = ["Agendada", "Redesignada", "Realizada", "Cancelada"] as const;
 
+/** Normaliza nomes antigos e variações do PJe para a finalidade usada pelo sistema. */
+export function tipoAudienciaCanonico(valor: string): string {
+  const original = valor.replace(/[.\s]+$/g, "").trim();
+  const t = original.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+  if (/CUSTODIA/.test(t)) return "Audiência de custódia";
+  if (/PRELIMINAR/.test(t)) return "Audiência preliminar";
+  if (/INSTRUCAO(?: E JULGAMENTO)?/.test(t)) return "Audiência de instrução e julgamento";
+  if (/CONTINUACAO/.test(t)) return "Continuação de audiência";
+  if (/\bOITIVA\b/.test(t)) return "Oitiva";
+  if (/TRIBUNAL DO JURI|\bJURI\b/.test(t)) return "Tribunal do Júri";
+  if (/ADMONITOR/.test(t)) return "Audiência admonitória";
+  if (/JUSTIFICACAO/.test(t)) return "Audiência de justificação";
+  if (/CONCILIACAO/.test(t)) return "Audiência de conciliação";
+  if (/SUSPENSAO CONDICIONAL/.test(t)) return "Audiência de suspensão condicional do processo";
+  if (/\bANPP\b|NAO PERSECUCAO PENAL/.test(t)) return "Audiência de proposta de ANPP";
+  if (/^(OUTRA?|OUTRO)$/.test(t)) return "Outra";
+  return original;
+}
+
 export interface AudienciaListada extends AudienciaProcesso {
   numero: string;
   reu: string;
