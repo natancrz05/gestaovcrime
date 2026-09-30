@@ -21,6 +21,7 @@ import {
   futuras,
   horaCurta,
   listarAudienciasDe,
+  tipoAudienciaCanonico,
   type AudienciaListada,
 } from "@/lib/processos/audiencias";
 import { cn } from "@/lib/utils";
@@ -115,7 +116,7 @@ function Pagina() {
   const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Audiência de instrução e julgamento", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
   const editar = (a: AudienciaListada) => {
     setDetalhe(null);
-    setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: a.tipo, data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao, aguardando_nova_data: !!a.aguardando_nova_data } });
+    setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: tipoAudienciaCanonico(a.tipo), data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao, aguardando_nova_data: !!a.aguardando_nova_data } });
   };
   async function excluir(a: AudienciaListada) {
     if (!confirm("Excluir esta audiência?")) return;
