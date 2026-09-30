@@ -214,6 +214,7 @@ function conflitoIdentidadeReu(reus: Reu[], pessoa: PessoaPauta): string | null 
 
 function observacaoImportacao(l: LinhaPautaAudiencia) {
   const detalhes = ["Importada da pauta de audiências do PJe."];
+  if (l.orgao) detalhes.push(`Órgão julgador no PJe: ${l.orgao}.`);
   if (l.salaOriginal) detalhes.push(`Sala no PJe: ${l.salaOriginal}.`);
   if (l.situacaoOriginal) detalhes.push(`Situação no PJe: ${l.situacaoOriginal}.`);
   return detalhes.join(" ");
@@ -660,7 +661,7 @@ export async function executarImportacaoPauta(
         status: "Ativo",
         fase: "",
         responsavel: "",
-        observacao_geral: "Processo incluído automaticamente a partir da pauta de audiências do PJe.",
+        observacao_geral: `Processo incluído automaticamente a partir da pauta de audiências do PJe. Órgão julgador: ${grupo[0]!.orgao}.`,
         partes: [],
         reus: reus.map((r) => ({
           nome: r.nome,
@@ -693,6 +694,16 @@ export async function executarImportacaoPauta(
   for (const [numeroNormalizado, grupo] of porNumero) {
     const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
     if (!processo) throw new Error(`Processo ${grupo[0]!.numero} não encontrado após o cadastro.`);
+
+    if (!processo.classe.trim() && grupo[0]!.classe) {
+      const { error: classeError } = await supabase
+        .from("processos")
+        .update({ classe: grupo[0]!.classe })
+        .eq("id", processo.id);
+      if (classeError) throw classeError;
+      processo.classe = grupo[0]!.classe;
+    }
+
     const pessoas = grupo.flatMap((l) => l.reus);
     reusAtualizados += await enriquecerReusExistentes(processo, pessoas);
     const criados = await inserirReusAusentes(processo, pessoas);
