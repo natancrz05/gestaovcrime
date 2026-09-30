@@ -72,6 +72,7 @@ const COLUNAS: Record<string, string> = {
 };
 
 const DATAS = new Set(["data_distribuicao", "pje_ultima_mov_data"]);
+const COLUNAS_CONTEXTO = new Set(["COMARCA", "UNIDADE", "COMPETENCIA", "TIPO", "GRATUITA", "VALOR DA CAUSA"]);
 
 const normCab = (s: string) =>
   s.normalize("NFD")
@@ -260,6 +261,7 @@ export interface Analise {
   aba: string;
   totalLinhas: number;
   reconhecidas: string[];
+  contextuais: string[];
   naoReconhecidas: string[];
   validas: LinhaValida[];
   erros: LinhaProblema[];
@@ -402,7 +404,8 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
   const cab = (matrizTexto[iCab] ?? []).map((c) => limparTexto(c));
   const mapa: (string | null)[] = cab.map(resolverColuna);
   const reconhecidas = cab.filter((_, i) => mapa[i]);
-  const naoReconhecidas = cab.filter((c, i) => c && !mapa[i]);
+  const contextuais = cab.filter((c, i) => c && !mapa[i] && COLUNAS_CONTEXTO.has(normCab(c)));
+  const naoReconhecidas = cab.filter((c, i) => c && !mapa[i] && !COLUNAS_CONTEXTO.has(normCab(c)));
 
   const validasBrutas: LinhaValida[] = [];
   const erros: LinhaProblema[] = [];
@@ -493,6 +496,7 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
     aba: escolhida.nome,
     totalLinhas: total,
     reconhecidas,
+    contextuais,
     naoReconhecidas,
     validas: consolidacao.validas,
     erros,
