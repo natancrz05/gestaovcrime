@@ -109,7 +109,7 @@ function limparTexto(s: string) {
 }
 
 function limparClasse(s: string): string {
-  const t = limparTexto(s);
+  const t = limparTexto(s).replace(/^(?:(?:[-–—]\s*)|(?:CPF\s*:?\s*))+/i, "").trim();
   const compacto = norm(t).replace(/[^A-Z0-9]/g, "");
   const codigo = t.match(/\((\d+)\)/)?.[1];
   if (compacto.includes("TERMOCIRCUNSTANCIADO")) return `TERMO CIRCUNSTANCIADO${codigo ? ` (${codigo})` : ""}`;
@@ -138,8 +138,8 @@ function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidad
 }
 
 function papelEhReu(papel: string) {
-  const t = norm(papel);
-  return /(AUTOR DO FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID)/.test(t);
+  const t = norm(papel).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID)/.test(t);
 }
 
 function extrairPessoas(texto: string): PessoaPauta[] {
@@ -237,14 +237,24 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   const digitos = normalizarNumeroProcesso(colunas.processo.join(""));
   const numero = formatarNumeroCnj(digitos);
   const orgao = limparTexto(colunas.orgao.join(" "));
-  const classe = limparClasse(colunas.classe.join(" "));
+  const classe = limparClasse(classeTokens.join(" "));
   const tipoOriginal = limparTexto(colunas.tipo.join(" ")).replace(/[.\s]+$/g, "").trim();
   const tipo = tipoAudienciaCanonico(tipoOriginal);
   const tipoReconhecido = (TIPOS_AUDIENCIA as readonly string[]).includes(tipo);
   const salaOriginal = limparTexto(colunas.sala.join(" "));
   const situacaoOriginal = limparTexto(colunas.situacao.join(" "));
   const situacao = situacaoCanonica(situacaoOriginal);
-  const pessoas = extrairPessoas(limparTexto(colunas.partes.join(" ")));
+  // Em células muito longas, o PDF pode posicionar o fechamento do papel da parte
+  // poucos pixels dentro da coluna Classe. Recupera apenas o necessário para
+  // fechar os parênteses, sem misturar a classe ao nome da parte.
+  const partesTokens = [...colunas.partes];
+  const classeTokens = [...colunas.classe];
+  const saldoParenteses = () => {
+    const t = partesTokens.join(" ");
+    return (t.match(/\(/g)?.length ?? 0) - (t.match(/\)/g)?.length ?? 0);
+  };
+  while (saldoParenteses() > 0 && classeTokens.length) partesTokens.push(classeTokens.shift()!);
+  const pessoas = extrairPessoas(limparTexto(partesTokens.join(" ")));
   const reus = pessoas.filter((p) => p.reu);
   const sala = salaCanonica(salaOriginal);
 
