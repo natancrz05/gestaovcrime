@@ -585,7 +585,7 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
   return (
     <Secao titulo="Processos aguardando audiência">
       <p className="text-3xl font-semibold tabular-nums text-foreground" data-testid="total-aguardando">{itens.length}</p>
-      <p className="mb-4 text-xs text-muted-foreground">Identificados pelo campo TAREFAS da planilha. Níveis contados pelos dias desde a última movimentação (DATA ULT MOV) — critério administrativo.</p>
+      <p className="mb-4 text-xs text-muted-foreground">Identificados pelo campo TAREFAS da planilha ou por audiência pendente cadastrada no sistema. Níveis contados pelos dias desde a última movimentação (DATA ULT MOV) — critério administrativo.</p>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         {NIVEIS_AUDIENCIA.map((n) => {
           const qtd = itens.filter((i) => i.nivel === n.chave).length;
