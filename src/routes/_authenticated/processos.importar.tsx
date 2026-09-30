@@ -17,7 +17,7 @@ import {
   baixarCSV, formatarValor, lerPlanilha, rotuloCampo,
   type Analise, type LinhaProblema, type LinhaValida, type ResultadoSimulacao,
 } from "@/lib/processos/importacao";
-import { adicionarReu, listarProcessosParaSelecao } from "@/lib/processos/repositorio";
+import { adicionarReu, listarProcessosCompletos } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/importar")({
   beforeLoad: ({ context }) => {
@@ -50,43 +50,87 @@ const dataHora = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle:
 const normalizarNome = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
 
-async function enriquecerReus(linhas: LinhaValida[]) {
-  const processos = await listarProcessosParaSelecao();
+async function enriquecerAcervo(linhas: LinhaValida[], conflitos: ResultadoSimulacao["conflitos"]) {
+  const processos = await listarProcessosCompletos();
   const porNumero = new Map(processos.map((p) => [p.numero.replace(/\D/g, ""), p]));
-  let adicionados = 0;
+  const conflitosMovimentacao = new Set(
+    conflitos
+      .filter((c) => c.campo === "pje_ultima_mov_data")
+      .map((c) => c.numero.replace(/\D/g, "")),
+  );
+
+  let reusAdicionados = 0;
+  let movimentacoesPjeAcrescentadas = 0;
+  let conflitosPjeReconciliados = 0;
   let naoLocalizados = 0;
 
   for (const linha of linhas) {
-    if (!linha.reusInferidos.length) continue;
     const processo = porNumero.get(linha.numero.replace(/\D/g, ""));
     if (!processo) {
       naoLocalizados++;
       continue;
     }
 
-    const existentes = new Set(processo.reus.map((r) => normalizarNome(r.nome)));
-    let ordem = processo.reus.reduce((m, r) => Math.max(m, r.ordem), -1) + 1;
+    if (linha.reusInferidos.length) {
+      const existentes = new Set(processo.reus.map((r) => normalizarNome(r.nome)));
+      let ordem = processo.reus.reduce((m, r) => Math.max(m, r.ordem), -1) + 1;
 
-    for (const nome of linha.reusInferidos) {
-      const chave = normalizarNome(nome);
-      if (!chave || existentes.has(chave)) continue;
-      await adicionarReu({
-        processo_id: processo.id,
-        nome,
-        situacao: "",
-        preso: false,
-        tipo_prisao: "Não preso",
-        data_prisao: null,
-        observacoes: "Réu identificado pela atualização do acervo PJe.",
-        ordem,
-      });
-      existentes.add(chave);
-      ordem++;
-      adicionados++;
+      for (const nome of linha.reusInferidos) {
+        const chave = normalizarNome(nome);
+        if (!chave || existentes.has(chave)) continue;
+        await adicionarReu({
+          processo_id: processo.id,
+          nome,
+          situacao: "",
+          preso: false,
+          tipo_prisao: "Não preso",
+          data_prisao: null,
+          observacoes: "Réu identificado pela atualização do acervo PJe.",
+          ordem,
+        });
+        existentes.add(chave);
+        ordem++;
+        reusAdicionados++;
+      }
+    }
+
+    // O importador antigo comparava a data do PJe com qualquer movimentação
+    // interna. Uma anotação manual mais recente podia impedir a atualização do
+    // retrato do PJe. Aqui reconciliamos apenas esse caso, sem apagar a
+    // movimentação manual nem mexer na data de autuação.
+    const numeroNormalizado = linha.numero.replace(/\D/g, "");
+    if (conflitosMovimentacao.has(numeroNormalizado) && linha.campos.pje_ultima_mov_data) {
+      const patch: Record<string, string | number> = {
+        pje_ultima_mov_data: linha.campos.pje_ultima_mov_data,
+      };
+      if (linha.campos.pje_ultima_mov_descricao) patch.pje_ultima_mov_descricao = linha.campos.pje_ultima_mov_descricao;
+      if (linha.campos.pje_qtde_dias) patch.pje_qtde_dias = Number(linha.campos.pje_qtde_dias);
+
+      const { error: updateError } = await supabase.from("processos").update(patch).eq("id", processo.id);
+      if (updateError) throw updateError;
+      conflitosPjeReconciliados++;
+
+      const data = linha.campos.pje_ultima_mov_data;
+      const descricao = linha.campos.pje_ultima_mov_descricao;
+      if (
+        descricao &&
+        !processo.movimentacoes.some((m) => m.data === data && normalizarNome(m.descricao) === normalizarNome(descricao))
+      ) {
+        const { error: movError } = await supabase.from("movimentacoes").insert({
+          processo_id: processo.id,
+          data,
+          descricao,
+          origem: "pje_tjba",
+          tipo: "",
+          observacao: "Movimentação identificada na atualização do acervo PJe.",
+        });
+        if (movError) throw movError;
+        movimentacoesPjeAcrescentadas++;
+      }
     }
   }
 
-  return { adicionados, naoLocalizados };
+  return { reusAdicionados, movimentacoesPjeAcrescentadas, conflitosPjeReconciliados, naoLocalizados };
 }
 
 function Pagina() {
@@ -99,7 +143,12 @@ function Pagina() {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Importacao | null>(null);
-  const [enriquecimentoReus, setEnriquecimentoReus] = useState<{ adicionados: number; naoLocalizados: number } | null>(null);
+  const [enriquecimento, setEnriquecimento] = useState<{
+    reusAdicionados: number;
+    movimentacoesPjeAcrescentadas: number;
+    conflitosPjeReconciliados: number;
+    naoLocalizados: number;
+  } | null>(null);
   const [aberta, setAberta] = useState<Importacao | null>(null);
 
   const historico = useQuery({
@@ -126,7 +175,7 @@ function Pagina() {
 
   async function analisar() {
     if (!arquivo) return;
-    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null); setEnriquecimentoReus(null);
+    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null); setEnriquecimento(null);
     try {
       const a = await lerPlanilha(arquivo);
       await simular(a, aplicarConflitos);
@@ -148,7 +197,7 @@ function Pagina() {
   }
 
   function cancelar() {
-    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false); setEnriquecimentoReus(null);
+    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false); setEnriquecimento(null);
   }
 
   async function confirmar() {
@@ -169,11 +218,16 @@ function Pagina() {
 
     // O RPC atualiza os campos do processo. Em seguida, a camada inteligente do
     // leitor completa apenas réus ausentes, sem apagar cadastros manuais.
-    let enriquecimento = { adicionados: 0, naoLocalizados: 0 };
+    let enriquecimento = {
+      reusAdicionados: 0,
+      movimentacoesPjeAcrescentadas: 0,
+      conflitosPjeReconciliados: 0,
+      naoLocalizados: 0,
+    };
     try {
       await qc.invalidateQueries({ queryKey: ["processos"] });
       await qc.invalidateQueries({ queryKey: ["processos-seletor"] });
-      enriquecimento = await enriquecerReus(analise.validas);
+      enriquecimento = await enriquecerAcervo(analise.validas, sim?.conflitos ?? []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "falha desconhecida";
       setErro(`Os processos foram importados, mas houve falha ao completar alguns réus: ${msg}`);
@@ -181,7 +235,7 @@ function Pagina() {
 
     const { data: imp } = await supabase.from("importacoes").select("*").eq("id", id).single();
     setResultado(imp as unknown as Importacao);
-    setEnriquecimentoReus(enriquecimento);
+    setEnriquecimento(enriquecimento);
     setAnalise(null); setSim(null); setArquivo(null);
     qc.invalidateQueries({ queryKey: ["processos"] });
     qc.invalidateQueries({ queryKey: ["processos-seletor"] });
@@ -225,11 +279,17 @@ function Pagina() {
         <div className={`${CARTAO} space-y-4`}>
           <h2 className="text-lg font-semibold">Importação #{resultado.numero} — {resultado.status}</h2>
           <Resumo imp={resultado} />
-          {enriquecimentoReus ? (
-            <p className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-              Leitura inteligente dos réus: <strong>{enriquecimentoReus.adicionados}</strong> réu(s) ausente(s) acrescentado(s) ao acervo.
-              {enriquecimentoReus.naoLocalizados ? ` ${enriquecimentoReus.naoLocalizados} processo(s) não puderam ser relocalizados para enriquecimento.` : ""}
-            </p>
+          {enriquecimento ? (
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+              <p>
+                Enriquecimento do acervo: <strong>{enriquecimento.reusAdicionados}</strong> réu(s) ausente(s) acrescentado(s),
+                {" "}<strong>{enriquecimento.conflitosPjeReconciliados}</strong> retrato(s) de movimentação do PJe reconciliado(s)
+                e <strong>{enriquecimento.movimentacoesPjeAcrescentadas}</strong> movimentação(ões) do PJe acrescentada(s) sem apagar registros internos.
+              </p>
+              {enriquecimento.naoLocalizados ? (
+                <p className="mt-1 text-xs text-atencao">{enriquecimento.naoLocalizados} processo(s) não puderam ser relocalizados para enriquecimento.</p>
+              ) : null}
+            </div>
           ) : null}
           <ListaProblemas imp={resultado} />
           <button className={BOTAO_SEC} onClick={() => setResultado(null)}><Upload className="size-4" /> Nova importação</button>
