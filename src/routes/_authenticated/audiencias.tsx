@@ -314,6 +314,18 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
       setNovoProcessoErro("Informe o número e a classe do processo.");
       return;
     }
+
+    // Antes de criar, reutiliza o processo já existente. A comparação por dígitos
+    // evita duplicidade causada apenas por diferenças de máscara/formatação do CNJ.
+    const numeroNormalizado = novoProcesso.numero.replace(/\D/g, "");
+    const existente = processos.find((p) => p.numero.replace(/\D/g, "") === numeroNormalizado);
+    if (existente) {
+      setV((atual) => ({ ...atual, processo_id: existente.id }));
+      setNovoProcessoAberto(false);
+      setNovoProcesso({ numero: "", classe: "", assunto: "", reu: "" });
+      return;
+    }
+
     setCriandoProcesso(true);
     try {
       const entrada: NovoProcessoEntrada = {
