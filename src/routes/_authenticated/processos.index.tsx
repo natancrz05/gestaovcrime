@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "ordem"] as const;
+const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "ordem", "pagina"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
 
@@ -71,6 +71,8 @@ const PERIODOS = [
   { v: "sem", r: "Sem movimentação registrada" },
 ];
 
+const PROCESSOS_POR_PAGINA = 30;
+
 function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const qc = useQueryClient();
@@ -82,9 +84,18 @@ function Pagina() {
   const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
   const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
-    navigate({ to: "/processos", search: (prev: BuscaProcessos) => { const n = { ...prev }; if (v) n[k] = v; else delete n[k]; return n; }, replace: true });
+    navigate({
+      to: "/processos",
+      search: (prev: BuscaProcessos) => {
+        const n = { ...prev };
+        if (v) n[k] = v; else delete n[k];
+        if (k !== "pagina") delete n.pagina;
+        return n;
+      },
+      replace: true,
+    });
   const flag = (k: Chave) => sp[k] === "1";
-  const algumFiltro = CHAVES.some((k) => k !== "ordem" && sp[k]);
+  const algumFiltro = CHAVES.some((k) => k !== "ordem" && k !== "pagina" && sp[k]);
   const hoje = hojeISO();
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("processos").update({ conferir }).eq("id", id);
@@ -167,6 +178,23 @@ function Pagina() {
     return [...lista].sort(ORD[ordem] ?? ORD["processo"]);
   }, [processos, sp, hoje]);
 
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PROCESSOS_POR_PAGINA));
+  const paginaSolicitada = Math.max(1, Number.parseInt(sp.pagina ?? "1", 10) || 1);
+  const paginaAtual = Math.min(paginaSolicitada, totalPaginas);
+  const inicioPagina = (paginaAtual - 1) * PROCESSOS_POR_PAGINA;
+  const processosDaPagina = filtrados.slice(inicioPagina, inicioPagina + PROCESSOS_POR_PAGINA);
+
+  const irParaPagina = (pagina: number) => {
+    const destino = Math.min(Math.max(1, pagina), totalPaginas);
+    set("pagina", destino === 1 ? "" : String(destino));
+  };
+
+  const paginasVisiveis = (() => {
+    if (totalPaginas <= 7) return Array.from({ length: totalPaginas }, (_, i) => i + 1);
+    const conjunto = new Set([1, totalPaginas, paginaAtual - 1, paginaAtual, paginaAtual + 1]);
+    return [...conjunto].filter((p) => p >= 1 && p <= totalPaginas).sort((a, b) => a - b);
+  })();
+
   return (
     <div className="space-y-6">
       <Cabecalho
@@ -191,7 +219,7 @@ function Pagina() {
       />
 
       <details open className="rounded-lg border border-border bg-card shadow-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">Filtros avançados {Object.keys(sp).filter((k) => k !== "ordem").length ? <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{Object.keys(sp).filter((k) => k !== "ordem").length} ativos</span> : null}</summary>
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">Filtros avançados {Object.keys(sp).filter((k) => k !== "ordem" && k !== "pagina").length ? <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{Object.keys(sp).filter((k) => k !== "ordem" && k !== "pagina").length} ativos</span> : null}</summary>
         <div className="grid gap-3 border-t border-border p-4 md:grid-cols-3 lg:grid-cols-6">
           <div className="relative md:col-span-3 lg:col-span-6">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -314,7 +342,7 @@ function Pagina() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtrados.map((p) => {
+              {processosDaPagina.map((p) => {
                 const reu = reuPrincipal(p);
                 const ult = ultimaMovimentacao(p);
                 const dias = diasSemMovimentacao(p, hoje);
@@ -386,6 +414,49 @@ function Pagina() {
               })}
             </tbody>
           </table>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-3">
+            <p className="text-xs text-muted-foreground">
+              Mostrando {filtrados.length ? inicioPagina + 1 : 0}–{Math.min(inicioPagina + PROCESSOS_POR_PAGINA, filtrados.length)} de {filtrados.length} processo(s)
+            </p>
+
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={paginaAtual === 1}
+                onClick={() => irParaPagina(paginaAtual - 1)}
+              >
+                Anterior
+              </button>
+
+              {paginasVisiveis.map((p, i) => {
+                const anterior = paginasVisiveis[i - 1];
+                return (
+                  <span key={p} className="contents">
+                    {anterior && p - anterior > 1 ? <span className="px-1 text-xs text-muted-foreground">…</span> : null}
+                    <button
+                      type="button"
+                      aria-current={p === paginaAtual ? "page" : undefined}
+                      className={`inline-flex size-8 items-center justify-center rounded-md border text-xs font-medium ${p === paginaAtual ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}
+                      onClick={() => irParaPagina(p)}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                );
+              })}
+
+              <button
+                type="button"
+                className="inline-flex h-8 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={paginaAtual === totalPaginas}
+                onClick={() => irParaPagina(paginaAtual + 1)}
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
