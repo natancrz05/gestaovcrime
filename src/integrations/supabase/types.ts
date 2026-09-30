@@ -566,69 +566,6 @@ export type Database = {
           },
         ]
       }
-      etiquetas: {
-        Row: {
-          id: string
-          nome: string
-          cor: string
-          favorita: boolean
-          criado_por: string | null
-          criado_em: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          cor?: string
-          favorita?: boolean
-          criado_por?: string | null
-          criado_em?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          cor?: string
-          favorita?: boolean
-          criado_por?: string | null
-          criado_em?: string
-        }
-        Relationships: []
-      }
-      processos_etiquetas: {
-        Row: {
-          processo_id: string
-          etiqueta_id: string
-          criado_por: string | null
-          criado_em: string
-        }
-        Insert: {
-          processo_id: string
-          etiqueta_id: string
-          criado_por?: string | null
-          criado_em?: string
-        }
-        Update: {
-          processo_id?: string
-          etiqueta_id?: string
-          criado_por?: string | null
-          criado_em?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "processos_etiquetas_processo_id_fkey"
-            columns: ["processo_id"]
-            isOneToOne: false
-            referencedRelation: "processos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "processos_etiquetas_etiqueta_id_fkey"
-            columns: ["etiqueta_id"]
-            isOneToOne: false
-            referencedRelation: "etiquetas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       processos: {
         Row: {
           assunto: string
