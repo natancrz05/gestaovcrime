@@ -50,10 +50,11 @@ export interface ProblemaPauta {
   motivo: string;
 }
 
-export type EstadoImportacaoPauta = "nova" | "ja-cadastrada" | "conflito";
+export type EstadoImportacaoPauta = "nova" | "ja-cadastrada" | "sincronizar" | "conflito";
 
 export interface ItemAnalisePauta extends LinhaPautaAudiencia {
   processoId?: string | undefined;
+  audienciaId?: string | undefined;
   processoNovo: boolean;
   reusNovos: PessoaPauta[];
   estado: EstadoImportacaoPauta;
@@ -69,6 +70,7 @@ export interface AnalisePautaAudiencias {
   processosExistentes: number;
   audienciasNovas: number;
   audienciasExistentes: number;
+  audienciasSincronizar: number;
   reusNovos: number;
   conflitos: number;
 }
@@ -79,6 +81,7 @@ export interface ResultadoImportacaoPauta {
   reusCriados: number;
   reusAtualizados: number;
   audienciasCriadas: number;
+  audienciasAtualizadas: number;
   audienciasJaExistentes: number;
 }
 
@@ -117,6 +120,12 @@ function limparClasse(s: string): string {
   const compacto = norm(t).replace(/[^A-Z0-9]/g, "");
   const codigo = t.match(/\((\d+)\)/)?.[1];
   if (compacto.includes("TERMOCIRCUNSTANCIADO")) return `TERMO CIRCUNSTANCIADO${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("ACAOPENALPROCEDIMENTOSUMARISSIMO")) return `AÇÃO PENAL - PROCEDIMENTO SUMARÍSSIMO${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("ACAOPENALPROCEDIMENTOORDINARIO")) return `AÇÃO PENAL - PROCEDIMENTO ORDINÁRIO${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("CAUTELARINOMINADACRIMINAL")) return `CAUTELAR INOMINADA CRIMINAL${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("ACAOPENALDECOMPETENCIADOJURI")) return `AÇÃO PENAL DE COMPETÊNCIA DO JÚRI${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("GUARDADEINFANCIAEJUVENTUDE")) return `GUARDA DE INFÂNCIA E JUVENTUDE${codigo ? ` (${codigo})` : ""}`;
+  if (compacto.includes("PROCEDIMENTOESPECIALDALEIANTITOXICOS")) return `PROCEDIMENTO ESPECIAL DA LEI ANTITÓXICOS${codigo ? ` (${codigo})` : ""}`;
   if (compacto.includes("AUTODEPRISAOEMFLAGRANTE")) return `AUTO DE PRISÃO EM FLAGRANTE${codigo ? ` (${codigo})` : ""}`;
   if (compacto.includes("INQUERITOPOLICIAL")) return `INQUÉRITO POLICIAL${codigo ? ` (${codigo})` : ""}`;
   return t;
@@ -299,7 +308,6 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   if (!orgao) faltas.push("órgão julgador não identificado");
   if (!sala) faltas.push("sala/local não identificado");
   if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
-  if (reus.some((r) => !r.cpf)) faltas.push("CPF de réu/autor do fato não identificado");
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
 
   return {
@@ -514,20 +522,37 @@ export function analisarPautaAudiencias(
       );
       if (exata) {
         const situacaoExistente = situacaoCanonica(exata.situacao) ?? exata.situacao;
-        if (situacaoExistente !== l.situacao) {
+        if ((situacaoExistente === "Realizada" || situacaoExistente === "Cancelada") && situacaoExistente !== l.situacao) {
           return {
-            ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "conflito",
-            motivo: `A audiência já existe, mas a situação diverge: sistema "${exata.situacao}" e pauta "${l.situacaoOriginal}".`,
+            ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "conflito",
+            motivo: `A audiência já está "${exata.situacao}" no sistema, mas a pauta informa "${l.situacaoOriginal}".`,
           };
         }
-        return { ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
+        if (
+          situacaoExistente !== l.situacao ||
+          exata.local !== l.local ||
+          exata.modalidade !== l.modalidade
+        ) {
+          return {
+            ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "sincronizar",
+            motivo: "Audiência já cadastrada manualmente; os dados serão atualizados com a pauta do PJe.",
+          };
+        }
+        return { ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
       }
 
       const mesmoMomento = processo.audiencias.find((a) => a.data === l.data && (a.horario ?? "").slice(0, 5) === l.horario);
       if (mesmoMomento) {
+        const situacaoExistente = situacaoCanonica(mesmoMomento.situacao) ?? mesmoMomento.situacao;
+        if ((situacaoExistente === "Realizada" || situacaoExistente === "Cancelada") && situacaoExistente !== l.situacao) {
+          return {
+            ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "conflito",
+            motivo: `Já existe audiência "${mesmoMomento.situacao}" neste horário; a pauta informa "${l.situacaoOriginal}".`,
+          };
+        }
         return {
-          ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "conflito",
-          motivo: `O processo já possui outra audiência neste horário (${mesmoMomento.tipo}).`,
+          ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "sincronizar",
+          motivo: `Audiência manual localizada no mesmo processo, data e horário (${mesmoMomento.tipo}); será reutilizada e sincronizada com o PJe.`,
         };
       }
     }
@@ -562,6 +587,7 @@ export function analisarPautaAudiencias(
     processosExistentes: numsExistentes.size,
     audienciasNovas: itens.filter((i) => i.estado === "nova").length,
     audienciasExistentes: itens.filter((i) => i.estado === "ja-cadastrada").length,
+    audienciasSincronizar: itens.filter((i) => i.estado === "sincronizar").length,
     reusNovos: itens.reduce((n, i) => n + i.reusNovos.length, 0),
     conflitos: itens.filter((i) => i.estado === "conflito").length,
   };
@@ -624,6 +650,13 @@ async function inserirReusAusentes(processo: ProcessoCompleto, pessoas: PessoaPa
   })));
   if (error) throw error;
   return novos.length;
+}
+
+function mesclarObservacaoPauta(atual: string, pauta: string) {
+  const a = atual.trim();
+  if (!a) return pauta;
+  if (a.includes("Importada da pauta de audiências do PJe.")) return a;
+  return `${a}\n${pauta}`;
 }
 
 export async function executarImportacaoPauta(
@@ -718,11 +751,43 @@ export async function executarImportacaoPauta(
   }
 
   let audienciasCriadas = 0;
+  let audienciasAtualizadas = 0;
   let audienciasJaExistentes = analise.audienciasExistentes;
   for (const item of analise.itens) {
-    if (item.estado !== "nova") continue;
     const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === normalizarNumeroProcesso(item.numero));
     if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
+
+    if (item.estado === "ja-cadastrada") continue;
+
+    if (item.estado === "sincronizar") {
+      const existente = processo.audiencias.find((a) =>
+        a.id === item.audienciaId ||
+        (a.data === item.data && (a.horario ?? "").slice(0, 5) === item.horario),
+      );
+      if (!existente) {
+        throw new Error(`A audiência manual de ${item.numero} mudou durante a importação. Refaça a conferência da pauta.`);
+      }
+      await salvarAudiencia({
+        processo_id: processo.id,
+        tipo: item.tipo,
+        data: item.data,
+        horario: item.horario,
+        modalidade: item.modalidade,
+        local: item.local,
+        situacao: item.situacao,
+        observacao: mesclarObservacaoPauta(existente.observacao ?? "", observacaoImportacao(item)),
+        aguardando_nova_data: false,
+      }, existente.id);
+      audienciasAtualizadas++;
+      existente.tipo = item.tipo;
+      existente.modalidade = item.modalidade;
+      existente.local = item.local;
+      existente.situacao = item.situacao;
+      existente.observacao = mesclarObservacaoPauta(existente.observacao ?? "", observacaoImportacao(item));
+      continue;
+    }
+
+    if (item.estado !== "nova") continue;
 
     // Última trava imediatamente antes da gravação. Evita que uma audiência criada
     // por outro usuário entre a prévia e o clique de importar gere duplicidade/choque.
@@ -780,6 +845,7 @@ export async function executarImportacaoPauta(
     reusCriados,
     reusAtualizados,
     audienciasCriadas,
+    audienciasAtualizadas,
     audienciasJaExistentes,
   };
 }
