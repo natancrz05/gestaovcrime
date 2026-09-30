@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
-import { etiquetasDosProcessosQuery, processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { criarProcesso, etiquetasDosProcessosQuery, processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import {
   CONFIG_AUDIENCIAS,
@@ -129,6 +129,7 @@ function Pagina() {
         processos={processos}
         podeEditar={podeEditar}
         onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
+        onAdicionarManual={() => setEdicao({ valores: novo() })}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
@@ -302,6 +303,48 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
   const [v, setV] = useState(inicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [novoProcessoAberto, setNovoProcessoAberto] = useState(false);
+  const [criandoProcesso, setCriandoProcesso] = useState(false);
+  const [novoProcessoErro, setNovoProcessoErro] = useState("");
+  const [novoProcesso, setNovoProcesso] = useState({ numero: "", classe: "", assunto: "", reu: "" });
+  const qc = useQueryClient();
+
+  async function cadastrarProcesso() {
+    setNovoProcessoErro("");
+    if (!novoProcesso.numero.trim() || !novoProcesso.classe.trim()) {
+      setNovoProcessoErro("Informe o número e a classe do processo.");
+      return;
+    }
+    setCriandoProcesso(true);
+    try {
+      const entrada: NovoProcessoEntrada = {
+        numero: novoProcesso.numero.trim(),
+        classe: novoProcesso.classe.trim(),
+        assunto: novoProcesso.assunto.trim(),
+        data_distribuicao: null,
+        status: "Ativo",
+        fase: "",
+        responsavel: "",
+        observacao_geral: "",
+        partes: [],
+        reus: novoProcesso.reu.trim()
+          ? [{ nome: novoProcesso.reu.trim(), situacao: "", preso: false, tipo_prisao: "Não preso", data_prisao: null, observacoes: "" }]
+          : [],
+        movimentacao: null,
+        observacao_interna: "",
+      };
+      const id = await criarProcesso(entrada);
+      await qc.invalidateQueries({ queryKey: ["processos"] });
+      await qc.invalidateQueries({ queryKey: ["processos-seletor"] });
+      setV((atual) => ({ ...atual, processo_id: id }));
+      setNovoProcessoAberto(false);
+      setNovoProcesso({ numero: "", classe: "", assunto: "", reu: "" });
+    } catch (e) {
+      setNovoProcessoErro(e instanceof Error ? e.message : "Não foi possível cadastrar o processo.");
+    } finally {
+      setCriandoProcesso(false);
+    }
+  }
   return (
     <form
       className="grid gap-3 md:grid-cols-3"
@@ -316,6 +359,14 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
       <div className="md:col-span-3">
         <Campo rotulo="Processo">
           <SeletorProcesso value={v.processo_id} onChange={(id) => setV({ ...v, processo_id: id })} />
+          <button
+            type="button"
+            className="mt-2 inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted"
+            onClick={() => { setNovoProcessoErro(""); setNovoProcessoAberto(true); }}
+          >
+            <Plus className="size-3.5" /> Cadastrar novo processo
+          </button>
+          <p className="mt-1 text-xs text-muted-foreground">O processo cadastrado aqui entra no acervo e passa a ser utilizado normalmente por todo o sistema.</p>
         </Campo>
       </div>
       <Campo rotulo="Tipo de audiência"><select className={CLASSE_CAMPO} value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}><Opcoes valores={TIPOS_AUDIENCIA} /></select></Campo>
@@ -332,6 +383,38 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
         </div>
       ) : null}
       <div className="md:col-span-3"><Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} value={v.observacao} onChange={(e) => setV({ ...v, observacao: e.target.value })} /></Campo></div>
+      {novoProcessoAberto ? (
+        <div className="rounded-md border border-border bg-muted/20 p-3 md:col-span-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Cadastrar processo para esta audiência</p>
+              <p className="text-xs text-muted-foreground">Cadastro rápido. Depois, a ficha do processo poderá ser complementada normalmente.</p>
+            </div>
+            <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setNovoProcessoAberto(false)}>Fechar</button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Campo rotulo="Número do processo *">
+              <input className={`${CLASSE_CAMPO} numero-processo`} value={novoProcesso.numero} onChange={(e) => setNovoProcesso({ ...novoProcesso, numero: e.target.value })} placeholder="0000000-00.0000.8.05.0000" />
+            </Campo>
+            <Campo rotulo="Classe *">
+              <input className={CLASSE_CAMPO} value={novoProcesso.classe} onChange={(e) => setNovoProcesso({ ...novoProcesso, classe: e.target.value })} placeholder="Ex.: Auto de Prisão em Flagrante" />
+            </Campo>
+            <Campo rotulo="Réu">
+              <input className={CLASSE_CAMPO} value={novoProcesso.reu} onChange={(e) => setNovoProcesso({ ...novoProcesso, reu: e.target.value })} />
+            </Campo>
+            <Campo rotulo="Assunto">
+              <input className={CLASSE_CAMPO} value={novoProcesso.assunto} onChange={(e) => setNovoProcesso({ ...novoProcesso, assunto: e.target.value })} />
+            </Campo>
+          </div>
+          {novoProcessoErro ? <p className="mt-2 text-sm text-urgente">{novoProcessoErro}</p> : null}
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className={BOTAO_SEC} onClick={() => setNovoProcessoAberto(false)}>Cancelar</button>
+            <button type="button" className={BOTAO} disabled={criandoProcesso} onClick={cadastrarProcesso}>
+              {criandoProcesso ? "Cadastrando…" : "Cadastrar e usar nesta audiência"}
+            </button>
+          </div>
+        </div>
+      ) : null}
       {erro ? <p className="text-sm text-urgente md:col-span-3">{erro}</p> : null}
       <div className="flex justify-end md:col-span-3"><button className={BOTAO} disabled={salvando}>{salvando ? "Salvando…" : "Salvar audiência"}</button></div>
     </form>
@@ -445,7 +528,7 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
 
 /* ---------------- Central: processos aguardando marcação ---------------- */
 
-function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void }) {
+function CentralAudiencias({ processos, podeEditar, onMarcar, onAdicionarManual }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void; onAdicionarManual: () => void }) {
   const itens = useMemo(() => listarCentral(processos), [processos]);
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
@@ -469,7 +552,10 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
         (digitos.length > 0 && i.processo.numero.replace(/\D/g, "").includes(digitos))),
   );
   return (
-    <Secao titulo="Processos aguardando audiência">
+    <Secao
+      titulo="Processos aguardando audiência"
+      acao={podeEditar ? <button className={BOTAO_SEC} onClick={onAdicionarManual}><Plus className="size-3.5" /> Adicionar audiência manualmente</button> : undefined}
+    >
       <p className="text-3xl font-semibold tabular-nums text-foreground" data-testid="total-aguardando">{itens.length}</p>
       <p className="mb-4 text-xs text-muted-foreground">Identificados pelo campo TAREFAS da planilha. Níveis contados pelos dias desde a última movimentação (DATA ULT MOV) — critério administrativo.</p>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
