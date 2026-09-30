@@ -77,6 +77,7 @@ export interface ResultadoImportacaoPauta {
   processosCriados: number;
   processosReutilizados: number;
   reusCriados: number;
+  reusAtualizados: number;
   audienciasCriadas: number;
   audienciasJaExistentes: number;
 }
@@ -191,6 +192,18 @@ function reuJaExiste(reus: Reu[], pessoa: PessoaPauta) {
   );
 }
 
+function conflitoIdentidadeReu(reus: Reu[], pessoa: PessoaPauta): string | null {
+  const cpfPauta = pessoa.cpf.replace(/\D/g, "");
+  if (!cpfPauta) return null;
+  const mesmoNome = reus.find((r) => normNome(r.nome) === normNome(pessoa.nome));
+  if (!mesmoNome) return null;
+  const cpfExistente = cpfDeReu(mesmoNome);
+  if (cpfExistente && cpfExistente !== cpfPauta) {
+    return `O réu/autor do fato ${pessoa.nome} já existe no processo com CPF diferente do informado na pauta.`;
+  }
+  return null;
+}
+
 function observacaoImportacao(l: LinhaPautaAudiencia) {
   const detalhes = ["Importada da pauta de audiências do PJe."];
   if (l.salaOriginal) detalhes.push(`Sala no PJe: ${l.salaOriginal}.`);
@@ -275,6 +288,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   if (!tipoOriginal || !tipoReconhecido) faltas.push(`tipo de audiência não reconhecido ("${tipoOriginal || "vazio"}")`);
   if (!situacao) faltas.push(`situação não reconhecida ("${situacaoOriginal || "vazia"}")`);
   if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
+  if (reus.some((r) => !r.cpf)) faltas.push("CPF de réu/autor do fato não identificado");
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
 
   return {
@@ -393,11 +407,15 @@ export function analisarPautaAudiencias(
   }
 
   const slotsArquivo = new Map<string, Set<string>>();
+  const horariosPorProcesso = new Map<string, number>();
   for (const l of linhasUnicas) {
     const k = chaveHorario(l.data, l.horario, l.tipo);
     const numeros = slotsArquivo.get(k) ?? new Set<string>();
     numeros.add(normalizarNumeroProcesso(l.numero));
     slotsArquivo.set(k, numeros);
+
+    const processoHorario = `${normalizarNumeroProcesso(l.numero)}|${l.data}|${l.horario}`;
+    horariosPorProcesso.set(processoHorario, (horariosPorProcesso.get(processoHorario) ?? 0) + 1);
   }
 
   const reusNovosVistos = new Set<string>();
@@ -411,6 +429,16 @@ export function analisarPautaAudiencias(
       };
     }
     const processo = candidatos[0];
+    if (processo) {
+      const conflitoReu = l.reus.map((p) => conflitoIdentidadeReu(processo.reus, p)).find(Boolean);
+      if (conflitoReu) {
+        return {
+          ...l, processoId: processo.id, processoNovo: false, reusNovos: [], estado: "conflito",
+          motivo: conflitoReu,
+        };
+      }
+    }
+
     const candidatosReusNovos = processo ? l.reus.filter((r) => !reuJaExiste(processo.reus, r)) : l.reus;
     const reusNovos = candidatosReusNovos.filter((r) => {
       const identidade = r.cpf.replace(/\D/g, "") || normNome(r.nome);
@@ -419,6 +447,14 @@ export function analisarPautaAudiencias(
       reusNovosVistos.add(chave);
       return true;
     });
+
+    const processoHorario = `${numeroNormalizado}|${l.data}|${l.horario}`;
+    if ((horariosPorProcesso.get(processoHorario) ?? 0) > 1) {
+      return {
+        ...l, processoId: processo?.id, processoNovo: !processo, reusNovos, estado: "conflito",
+        motivo: "A própria pauta contém mais de uma audiência deste processo na mesma data e horário.",
+      };
+    }
 
     const slot = chaveHorario(l.data, l.horario, l.tipo);
     if ((slotsArquivo.get(slot)?.size ?? 0) > 1) {
@@ -432,7 +468,16 @@ export function analisarPautaAudiencias(
       const exata = processo.audiencias.find((a) =>
         chaveAudiencia(processo.numero, a.data, a.horario ?? "", a.tipo) === chaveAudiencia(l.numero, l.data, l.horario, l.tipo),
       );
-      if (exata) return { ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
+      if (exata) {
+        const situacaoExistente = situacaoCanonica(exata.situacao) ?? exata.situacao;
+        if (situacaoExistente !== l.situacao) {
+          return {
+            ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "conflito",
+            motivo: `A audiência já existe, mas a situação diverge: sistema "${exata.situacao}" e pauta "${l.situacaoOriginal}".`,
+          };
+        }
+        return { ...l, processoId: processo.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
+      }
 
       const mesmoMomento = processo.audiencias.find((a) => a.data === l.data && (a.horario ?? "").slice(0, 5) === l.horario);
       if (mesmoMomento) {
@@ -478,6 +523,43 @@ export function analisarPautaAudiencias(
   };
 }
 
+async function enriquecerReusExistentes(processo: ProcessoCompleto, pessoas: PessoaPauta[]) {
+  let atualizados = 0;
+  for (const pessoa of pessoas) {
+    const cpfPauta = pessoa.cpf.replace(/\D/g, "");
+    if (!cpfPauta) continue;
+    const existente = processo.reus.find((r) =>
+      normNome(r.nome) === normNome(pessoa.nome) || cpfDeReu(r) === cpfPauta,
+    );
+    if (!existente || cpfDeReu(existente)) continue;
+
+    const observacaoCpf = `CPF: ${pessoa.cpf} — identificado na pauta de audiências do PJe.`;
+    const observacoes = existente.observacoes.trim()
+      ? `${existente.observacoes.trim()}\n${observacaoCpf}`
+      : observacaoCpf;
+    const bruto = (existente as Reu & { dados_planilha?: unknown }).dados_planilha;
+    const dadosExistentes =
+      bruto && typeof bruto === "object" && !Array.isArray(bruto)
+        ? bruto as Record<string, unknown>
+        : {};
+
+    const { error } = await supabase
+      .from("reus")
+      .update({
+        observacoes,
+        dados_planilha: {
+          ...dadosExistentes,
+          pauta_audiencia: { cpf: pessoa.cpf, papel: pessoa.papel },
+        },
+      })
+      .eq("id", existente.id);
+    if (error) throw error;
+    existente.observacoes = observacoes;
+    atualizados++;
+  }
+  return atualizados;
+}
+
 async function inserirReusAusentes(processo: ProcessoCompleto, pessoas: PessoaPauta[]) {
   const unicas = pessoas.filter((p, i, arr) =>
     arr.findIndex((x) => normNome(x.nome) === normNome(p.nome) || (!!x.cpf && !!p.cpf && x.cpf.replace(/\D/g, "") === p.cpf.replace(/\D/g, ""))) === i,
@@ -512,6 +594,7 @@ export async function executarImportacaoPauta(
 
   let processosCriados = 0;
   let reusCriados = 0;
+  let reusAtualizados = 0;
   const porNumero = new Map<string, LinhaPautaAudiencia[]>();
   for (const l of linhas) {
     const k = normalizarNumeroProcesso(l.numero);
@@ -567,7 +650,9 @@ export async function executarImportacaoPauta(
   for (const [numeroNormalizado, grupo] of porNumero) {
     const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
     if (!processo) throw new Error(`Processo ${grupo[0]!.numero} não encontrado após o cadastro.`);
-    const criados = await inserirReusAusentes(processo, grupo.flatMap((l) => l.reus));
+    const pessoas = grupo.flatMap((l) => l.reus);
+    reusAtualizados += await enriquecerReusExistentes(processo, pessoas);
+    const criados = await inserirReusAusentes(processo, pessoas);
     reusCriados += criados;
   }
 
@@ -639,6 +724,7 @@ export async function executarImportacaoPauta(
     processosCriados,
     processosReutilizados: new Set(linhas.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
     reusCriados,
+    reusAtualizados,
     audienciasCriadas,
     audienciasJaExistentes,
   };
