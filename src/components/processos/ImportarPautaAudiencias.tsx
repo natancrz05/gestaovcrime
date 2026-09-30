@@ -159,8 +159,9 @@ export function ImportarPautaAudiencias({
                 <FileCheck2 className="size-4" /> Pauta processada
               </p>
               <p className="mt-2 text-sm">
-                {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasJaExistentes} já existente(s),
-                {" "}{resultado.processosCriados} processo(s) novo(s), {resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s) com CPF da pauta.
+                {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasAtualizadas} audiência(s) manual(is) sincronizada(s),
+                {" "}{resultado.audienciasJaExistentes} já existente(s), {resultado.processosCriados} processo(s) novo(s),
+                {" "}{resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s) com CPF da pauta.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Processos já existentes foram reutilizados. Reprocessar o mesmo PDF não deve recriar as audiências já identificadas.
@@ -174,6 +175,7 @@ export function ImportarPautaAudiencias({
                 <Resumo rotulo="Linhas reconhecidas" valor={analise.total} />
                 <Resumo rotulo="Audiências novas" valor={analise.audienciasNovas} />
                 <Resumo rotulo="Audiências já cadastradas" valor={analise.audienciasExistentes} />
+                <Resumo rotulo="Audiências manuais a sincronizar" valor={analise.audienciasSincronizar} />
                 <Resumo rotulo="Réus a acrescentar" valor={analise.reusNovos} />
                 <Resumo rotulo="Processos novos" valor={analise.processosNovos} />
                 <Resumo rotulo="Processos já existentes" valor={analise.processosExistentes} />
@@ -231,7 +233,7 @@ export function ImportarPautaAudiencias({
                             {i.reus.map((r) => (
                               <div key={`${r.nome}-${r.cpf}`}>
                                 <span>{r.nome}</span>
-                                <span className="block text-[10px] text-muted-foreground">CPF: {r.cpf}</span>
+                                <span className="block text-[10px] text-muted-foreground">{r.cpf ? `CPF: ${r.cpf}` : "CPF não informado na pauta"}</span>
                               </div>
                             ))}
                           </div>
@@ -244,6 +246,8 @@ export function ImportarPautaAudiencias({
                             </span>
                           ) : i.estado === "ja-cadastrada" ? (
                             <span className="font-medium text-info">Já cadastrada — não duplicar</span>
+                          ) : i.estado === "sincronizar" ? (
+                            <span className="font-medium text-atencao">Audiência manual localizada — sincronizar com PJe</span>
                           ) : (
                             <span className="font-medium text-urgente">{i.motivo}</span>
                           )}
@@ -256,8 +260,8 @@ export function ImportarPautaAudiencias({
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                 <p className="max-w-2xl text-xs text-muted-foreground">
-                  A importação só é liberada quando todas as linhas estão legíveis e sem conflito de horário/finalidade.
-                  Audiências manuais equivalentes são reconhecidas como já cadastradas.
+                  A importação só é liberada quando todas as linhas estão legíveis e sem conflito real.
+                  Se já houver audiência manual no mesmo processo, data e horário, ela é reutilizada e sincronizada com os dados da pauta, sem duplicação.
                 </p>
                 <button className={BOTAO_PRIMARIO} disabled={bloqueada || importando || !!resultado} onClick={() => void importar()}>
                   <Upload className="size-4" /> {importando ? "Importando…" : "Importar pauta conferida"}
