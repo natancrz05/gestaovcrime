@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   baixarCSV, formatarValor, lerPlanilha, rotuloCampo,
-  type Analise, type LinhaProblema, type ResultadoSimulacao,
+  type Analise, type LinhaProblema, type LinhaValida, type ResultadoSimulacao,
 } from "@/lib/processos/importacao";
+import { adicionarReu, listarProcessosParaSelecao } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/importar")({
   beforeLoad: ({ context }) => {
@@ -46,6 +47,48 @@ interface Importacao {
 
 const dataHora = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
+const normalizarNome = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+
+async function enriquecerReus(linhas: LinhaValida[]) {
+  const processos = await listarProcessosParaSelecao();
+  const porNumero = new Map(processos.map((p) => [p.numero.replace(/\D/g, ""), p]));
+  let adicionados = 0;
+  let naoLocalizados = 0;
+
+  for (const linha of linhas) {
+    if (!linha.reusInferidos.length) continue;
+    const processo = porNumero.get(linha.numero.replace(/\D/g, ""));
+    if (!processo) {
+      naoLocalizados++;
+      continue;
+    }
+
+    const existentes = new Set(processo.reus.map((r) => normalizarNome(r.nome)));
+    let ordem = processo.reus.reduce((m, r) => Math.max(m, r.ordem), -1) + 1;
+
+    for (const nome of linha.reusInferidos) {
+      const chave = normalizarNome(nome);
+      if (!chave || existentes.has(chave)) continue;
+      await adicionarReu({
+        processo_id: processo.id,
+        nome,
+        situacao: "",
+        preso: false,
+        tipo_prisao: "Não preso",
+        data_prisao: null,
+        observacoes: "Réu identificado pela atualização do acervo PJe.",
+        ordem,
+      });
+      existentes.add(chave);
+      ordem++;
+      adicionados++;
+    }
+  }
+
+  return { adicionados, naoLocalizados };
+}
+
 function Pagina() {
   const sessao = useSessao();
   const qc = useQueryClient();
@@ -56,6 +99,7 @@ function Pagina() {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Importacao | null>(null);
+  const [enriquecimentoReus, setEnriquecimentoReus] = useState<{ adicionados: number; naoLocalizados: number } | null>(null);
   const [aberta, setAberta] = useState<Importacao | null>(null);
 
   const historico = useQuery({
@@ -82,7 +126,7 @@ function Pagina() {
 
   async function analisar() {
     if (!arquivo) return;
-    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null);
+    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null); setEnriquecimentoReus(null);
     try {
       const a = await lerPlanilha(arquivo);
       await simular(a, aplicarConflitos);
@@ -104,7 +148,7 @@ function Pagina() {
   }
 
   function cancelar() {
-    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false);
+    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false); setEnriquecimentoReus(null);
   }
 
   async function confirmar() {
@@ -122,10 +166,25 @@ function Pagina() {
       return;
     }
     const id = (data as { id: string }).id;
+
+    // O RPC atualiza os campos do processo. Em seguida, a camada inteligente do
+    // leitor completa apenas réus ausentes, sem apagar cadastros manuais.
+    let enriquecimento = { adicionados: 0, naoLocalizados: 0 };
+    try {
+      await qc.invalidateQueries({ queryKey: ["processos"] });
+      await qc.invalidateQueries({ queryKey: ["processos-seletor"] });
+      enriquecimento = await enriquecerReus(analise.validas);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "falha desconhecida";
+      setErro(`Os processos foram importados, mas houve falha ao completar alguns réus: ${msg}`);
+    }
+
     const { data: imp } = await supabase.from("importacoes").select("*").eq("id", id).single();
     setResultado(imp as unknown as Importacao);
+    setEnriquecimentoReus(enriquecimento);
     setAnalise(null); setSim(null); setArquivo(null);
     qc.invalidateQueries({ queryKey: ["processos"] });
+    qc.invalidateQueries({ queryKey: ["processos-seletor"] });
     qc.invalidateQueries({ queryKey: ["importacoes"] });
   }
 
@@ -142,11 +201,11 @@ function Pagina() {
       {!analise && !resultado && (
         <div className={`${CARTAO} space-y-3`}>
           <p className="text-sm text-muted-foreground">
-            As colunas são reconhecidas pelo nome (a ordem não importa). A coluna <strong>PROCESSO</strong> é obrigatória.
-            Nada é gravado antes da prévia e da sua confirmação.
+            O leitor aceita XLSX, XLS e ODS, procura automaticamente a aba correta e reconhece variações de cabeçalho.
+            A coluna de número do processo é obrigatória. Nada é gravado antes da prévia e da sua confirmação.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <input type="file" accept=".xlsx" aria-label="Arquivo XLSX" className="text-sm"
+            <input type="file" accept=".xlsx,.xls,.ods,application/vnd.oasis.opendocument.spreadsheet" aria-label="Planilha do acervo" className="text-sm"
               onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); setErro(""); }} />
             <button className={BOTAO} disabled={!arquivo || ocupado} onClick={analisar}>
               <FileSpreadsheet className="size-4" /> {ocupado ? "Analisando…" : "Analisar arquivo"}
@@ -166,6 +225,12 @@ function Pagina() {
         <div className={`${CARTAO} space-y-4`}>
           <h2 className="text-lg font-semibold">Importação #{resultado.numero} — {resultado.status}</h2>
           <Resumo imp={resultado} />
+          {enriquecimentoReus ? (
+            <p className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+              Leitura inteligente dos réus: <strong>{enriquecimentoReus.adicionados}</strong> réu(s) ausente(s) acrescentado(s) ao acervo.
+              {enriquecimentoReus.naoLocalizados ? ` ${enriquecimentoReus.naoLocalizados} processo(s) não puderam ser relocalizados para enriquecimento.` : ""}
+            </p>
+          ) : null}
           <ListaProblemas imp={resultado} />
           <button className={BOTAO_SEC} onClick={() => setResultado(null)}><Upload className="size-4" /> Nova importação</button>
         </div>
@@ -224,21 +289,36 @@ function Previa({ analise, sim, aplicarConflitos, onConflitos, ocupado, onCancel
       <div className={`${CARTAO} space-y-3`}>
         <h2 className="text-lg font-semibold">Prévia da importação — {arquivo}</h2>
         <p className="text-sm text-muted-foreground">Simulação: nenhuma alteração foi feita ainda.</p>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-9">
           <Numero n={analise.totalLinhas} r="Total de linhas" />
           <Numero n={sim.novos.length} r="Processos novos" />
           <Numero n={existentes} r="Processos existentes" />
           <Numero n={sim.atualizados.length} r="Serão atualizados" />
           <Numero n={sim.sem_alteracao} r="Sem alteração" />
-          <Numero n={analise.duplicados.length} r="Duplicidades (ignoradas)" />
+          <Numero n={analise.duplicados.length} r="Duplicidades conflitantes" />
+          <Numero n={analise.duplicadosConsolidados} r="Duplicidades consolidadas" />
           <Numero n={sim.conflitos.length} r="Conflitos" />
           <Numero n={analise.erros.length} r="Linhas com erro" />
         </div>
         <p className="text-xs text-muted-foreground">
-          Colunas reconhecidas: {analise.reconhecidas.join(", ")}.
-          {analise.naoReconhecidas.length ? ` Colunas ignoradas: ${analise.naoReconhecidas.join(", ")}.` : ""}
+          Aba utilizada: <strong>{analise.aba}</strong>. Colunas reconhecidas: {analise.reconhecidas.join(", ")}.
+          {analise.naoReconhecidas.length ? ` Colunas não utilizadas pelo sistema: ${analise.naoReconhecidas.join(", ")}.` : ""}
+          {` ${analise.reusInferidosTotal} ocorrência(s) de réu foram interpretadas para conferência/enriquecimento do acervo.`}
         </p>
       </div>
+
+      {analise.avisos.length > 0 && (
+        <div className={`${CARTAO} space-y-2 border-info/40`}>
+          <h3 className="font-semibold">Ajustes inteligentes da leitura {analise.avisos.length > 100 ? "(primeiros 100)" : ""}</h3>
+          <p className="text-xs text-muted-foreground">
+            São correções de interpretação, não erros. Ex.: parte institucional no polo REU ou inversão aparente entre AUTOR e REU no relatório do PJe.
+          </p>
+          <Tabela
+            cab={["Linha", "Processo", "Ajuste"]}
+            linhas={analise.avisos.slice(0, 100).map((a) => [a.linha, a.numero || "—", a.motivo])}
+          />
+        </div>
+      )}
 
       {sim.conflitos.length > 0 && (
         <div className={`${CARTAO} space-y-2 border-atencao/50`}>
