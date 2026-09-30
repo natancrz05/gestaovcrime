@@ -157,7 +157,7 @@ export function ImportarPautaAudiencias({
               </p>
               <p className="mt-2 text-sm">
                 {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasJaExistentes} já existente(s),
-                {" "}{resultado.processosCriados} processo(s) novo(s) e {resultado.reusCriados} réu(s) acrescentado(s).
+                {" "}{resultado.processosCriados} processo(s) novo(s), {resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s) com CPF da pauta.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Processos já existentes foram reutilizados. Reprocessar o mesmo PDF não deve recriar as audiências já identificadas.
