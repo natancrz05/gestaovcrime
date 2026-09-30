@@ -150,9 +150,11 @@ function extrairPessoas(texto: string): PessoaPauta[] {
     let trecho = limparTexto(m[1] ?? "");
     const papel = limparTexto(m[2] ?? "");
     trecho = trecho.replace(/^(?:(?:X|E)\s+|[,;]\s*)+/i, "").trim();
-    const cpf = trecho.match(/\bCPF\s*:\s*([0-9.\-]+)/i)?.[1] ?? "";
+    // Alguns PDFs quebram "CPF:" no limite entre as colunas. Por isso o número
+    // também é reconhecido sozinho, sem depender do rótulo ter ficado no mesmo bloco.
+    const cpf = trecho.match(/(?:\bCPF\s*:?\s*)?(\d{3}\.\d{3}\.\d{3}-\d{2})/i)?.[1] ?? "";
     const nome = trecho
-      .replace(/\s*-?\s*CPF\s*:\s*[0-9.\-]+\s*$/i, "")
+      .replace(/(?:\s*-?\s*CPF\s*:?\s*)?\d{3}\.\d{3}\.\d{3}-\d{2}/i, "")
       .replace(/^[-–—,;\s]+|[-–—,;\s]+$/g, "")
       .trim();
     if (!nome || nome === "X") continue;
