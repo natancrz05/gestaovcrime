@@ -150,11 +150,15 @@ function extrairPessoas(texto: string): PessoaPauta[] {
     let trecho = limparTexto(m[1] ?? "");
     const papel = limparTexto(m[2] ?? "");
     trecho = trecho.replace(/^(?:(?:X|E)\s+|[,;]\s*)+/i, "").trim();
-    // Alguns PDFs quebram "CPF:" no limite entre as colunas. Por isso o número
-    // também é reconhecido sozinho, sem depender do rótulo ter ficado no mesmo bloco.
-    const cpf = trecho.match(/(?:\bCPF\s*:?\s*)?(\d{3}\.\d{3}\.\d{3}-\d{2})/i)?.[1] ?? "";
+    // Alguns PDFs quebram "CPF:" ou os dois últimos dígitos entre linhas.
+    // A leitura aceita pontuação/espaços intermediários e normaliza para 000.000.000-00.
+    const cpfMatch = trecho.match(/(?:\bCPF\s*:?\s*)?(\d{3}\s*\.?\s*\d{3}\s*\.?\s*\d{3}\s*-?\s*\d{2})/i);
+    const cpfDigitos = cpfMatch?.[1]?.replace(/\D/g, "") ?? "";
+    const cpf = cpfDigitos.length === 11
+      ? `${cpfDigitos.slice(0, 3)}.${cpfDigitos.slice(3, 6)}.${cpfDigitos.slice(6, 9)}-${cpfDigitos.slice(9)}`
+      : "";
     const nome = trecho
-      .replace(/(?:\s*-?\s*CPF\s*:?\s*)?\d{3}\.\d{3}\.\d{3}-\d{2}/i, "")
+      .replace(cpfMatch?.[0] ?? "", "")
       .replace(/^[-–—,;\s]+|[-–—,;\s]+$/g, "")
       .trim();
     if (!nome || nome === "X") continue;
@@ -226,7 +230,12 @@ function limitesCabecalho(itens: ItemPdf[]): number[] | null {
   if (xs.some((x) => x === undefined)) return null;
   const n = xs as number[];
   for (let i = 1; i < n.length; i++) if (n[i]! <= n[i - 1]!) return null;
-  return n.slice(0, -1).map((x, i) => (x + n[i + 1]!) / 2);
+  const limites = n.slice(0, -1).map((x, i) => (x + n[i + 1]!) / 2);
+  // "Partes" é uma coluna larga e o texto pode chegar muito perto da borda direita.
+  // O meio entre os títulos Partes/Classe corta sobrenomes, CPF e o papel da parte.
+  // Usa a borda real aproximada da coluna, imediatamente antes do início de Classe.
+  limites[3] = n[4]! - 20;
+  return limites;
 }
 
 function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha?: LinhaPautaAudiencia; erro?: ProblemaPauta } {
