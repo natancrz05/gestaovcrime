@@ -14,6 +14,8 @@ export const TIPOS_AUDIENCIA = [
   "Audiência de custódia",
   "Audiência preliminar",
   "Audiência de instrução e julgamento",
+  "Audiência de depoimento especial",
+  "Audiência una",
   "Continuação de audiência",
   "Oitiva",
   "Tribunal do Júri",
@@ -34,6 +36,8 @@ export function tipoAudienciaCanonico(valor: string): string {
   if (/CUSTODIA/.test(t)) return "Audiência de custódia";
   if (/PRELIMINAR/.test(t)) return "Audiência preliminar";
   if (/INSTRUCAO(?: E JULGAMENTO)?/.test(t)) return "Audiência de instrução e julgamento";
+  if (/DEPOIMENTO ESPECIAL/.test(t)) return "Audiência de depoimento especial";
+  if (/^(?:AUDIENCIA )?UNA$/.test(t)) return "Audiência una";
   if (/CONTINUACAO/.test(t)) return "Continuação de audiência";
   if (/\bOITIVA\b/.test(t)) return "Oitiva";
   if (/TRIBUNAL DO JURI|\bJURI\b/.test(t)) return "Tribunal do Júri";
