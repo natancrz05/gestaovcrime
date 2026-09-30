@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { AlertTriangle, FileCheck2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
-import type { ProcessoCompleto } from "@/lib/processos/modelo";
 import {
   analisarPautaAudiencias,
   executarImportacaoPauta,
@@ -12,6 +11,7 @@ import {
   type ProblemaPauta,
   type ResultadoImportacaoPauta,
 } from "@/lib/processos/importacao-pauta-audiencias";
+import { listarProcessosCompletos } from "@/lib/processos/repositorio";
 
 const BOTAO =
   "inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60";
@@ -47,10 +47,8 @@ function Problemas({ titulo, itens }: { titulo: string; itens: ProblemaPauta[] }
 }
 
 export function ImportarPautaAudiencias({
-  processos,
   onConcluido,
 }: {
-  processos: ProcessoCompleto[];
   onConcluido: () => Promise<void> | void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -83,9 +81,10 @@ export function ImportarPautaAudiencias({
     setLendo(true);
     try {
       const leitura = await lerPautaAudiencias(arquivoSelecionado);
+      const acervoAtual = await listarProcessosCompletos();
       setLinhas(leitura.linhas);
       setErrosLeitura(leitura.erros);
-      setAnalise(analisarPautaAudiencias(leitura.linhas, processos, leitura.erros));
+      setAnalise(analisarPautaAudiencias(leitura.linhas, acervoAtual, leitura.erros));
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível ler a pauta.");
     } finally {
