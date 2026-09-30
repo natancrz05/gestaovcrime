@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
+import { ImportarPautaAudiencias } from "@/components/processos/ImportarPautaAudiencias";
 import { usePode } from "@/lib/sessao";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -103,9 +104,15 @@ function Pagina() {
   const [edicao, setEdicao] = useState<{ id?: string; valores: AudienciaEntrada } | null>(null);
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
+  const recarregarAcervo = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["processos"] }),
+      qc.invalidateQueries({ queryKey: ["processos-seletor"] }),
+    ]);
+  };
   const podeEditar = usePode("editar");
 
-  const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Instrução", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
+  const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Audiência de instrução e julgamento", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
   const editar = (a: AudienciaListada) => {
     setDetalhe(null);
     setEdicao({ id: a.id, valores: { processo_id: a.processo_id, tipo: a.tipo, data: a.data, horario: a.horario ? a.horario.slice(0, 5) : "", modalidade: a.modalidade, local: a.local, situacao: a.situacao, observacao: a.observacao, aguardando_nova_data: !!a.aguardando_nova_data } });
@@ -122,7 +129,12 @@ function Pagina() {
       <Cabecalho
         titulo="Audiências"
         subtitulo={`${prox.length} audiências futuras · ${todas.length} registradas`}
-        acao={podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button> : undefined}
+        acao={podeEditar ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <ImportarPautaAudiencias processos={processos} onConcluido={recarregarAcervo} />
+            <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button>
+          </div>
+        ) : undefined}
       />
 
       <CentralAudiencias
