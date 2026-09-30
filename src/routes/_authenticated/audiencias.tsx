@@ -129,7 +129,6 @@ function Pagina() {
         processos={processos}
         podeEditar={podeEditar}
         onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
-        onAdicionarManual={() => setEdicao({ valores: novo() })}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
@@ -528,7 +527,7 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
 
 /* ---------------- Central: processos aguardando marcação ---------------- */
 
-function CentralAudiencias({ processos, podeEditar, onMarcar, onAdicionarManual }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void; onAdicionarManual: () => void }) {
+function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void }) {
   const itens = useMemo(() => listarCentral(processos), [processos]);
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
@@ -552,10 +551,7 @@ function CentralAudiencias({ processos, podeEditar, onMarcar, onAdicionarManual 
         (digitos.length > 0 && i.processo.numero.replace(/\D/g, "").includes(digitos))),
   );
   return (
-    <Secao
-      titulo="Processos aguardando audiência"
-      acao={podeEditar ? <button className={BOTAO_SEC} onClick={onAdicionarManual}><Plus className="size-3.5" /> Adicionar audiência manualmente</button> : undefined}
-    >
+    <Secao titulo="Processos aguardando audiência">
       <p className="text-3xl font-semibold tabular-nums text-foreground" data-testid="total-aguardando">{itens.length}</p>
       <p className="mb-4 text-xs text-muted-foreground">Identificados pelo campo TAREFAS da planilha. Níveis contados pelos dias desde a última movimentação (DATA ULT MOV) — critério administrativo.</p>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
