@@ -15,7 +15,7 @@ import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto, Reu } from "./modelo";
 import { listarProcessosCompletos, criarProcesso, salvarAudiencia, type NovoProcessoEntrada } from "./repositorio";
-import { tipoAudienciaCanonico } from "./audiencias";
+import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -238,6 +238,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   const classe = limparClasse(colunas.classe.join(" "));
   const tipoOriginal = limparTexto(colunas.tipo.join(" ")).replace(/[.\s]+$/g, "").trim();
   const tipo = tipoAudienciaCanonico(tipoOriginal);
+  const tipoReconhecido = (TIPOS_AUDIENCIA as readonly string[]).includes(tipo);
   const salaOriginal = limparTexto(colunas.sala.join(" "));
   const situacaoOriginal = limparTexto(colunas.situacao.join(" "));
   const situacao = situacaoCanonica(situacaoOriginal);
@@ -250,7 +251,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   if (!/^\d{2}:\d{2}$/.test(horario)) faltas.push("horário inválido");
   if (digitos.length !== 20) faltas.push("número CNJ inválido");
   if (!classe) faltas.push("classe não identificada");
-  if (!tipoOriginal || !tipo) faltas.push("tipo de audiência não identificado");
+  if (!tipoOriginal || !tipoReconhecido) faltas.push(`tipo de audiência não reconhecido ("${tipoOriginal || "vazio"}")`);
   if (!situacao) faltas.push(`situação não reconhecida ("${situacaoOriginal || "vazia"}")`);
   if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
@@ -284,10 +285,13 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
   for (let pagina = 1; pagina <= pdf.numPages; pagina++) {
     const p = await pdf.getPage(pagina);
     const conteudo = await p.getTextContent();
-    const itens: ItemPdf[] = conteudo.items
-      .filter((i): i is typeof i & { str: string; transform: number[] } => "str" in i && "transform" in i)
-      .map((i) => ({ str: i.str.trim(), x: Number(i.transform[4]), y: Number(i.transform[5]) }))
-      .filter((i) => i.str);
+    const itens: ItemPdf[] = conteudo.items.flatMap((item) => {
+      if (!("str" in item) || !("transform" in item)) return [];
+      const str = String(item.str ?? "").trim();
+      const transform = item.transform as number[];
+      if (!str || !Array.isArray(transform)) return [];
+      return [{ str, x: Number(transform[4]), y: Number(transform[5]) }];
+    });
 
     const limites = limitesCabecalho(itens);
     if (!limites) {
@@ -338,13 +342,7 @@ export function analisarPautaAudiencias(
     processosPorNumero.set(k, [...(processosPorNumero.get(k) ?? []), p]);
   }
 
-  const repetidos = new Map<string, number>();
-  for (const l of linhas) {
-    const k = chaveAudiencia(l.numero, l.data, l.horario, l.tipo);
-    repetidos.set(k, (repetidos.get(k) ?? 0) + 1);
-  }
-
-  const primeiraPorChave = new Set<string>();
+   const primeiraPorChave = new Set<string>();
   const linhasUnicas: LinhaPautaAudiencia[] = [];
   for (const l of linhas) {
     const k = chaveAudiencia(l.numero, l.data, l.horario, l.tipo);
@@ -468,9 +466,12 @@ async function inserirReusAusentes(processo: ProcessoCompleto, pessoas: PessoaPa
   return novos.length;
 }
 
-export async function executarImportacaoPauta(linhas: LinhaPautaAudiencia[]): Promise<ResultadoImportacaoPauta> {
+export async function executarImportacaoPauta(
+  linhas: LinhaPautaAudiencia[],
+  errosLeitura: ProblemaPauta[] = [],
+): Promise<ResultadoImportacaoPauta> {
   let processos = await listarProcessosCompletos();
-  let analise = analisarPautaAudiencias(linhas, processos);
+  let analise = analisarPautaAudiencias(linhas, processos, errosLeitura);
   if (analise.erros.length || analise.conflitos) {
     throw new Error("A pauta possui erros ou conflitos. Nenhuma nova audiência foi importada.");
   }
