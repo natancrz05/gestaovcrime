@@ -46,18 +46,18 @@ export interface LinhaPautaAudiencia {
 
 export interface ProblemaPauta {
   pagina: number;
-  numero?: string;
+  numero?: string | undefined;
   motivo: string;
 }
 
 export type EstadoImportacaoPauta = "nova" | "ja-cadastrada" | "conflito";
 
 export interface ItemAnalisePauta extends LinhaPautaAudiencia {
-  processoId?: string;
+  processoId?: string | undefined;
   processoNovo: boolean;
   reusNovos: PessoaPauta[];
   estado: EstadoImportacaoPauta;
-  motivo?: string;
+  motivo?: string | undefined;
 }
 
 export interface AnalisePautaAudiencias {
@@ -175,7 +175,7 @@ function cpfDeReu(r: Reu): string {
   const obs = r.observacoes?.match(/\bCPF\s*:\s*([0-9.\-]+)/i)?.[1];
   if (obs) return obs.replace(/\D/g, "");
   const dados = (r as Reu & { dados_planilha?: Record<string, unknown> }).dados_planilha;
-  const cpf = dados && typeof dados.cpf === "string" ? dados.cpf : "";
+  const cpf = dados && typeof dados["cpf"] === "string" ? dados["cpf"] : "";
   return cpf.replace(/\D/g, "");
 }
 
@@ -284,12 +284,14 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
 
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
-  let pdf;
-  try {
-    pdf = await pdfjs.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) }).promise;
-  } catch {
-    throw new Error("Não foi possível abrir o PDF. O arquivo pode estar corrompido ou protegido.");
-  }
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const pdf = await (async () => {
+    try {
+      return await pdfjs.getDocument({ data: bytes }).promise;
+    } catch {
+      throw new Error("Não foi possível abrir o PDF. O arquivo pode estar corrompido ou protegido.");
+    }
+  })();
 
   const linhas: LinhaPautaAudiencia[] = [];
   const erros: ProblemaPauta[] = [];
@@ -386,6 +388,7 @@ export function analisarPautaAudiencias(
     slotsArquivo.set(k, numeros);
   }
 
+  const reusNovosVistos = new Set<string>();
   const itens: ItemAnalisePauta[] = linhasUnicas.map((l) => {
     const numeroNormalizado = normalizarNumeroProcesso(l.numero);
     const candidatos = processosPorNumero.get(numeroNormalizado) ?? [];
@@ -396,7 +399,14 @@ export function analisarPautaAudiencias(
       };
     }
     const processo = candidatos[0];
-    const reusNovos = processo ? l.reus.filter((r) => !reuJaExiste(processo.reus, r)) : l.reus;
+    const candidatosReusNovos = processo ? l.reus.filter((r) => !reuJaExiste(processo.reus, r)) : l.reus;
+    const reusNovos = candidatosReusNovos.filter((r) => {
+      const identidade = r.cpf.replace(/\D/g, "") || normNome(r.nome);
+      const chave = `${numeroNormalizado}|${identidade}`;
+      if (reusNovosVistos.has(chave)) return false;
+      reusNovosVistos.add(chave);
+      return true;
+    });
 
     const slot = chaveHorario(l.data, l.horario, l.tipo);
     if ((slotsArquivo.get(slot)?.size ?? 0) > 1) {
@@ -545,9 +555,8 @@ export async function executarImportacaoPauta(
   for (const [numeroNormalizado, grupo] of porNumero) {
     const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
     if (!processo) throw new Error(`Processo ${grupo[0]!.numero} não encontrado após o cadastro.`);
-    const antes = processo.reus.length;
     const criados = await inserirReusAusentes(processo, grupo.flatMap((l) => l.reus));
-    if (antes > 0 || criados > 0) reusCriados += criados;
+    reusCriados += criados;
   }
 
   // Reanalisa imediatamente antes das audiências para capturar qualquer alteração concorrente.
@@ -558,10 +567,35 @@ export async function executarImportacaoPauta(
   }
 
   let audienciasCriadas = 0;
+  let audienciasJaExistentes = analise.audienciasExistentes;
   for (const item of analise.itens) {
     if (item.estado !== "nova") continue;
     const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === normalizarNumeroProcesso(item.numero));
     if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
+
+    // Última trava imediatamente antes da gravação. Evita que uma audiência criada
+    // por outro usuário entre a prévia e o clique de importar gere duplicidade/choque.
+    const { data: ocupadas, error: ocupadasError } = await supabase
+      .from("audiencias")
+      .select("processo_id, tipo")
+      .eq("data", item.data)
+      .eq("horario", item.horario);
+    if (ocupadasError) throw ocupadasError;
+
+    const mesmaFinalidade = (ocupadas ?? []).filter((a) =>
+      norm(tipoAudienciaCanonico(a.tipo)) === norm(tipoAudienciaCanonico(item.tipo)),
+    );
+    if (mesmaFinalidade.some((a) => a.processo_id === processo.id)) {
+      audienciasJaExistentes++;
+      continue;
+    }
+    if (mesmaFinalidade.length) {
+      throw new Error(`Surgiu outra audiência com a mesma finalidade em ${item.data} às ${item.horario}. A linha ${item.numero} não foi duplicada.`);
+    }
+    if ((ocupadas ?? []).some((a) => a.processo_id === processo.id)) {
+      throw new Error(`O processo ${item.numero} passou a possuir outra audiência em ${item.data} às ${item.horario}. Revise a pauta.`);
+    }
+
     await salvarAudiencia({
       processo_id: processo.id,
       tipo: item.tipo,
@@ -594,6 +628,6 @@ export async function executarImportacaoPauta(
     processosReutilizados: new Set(linhas.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
     reusCriados,
     audienciasCriadas,
-    audienciasJaExistentes: analise.audienciasExistentes,
+    audienciasJaExistentes,
   };
 }
