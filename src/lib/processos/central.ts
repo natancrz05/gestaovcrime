@@ -38,9 +38,11 @@ export interface ItemCentral {
 }
 
 export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral | null {
-  if (!tarefaIndicaAudiencia(p.pje_tarefas)) return null;
-  // Audiência cadastrada e pendente (Agendada/Redesignada/aguardando nova data) já está no fluxo operacional.
+  // Entra na Central tanto pelo fluxo importado (TAREFAS) quanto por audiência
+  // pendente cadastrada diretamente no sistema. Assim, uma marcação manual integra
+  // o mesmo fluxo operacional sem exigir alteração artificial de pje_tarefas.
   const pendente = p.audiencias.some((a) => a.situacao !== "Realizada" && a.situacao !== "Cancelada");
+  if (!tarefaIndicaAudiencia(p.pje_tarefas) && !pendente) return null;
   // Audiência Realizada após a informação da planilha: a espera foi atendida. Não reinicia contagem.
   const ref = p.pje_ultima_mov_data ?? "";
   const realizadaDepois = p.audiencias.some((a) => a.situacao === "Realizada" && (a.data_realizacao ?? a.data) >= ref);
