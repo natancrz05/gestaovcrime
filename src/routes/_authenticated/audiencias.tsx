@@ -372,7 +372,21 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
       <Campo rotulo="Data"><input type="date" className={CLASSE_CAMPO} value={v.data} onChange={(e) => setV({ ...v, data: e.target.value, aguardando_nova_data: false })} /></Campo>
       <Campo rotulo="Horário"><input type="time" className={CLASSE_CAMPO} value={v.horario ?? ""} onChange={(e) => setV({ ...v, horario: e.target.value })} /></Campo>
       <Campo rotulo="Modalidade"><select className={CLASSE_CAMPO} value={v.modalidade} onChange={(e) => setV({ ...v, modalidade: e.target.value })}><Opcoes valores={MODALIDADES} /></select></Campo>
-      <Campo rotulo="Local/sala"><input className={CLASSE_CAMPO} value={v.local} onChange={(e) => setV({ ...v, local: e.target.value })} /></Campo>
+      <Campo rotulo="Local/sala">
+        <input
+          className={CLASSE_CAMPO}
+          list="sugestoes-local-audiencia"
+          value={v.local}
+          onChange={(e) => setV({ ...v, local: e.target.value })}
+          placeholder="Informe a sala, local ou plataforma"
+        />
+        <datalist id="sugestoes-local-audiencia">
+          <option value="Sala de Audiências" />
+          <option value="Sala do Júri" />
+          <option value="Videoconferência" />
+          <option value="Outro" />
+        </datalist>
+      </Campo>
       <Campo rotulo="Situação"><select className={CLASSE_CAMPO} value={v.situacao} onChange={(e) => setV({ ...v, situacao: e.target.value })}><Opcoes valores={SITUACOES_AUDIENCIA} /></select></Campo>
       {v.situacao === "Redesignada" ? (
         <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3 text-sm md:col-span-3">
