@@ -98,8 +98,10 @@ export function ImportarPautaAudiencias({
     setErro("");
     try {
       const r = await executarImportacaoPauta(linhas, errosLeitura);
-      setResultado(r);
       await onConcluido();
+      const acervoAtual = await listarProcessosCompletos();
+      setAnalise(analisarPautaAudiencias(linhas, acervoAtual, errosLeitura));
+      setResultado(r);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível importar a pauta.");
     } finally {
@@ -116,6 +118,7 @@ export function ImportarPautaAudiencias({
     <Dialog
       open={aberto}
       onOpenChange={(v) => {
+        if (!v && (lendo || importando)) return;
         setAberto(v);
         if (!v) limpar();
       }}
