@@ -352,11 +352,27 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
       continue;
     }
 
+    // Conferência estrutural independente: cada linha da pauta também começa por
+    // um bloco CNJ (0000000-). Se as contagens divergirem, o leitor não arrisca
+    // importar uma pauta parcialmente reconhecida.
+    const iniciosProcesso = itens.filter(
+      (i) => colunaDe(i.x, limites) === "processo" && /^\d{7}-?$/.test(i.str.replace(/\s/g, "")),
+    );
+    if (iniciosProcesso.length !== inicios.length) {
+      erros.push({
+        pagina,
+        motivo: `A estrutura da página não foi reconhecida por completo: ${inicios.length} horário(s) e ${iniciosProcesso.length} início(s) de processo. A importação foi bloqueada.`,
+      });
+    }
+
     for (let n = 0; n < inicios.length; n++) {
       const inicio = inicios[n]!;
       const proximo = inicios[n + 1];
+      // Para a última linha da página, limita a altura para não absorver rodapé
+      // ou numeração de página como se fossem dados da audiência.
+      const limiteInferior = proximo ? proximo.y + 0.5 : inicio.y - 120;
       const itensLinha = itens
-        .filter((item) => item.y <= inicio.y + 2 && (!proximo || item.y > proximo.y + 0.5))
+        .filter((item) => item.y <= inicio.y + 2 && item.y > limiteInferior)
         .sort((a, b) => b.y - a.y || a.x - b.x);
       const colunas: Record<Coluna, string[]> = {
         data: [], processo: [], orgao: [], partes: [], classe: [], tipo: [], sala: [], situacao: [],
@@ -389,7 +405,7 @@ export function analisarPautaAudiencias(
     processosPorNumero.set(k, [...(processosPorNumero.get(k) ?? []), p]);
   }
 
-   const primeiraPorChave = new Set<string>();
+  const primeiraPorChave = new Set<string>();
   const linhasUnicas: LinhaPautaAudiencia[] = [];
   for (const l of linhas) {
     const k = chaveAudiencia(l.numero, l.data, l.horario, l.tipo);
@@ -442,6 +458,15 @@ export function analisarPautaAudiencias(
     }
     const processo = candidatos[0];
     if (processo) {
+      const classeSistema = norm(processo.classe ?? "");
+      const classePauta = norm(l.classe);
+      if (classeSistema && classePauta && classeSistema !== classePauta) {
+        return {
+          ...l, processoId: processo.id, processoNovo: false, reusNovos: [], estado: "conflito",
+          motivo: `O processo já existe, mas a classe diverge: sistema "${processo.classe}" e pauta "${l.classe}".`,
+        };
+      }
+
       const conflitoReu = l.reus.map((p) => conflitoIdentidadeReu(processo.reus, p)).find(Boolean);
       if (conflitoReu) {
         return {
