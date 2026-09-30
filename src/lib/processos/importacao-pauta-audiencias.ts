@@ -219,7 +219,7 @@ function limitesCabecalho(itens: ItemPdf[]): number[] | null {
     achar(/^ORGAO/),
     achar(/^PARTES$/),
     achar(/^CLASSE$/),
-    achar(/^TIPO(?: DE)?$/),
+    achar(/^TIPO\b/),
     achar(/^SALA$/),
     achar(/^SITUACAO$/),
   ];
@@ -314,8 +314,8 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
     }
 
     const inicios = itens
-      .map((i, indice) => ({ i, indice }))
-      .filter(({ i }) => colunaDe(i.x, limites) === "data" && /^\d{2}\/\d{2}\/(?:\d{2}|\d{4})(?:\s+\d{2}:\d{2})?$/.test(i.str));
+      .filter((i) => colunaDe(i.x, limites) === "data" && /^\d{2}\/\d{2}\/(?:\d{2}|\d{4})(?:\s+\d{2}:\d{2})?$/.test(i.str))
+      .sort((a, b) => b.y - a.y);
 
     if (!inicios.length) {
       erros.push({ pagina, motivo: "Nenhuma linha de audiência foi encontrada nesta página." });
@@ -323,12 +323,15 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
     }
 
     for (let n = 0; n < inicios.length; n++) {
-      const inicio = inicios[n]!.indice;
-      const fim = n + 1 < inicios.length ? inicios[n + 1]!.indice : itens.length;
+      const inicio = inicios[n]!;
+      const proximo = inicios[n + 1];
+      const itensLinha = itens
+        .filter((item) => item.y <= inicio.y + 2 && (!proximo || item.y > proximo.y + 0.5))
+        .sort((a, b) => b.y - a.y || a.x - b.x);
       const colunas: Record<Coluna, string[]> = {
         data: [], processo: [], orgao: [], partes: [], classe: [], tipo: [], sala: [], situacao: [],
       };
-      for (const item of itens.slice(inicio, fim)) {
+      for (const item of itensLinha) {
         const coluna = colunaDe(item.x, limites);
         colunas[coluna].push(item.str);
       }
