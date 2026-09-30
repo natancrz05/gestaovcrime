@@ -551,7 +551,7 @@ async function enriquecerReusExistentes(processo: ProcessoCompleto, pessoas: Pes
           ...dadosExistentes,
           pauta_audiencia: { cpf: pessoa.cpf, papel: pessoa.papel },
         },
-      })
+      } as never)
       .eq("id", existente.id);
     if (error) throw error;
     existente.observacoes = observacoes;
