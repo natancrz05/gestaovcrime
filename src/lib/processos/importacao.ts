@@ -244,7 +244,7 @@ function inferirReus(classe: string, autorBruto: string, reuBruto: string) {
     return true;
   });
 
-  return { nomes, avisos };
+  return { nomes, avisos, institucionaisIgnorados: reusInstitucionais };
 }
 
 export interface LinhaValida {
@@ -252,6 +252,7 @@ export interface LinhaValida {
   numero: string;
   campos: Record<string, string>;
   reusInferidos: string[];
+  partesInstitucionaisIgnoradas: string[];
   avisos: string[];
 }
 export interface LinhaProblema { linha: number; numero: string; motivo: string }
@@ -336,6 +337,7 @@ function consolidarDuplicados(validas: LinhaValida[]) {
       ...base,
       campos: { ...base.campos },
       reusInferidos: [],
+      partesInstitucionaisIgnoradas: [],
       avisos: [...base.avisos, `linhas duplicadas consolidadas automaticamente: ${grupo.map((g) => g.linha).join(", ")}`],
     };
 
@@ -361,6 +363,14 @@ function consolidarDuplicados(validas: LinhaValida[]) {
       const k = normPessoa(n);
       if (!k || vistosReus.has(k)) return false;
       vistosReus.add(k);
+      return true;
+    });
+
+    const vistosInstitucionais = new Set<string>();
+    merged.partesInstitucionaisIgnoradas = grupo.flatMap((g) => g.partesInstitucionaisIgnoradas).filter((n) => {
+      const k = normPessoa(n);
+      if (!k || vistosInstitucionais.has(k)) return false;
+      vistosInstitucionais.add(k);
       return true;
     });
 
@@ -471,6 +481,7 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
       numero,
       campos,
       reusInferidos: inferencia.nomes,
+      partesInstitucionaisIgnoradas: inferencia.institucionaisIgnorados,
       avisos: linhaAvisos,
     });
   });
