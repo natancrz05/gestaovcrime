@@ -11,13 +11,13 @@ import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
-import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
   SITUACOES_COMP,
   comparecimentosQuery,
@@ -211,10 +211,8 @@ function Pagina() {
                             )}
                             {etiquetas.length ? (
                               <div className="mt-1 flex flex-wrap gap-1">
-                                {etiquetas.map((e: EtiquetaDoProcesso) => (
-                                  <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                                    {e.nome}
-                                  </Etiqueta>
+                                {etiquetas.map((e) => (
+                                  <EtiquetaProcesso key={e.id} processoId={processoEtiquetaId!} etiqueta={e} />
                                 ))}
                               </div>
                             ) : null}
@@ -247,10 +245,8 @@ function Pagina() {
                 const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
                 return etiquetas.length ? (
                   <div className="flex flex-wrap gap-1">
-                    {etiquetas.map((e: EtiquetaDoProcesso) => (
-                      <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                        {e.nome}
-                      </Etiqueta>
+                    {etiquetas.map((e) => (
+                      <EtiquetaProcesso key={e.id} processoId={processoEtiquetaId!} etiqueta={e} />
                     ))}
                   </div>
                 ) : null;
