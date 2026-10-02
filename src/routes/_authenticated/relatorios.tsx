@@ -12,9 +12,10 @@ import {
   Timer,
 } from "lucide-react";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { pode } from "@/lib/permissoes";
-import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
 import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
@@ -149,7 +150,7 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
   const processoIds = useMemo(() => [...new Set(processos.map((p) => p.id))], [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const etiquetasDo = (processoId: string) =>
-    (etiquetasPorProcesso[processoId] ?? []).map((e: EtiquetaDoProcesso) => e.nome).join(" · ") || "—";
+    (etiquetasPorProcesso[processoId] ?? []).map((e) => e.nome).join(" · ") || "—";
 
   let filtros: ReactNode = null;
   let colunas: string[] = [];
@@ -300,6 +301,14 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
                     <td key={i} className={cn("px-3 py-2", l.destaque === "atencao" && i === l.celulas.length - 1 && "font-semibold text-atencao")}>
                       {i === colunas.indexOf("Processo") && l.processoId ? (
                         <Link to="/processos/$id" params={{ id: l.processoId }} className="font-medium text-primary hover:underline">{c}</Link>
+                      ) : colunas[i] === "Etiquetas" && l.processoId ? (
+                        (etiquetasPorProcesso[l.processoId] ?? []).length ? (
+                          <div className="flex flex-wrap gap-1">
+                            {(etiquetasPorProcesso[l.processoId] ?? []).map((e) => (
+                              <EtiquetaProcesso key={e.id} processoId={l.processoId!} etiqueta={e} />
+                            ))}
+                          </div>
+                        ) : "—"
                       ) : c}
                     </td>
                   ))}
