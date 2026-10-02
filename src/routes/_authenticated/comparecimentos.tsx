@@ -62,8 +62,30 @@ function Pagina() {
   const ativos = lista.filter((c) => c.situacao !== "Encerrado");
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
-  const processoIds = useMemo(() => [...new Set(lista.map((c) => c.processo_id).filter((id): id is string => Boolean(id)))], [lista]);
+  // Consulta as etiquetas pelo acervo completo e resolve também comparecimentos
+  // antigos que têm número do processo, mas ficaram sem processo_id vinculado.
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
+  const processoPorNumero = useMemo(() => {
+    const mapa = new Map<string, string[]>();
+    for (const p of processos) {
+      const numero = p.numero.replace(/\D/g, "");
+      if (!numero) continue;
+      mapa.set(numero, [...(mapa.get(numero) ?? []), p.id]);
+    }
+    return mapa;
+  }, [processos]);
+  const processoIdParaEtiquetas = (c: ComparecimentoListado) => {
+    if (c.processo_id) return c.processo_id;
+    const candidatos = [
+      c.numero,
+      ...(c.numeros_informados ?? []),
+    ]
+      .map((n) => String(n ?? "").replace(/\D/g, ""))
+      .filter(Boolean);
+    const ids = [...new Set(candidatos.flatMap((n) => processoPorNumero.get(n) ?? []))];
+    return ids.length === 1 ? ids[0] : null;
+  };
   const porSituacao = filtro ? ativos.filter((c) => c.status === filtro) : lista;
   const exibidos = useMemo(() => {
     const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -173,7 +195,33 @@ function Pagina() {
                         ) : null}
                       </span>
                     ) : null}</td>
-                    <td className="break-words px-2 py-2">{c.processo_id ? <><span className="numero-processo">{c.numero}</span>{etiquetasPorProcesso[c.processo_id]?.length ? <div className="mt-1 flex flex-wrap gap-1">{etiquetasPorProcesso[c.processo_id].map((e: EtiquetaDoProcesso) => <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>)}</div> : null}</> : <>Não vinculado{c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}</>}</td>
+                    <td className="break-words px-2 py-2">
+                      {(() => {
+                        const processoEtiquetaId = processoIdParaEtiquetas(c);
+                        const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
+                        return (
+                          <>
+                            {c.processo_id ? (
+                              <span className="numero-processo">{c.numero}</span>
+                            ) : (
+                              <>
+                                Não vinculado
+                                {c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
+                              </>
+                            )}
+                            {etiquetas.length ? (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {etiquetas.map((e: EtiquetaDoProcesso) => (
+                                  <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                                    {e.nome}
+                                  </Etiqueta>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
                     <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
                     <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
@@ -194,6 +242,19 @@ function Pagina() {
           {detalhe ? (
             <div className="space-y-4 text-sm">
               <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
+              {(() => {
+                const processoEtiquetaId = processoIdParaEtiquetas(detalhe);
+                const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
+                return etiquetas.length ? (
+                  <div className="flex flex-wrap gap-1">
+                    {etiquetas.map((e: EtiquetaDoProcesso) => (
+                      <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                        {e.nome}
+                      </Etiqueta>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
               <dl className="grid grid-cols-2 gap-3">
                 {[["Processo", detalhe.numero], ["Data de início", formatarData(detalhe.data_inicio)], ["Periodicidade", detalhe.periodicidade === "Personalizado" ? `Personalizado — a cada ${detalhe.intervalo_meses} ${detalhe.intervalo_meses === 1 ? "mês" : "meses"}` : detalhe.periodicidade], ["Cadastro", detalhe.situacao]].map(([k, v]) => (
                   <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
