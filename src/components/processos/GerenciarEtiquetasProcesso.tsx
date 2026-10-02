@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
@@ -7,6 +7,7 @@ import {
   adicionarEtiquetaAoProcesso,
   etiquetasQuery,
   removerEtiquetaDoProcesso,
+  salvarEtiqueta,
   type EtiquetaDoProcesso,
 } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
@@ -29,6 +30,8 @@ export function GerenciarEtiquetasProcesso({
   const [etiquetaId, setEtiquetaId] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [criando, setCriando] = useState(false);
+  const [novaEtiqueta, setNovaEtiqueta] = useState({ nome: "", cor: "default", favorita: false });
 
   const { data: etiquetas = [], isLoading } = useQuery({
     ...etiquetasQuery(),
@@ -43,6 +46,8 @@ export function GerenciarEtiquetasProcesso({
   const abrir = () => {
     setErro("");
     setEtiquetaId("");
+    setCriando(false);
+    setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
     setAberto(true);
   };
 
@@ -76,6 +81,30 @@ export function GerenciarEtiquetasProcesso({
       setAberto(false);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível adicionar a etiqueta.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+  async function criarEAdicionar() {
+    if (!novaEtiqueta.nome.trim()) {
+      setErro("Informe o nome da nova etiqueta.");
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    try {
+      const novaId = await salvarEtiqueta(novaEtiqueta);
+      await adicionarEtiquetaAoProcesso(processoId, novaId);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["etiquetas"] }),
+        qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
+        qc.invalidateQueries({ queryKey: ["processos", processoId, "etiquetas"] }),
+      ]);
+      setCriando(false);
+      setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
+      setAberto(false);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível criar a etiqueta.");
     } finally {
       setSalvando(false);
     }
@@ -121,35 +150,112 @@ export function GerenciarEtiquetasProcesso({
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando etiquetas…</p>
-          ) : disponiveis.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Não há outras etiquetas disponíveis para adicionar a este processo.
-            </p>
           ) : (
             <div className="space-y-4">
-              <Campo rotulo="Adicionar etiqueta">
-                <select
-                  className={CLASSE_CAMPO}
-                  value={etiquetaId}
-                  onChange={(e) => setEtiquetaId(e.target.value)}
-                >
-                  <option value="">Selecione uma etiqueta</option>
-                  {disponiveis.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nome}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
+              {!criando ? (
+                <>
+                  {disponiveis.length > 0 ? (
+                    <Campo rotulo="Adicionar etiqueta existente">
+                      <select
+                        className={CLASSE_CAMPO}
+                        value={etiquetaId}
+                        onChange={(e) => setEtiquetaId(e.target.value)}
+                      >
+                        <option value="">Selecione uma etiqueta</option>
+                        {disponiveis.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Não há outras etiquetas existentes para adicionar a este processo.
+                    </p>
+                  )}
 
-              <div className="flex justify-end gap-2">
-                <button type="button" className={BOTAO_SEC} onClick={() => setAberto(false)}>
-                  Cancelar
-                </button>
-                <button type="button" className={BOTAO} disabled={salvando} onClick={salvar}>
-                  {salvando ? "Adicionando…" : "Adicionar"}
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                    onClick={() => {
+                      setErro("");
+                      setCriando(true);
+                      setEtiquetaId("");
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    Criar nova etiqueta
+                  </button>
+
+                  <div className="flex justify-end gap-2">
+                    <button type="button" className={BOTAO_SEC} onClick={() => setAberto(false)}>
+                      Cancelar
+                    </button>
+                    {disponiveis.length > 0 ? (
+                      <button type="button" className={BOTAO} disabled={salvando || !etiquetaId} onClick={salvar}>
+                        {salvando ? "Adicionando…" : "Adicionar"}
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-sm font-semibold">Nova etiqueta</p>
+                  <Campo rotulo="Nome">
+                    <input
+                      autoFocus
+                      className={CLASSE_CAMPO}
+                      value={novaEtiqueta.nome}
+                      onChange={(e) => setNovaEtiqueta({ ...novaEtiqueta, nome: e.target.value })}
+                      placeholder="Ex.: Urgente, conferir mídia, réu preso"
+                    />
+                  </Campo>
+                  <Campo rotulo="Cor">
+                    <select
+                      className={CLASSE_CAMPO}
+                      value={novaEtiqueta.cor}
+                      onChange={(e) => setNovaEtiqueta({ ...novaEtiqueta, cor: e.target.value })}
+                    >
+                      <option value="default">Padrão</option>
+                      <option value="urgente">Urgente</option>
+                      <option value="alerta">Alerta</option>
+                      <option value="concluido">Concluído</option>
+                    </select>
+                  </Campo>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={novaEtiqueta.favorita}
+                      onChange={(e) => setNovaEtiqueta({ ...novaEtiqueta, favorita: e.target.checked })}
+                    />
+                    Usar como etiqueta favorita
+                  </label>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      className={BOTAO_SEC}
+                      disabled={salvando}
+                      onClick={() => {
+                        setErro("");
+                        setCriando(false);
+                        setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
+                      }}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      className={BOTAO}
+                      disabled={salvando || !novaEtiqueta.nome.trim()}
+                      onClick={() => void criarEAdicionar()}
+                    >
+                      {salvando ? "Criando…" : "Criar e adicionar"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
