@@ -180,7 +180,7 @@ function Pagina() {
                       {etiquetasPorProcesso[a.processo_id]?.length ? (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {etiquetasPorProcesso[a.processo_id].map((e: EtiquetaDoProcesso) => (
-                            <Etiqueta key={e.id} severidade="info">{e.nome}</Etiqueta>
+                            <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>
                           ))}
                         </div>
                       ) : null}
