@@ -245,15 +245,60 @@ export function rotuloFluxo(p: ProcessoCompleto): string {
   return t || fx.fluxo;
 }
 
-/** Arquivo provisório ou arquivamento definitivo suspendem a contagem de dias parado. */
+/**
+ * Suspensão genérica usada por fluxos específicos (ex.: Central de Audiências).
+ * Mantida restrita a arquivo provisório/definitivo para não alterar, por efeito
+ * colateral, regras de outros módulos.
+ */
 export function contagemSuspensa(p: ProcessoCompleto): boolean {
   const x = fluxoAtual(p).fluxo;
   return x === "ARQUIVO PROVISÓRIO" || x === "ARQUIVADO DEFINITIVAMENTE";
 }
 
-/** "X dias sem movimentação". Null em arquivo provisório/definitivo (a data fica preservada). */
+export type MotivoPausa100Dias =
+  | "Arquivo provisório"
+  | "Arquivado definitivamente"
+  | "Processo suspenso — aguardar"
+  | "Aguardando instância superior";
+
+export interface EstadoContagem100Dias {
+  pausada: boolean;
+  motivo: MotivoPausa100Dias | null;
+}
+
+/**
+ * Define se o processo deve participar do ALERTA administrativo de +100 dias.
+ *
+ * Importante: esta função NÃO altera os dias reais sem movimentação. Ela apenas
+ * decide se esse tempo deve gerar alerta de gestão para a serventia.
+ *
+ * A identificação das tarefas de espera é conservadora e exige que a tarefa do
+ * PJe corresponda ao fluxo de espera conhecido. Assim, uma tarefa composta com
+ * "ANALISAR", "REMETER", "EXPEDIR" etc. continua em contagem.
+ */
+export function estadoContagem100Dias(p: ProcessoCompleto): EstadoContagem100Dias {
+  const fluxo = fluxoAtual(p).fluxo;
+  if (fluxo === "ARQUIVO PROVISÓRIO") return { pausada: true, motivo: "Arquivo provisório" };
+  if (fluxo === "ARQUIVADO DEFINITIVAMENTE") return { pausada: true, motivo: "Arquivado definitivamente" };
+
+  const tarefa = norm(p.pje_tarefas)
+    .replace(/^\((CR|TJBA)\)\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/^PROCESSOS? SUSPENSOS?\s*-\s*AGUARDAR$/.test(tarefa)) {
+    return { pausada: true, motivo: "Processo suspenso — aguardar" };
+  }
+
+  if (/^AGUARDANDO APRECIACAO PELA INSTANCIA SUPERIOR(?:\s*-\s*RECURSAIS)?$/.test(tarefa)) {
+    return { pausada: true, motivo: "Aguardando instância superior" };
+  }
+
+  return { pausada: false, motivo: null };
+}
+
+/** Dias corridos reais desde a última movimentação, independentemente do fluxo. */
 export function diasSemMovimentacao(p: ProcessoCompleto, hoje = hojeISO()): number | null {
-  if (contagemSuspensa(p)) return null;
   const u = ultimaMovimentacao(p);
   return u ? diasEntre(u.data, hoje) : null;
 }
