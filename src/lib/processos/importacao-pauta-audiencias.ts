@@ -189,10 +189,6 @@ function chaveAudiencia(numero: string, data: string, horario: string, tipo: str
   return `${normalizarNumeroProcesso(numero)}|${data}|${horario.slice(0, 5)}|${norm(tipoAudienciaCanonico(tipo))}`;
 }
 
-function chaveHorario(data: string, horario: string, tipo: string) {
-  return `${data}|${horario.slice(0, 5)}|${norm(tipoAudienciaCanonico(tipo))}`;
-}
-
 function cpfDeReu(r: Reu): string {
   const obs = r.observacoes?.match(/\bCPF\s*:\s*([0-9.\-]+)/i)?.[1];
   if (obs) return obs.replace(/\D/g, "");
@@ -446,14 +442,11 @@ export function analisarPautaAudiencias(
     if (set.size > 1) erros.push({ numero: formatarNumeroCnj(numero), pagina: 0, motivo: "O mesmo processo aparece com classes diferentes na pauta." });
   }
 
-  const slotsArquivo = new Map<string, Set<string>>();
+  // O conflito de horário é avaliado apenas dentro do mesmo processo.
+  // Processos diferentes podem legitimamente ter audiências simultâneas,
+  // inclusive com a mesma finalidade.
   const horariosPorProcesso = new Map<string, number>();
   for (const l of linhasUnicas) {
-    const k = chaveHorario(l.data, l.horario, l.tipo);
-    const numeros = slotsArquivo.get(k) ?? new Set<string>();
-    numeros.add(normalizarNumeroProcesso(l.numero));
-    slotsArquivo.set(k, numeros);
-
     const processoHorario = `${normalizarNumeroProcesso(l.numero)}|${l.data}|${l.horario}`;
     horariosPorProcesso.set(processoHorario, (horariosPorProcesso.get(processoHorario) ?? 0) + 1);
   }
@@ -508,14 +501,6 @@ export function analisarPautaAudiencias(
       };
     }
 
-    const slot = chaveHorario(l.data, l.horario, l.tipo);
-    if ((slotsArquivo.get(slot)?.size ?? 0) > 1) {
-      return {
-        ...l, processoId: processo?.id, processoNovo: !processo, reusNovos, estado: "conflito",
-        motivo: "A própria pauta contém mais de um processo no mesmo horário com a mesma finalidade.",
-      };
-    }
-
     if (processo) {
       const exata = processo.audiencias.find((a) =>
         chaveAudiencia(processo.numero, a.data, a.horario ?? "", a.tipo) === chaveAudiencia(l.numero, l.data, l.horario, l.tipo),
@@ -555,21 +540,6 @@ export function analisarPautaAudiencias(
           motivo: `Audiência manual localizada no mesmo processo, data e horário (${mesmoMomento.tipo}); será reutilizada e sincronizada com o PJe.`,
         };
       }
-    }
-
-    const choqueOutroProcesso = processos.find((p) =>
-      normalizarNumeroProcesso(p.numero) !== numeroNormalizado &&
-      p.audiencias.some((a) =>
-        a.data === l.data &&
-        (a.horario ?? "").slice(0, 5) === l.horario &&
-        norm(tipoAudienciaCanonico(a.tipo)) === norm(tipoAudienciaCanonico(l.tipo)),
-      ),
-    );
-    if (choqueOutroProcesso) {
-      return {
-        ...l, processoId: processo?.id, processoNovo: !processo, reusNovos, estado: "conflito",
-        motivo: `Já existe audiência com a mesma finalidade neste horário no processo ${choqueOutroProcesso.numero}.`,
-      };
     }
 
     return { ...l, processoId: processo?.id, processoNovo: !processo, reusNovos, estado: "nova" };
