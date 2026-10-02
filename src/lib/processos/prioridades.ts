@@ -4,6 +4,7 @@
  */
 import {
   diasSemMovimentacao,
+  estadoContagem100Dias,
   hojeISO,
   type PrioridadeProcesso,
   type ProcessoCompleto,
@@ -63,7 +64,8 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO(), etiquet
   if (p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária"))
     a.push({ categoria: "prisao-temporaria", rotulo: "Prisão temporária", cor: "temporaria" });
   const dias = diasSemMovimentacao(p, hoje);
-  if (dias !== null && dias > CONFIG_PRIORIDADES.limiteDiasSemMovimentacao)
+  const contagem100 = estadoContagem100Dias(p);
+  if (!contagem100.pausada && dias !== null && dias > CONFIG_PRIORIDADES.limiteDiasSemMovimentacao)
     a.push({ categoria: "sem-movimentacao", rotulo: `${dias} dias sem movimentação`, cor: "atencao" });
   const etiquetasUrgentes = (etiquetasPorProcesso[p.id] ?? []).filter((e) => e.cor === "urgente");
   if (etiquetasUrgentes.length)
