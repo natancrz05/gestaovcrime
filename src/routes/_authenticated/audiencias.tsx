@@ -13,7 +13,6 @@ import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
 import { criarProcesso, etiquetasDosProcessosQuery, processosQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
-import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import {
   CONFIG_AUDIENCIAS,
   MODALIDADES,
