@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { usePode } from "@/lib/sessao";
 import { removerEtiquetaDoProcesso, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
@@ -39,6 +40,9 @@ export function EtiquetaProcesso({
         qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
         qc.invalidateQueries({ queryKey: ["processos", processoId, "etiquetas"] }),
       ]);
+      toast.success("Etiqueta removida do processo");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível remover a etiqueta.");
     } finally {
       setRemovendo(false);
     }
