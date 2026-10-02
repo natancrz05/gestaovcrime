@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { formatarData } from "@/lib/dominio";
-import { diasSemMovimentacao, hojeISO, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "@/lib/processos/modelo";
+import { diasSemMovimentacao, estadoContagem100Dias, hojeISO, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "@/lib/processos/modelo";
 import { CATEGORIAS, COR_CLASSES, type AlertaGestao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 import type { EtiquetaDoProcesso } from "@/lib/processos/repositorio";
@@ -61,6 +61,7 @@ export function ListaAtencao({ itens, etiquetasPorProcesso = {} }: { itens: { pr
         const presos = p.reus.filter((r) => r.preso);
         const ult = ultimaMovimentacao(p);
         const dias = diasSemMovimentacao(p, hoje);
+        const contagem100 = estadoContagem100Dias(p);
         const urgente = alertas.some((a) => a.categoria === "reu-preso" || a.categoria === "prisao-temporaria");
         return (
           <li key={p.id} className={cn("rounded-lg border bg-card p-4 shadow-card", urgente ? "border-l-4 border-border border-l-urgente" : "border-border")}>
@@ -92,7 +93,14 @@ export function ListaAtencao({ itens, etiquetasPorProcesso = {} }: { itens: { pr
               </div>
               <div>
                 <dt className="text-muted-foreground">Dias sem movimentação</dt>
-                <dd className="mt-0.5 font-medium">{dias === null ? "—" : `${dias} dias`}</dd>
+                <dd className="mt-0.5 font-medium">
+                  {dias === null ? "—" : `${dias} dias`}
+                  {contagem100.pausada ? (
+                    <span className="ml-1.5 rounded border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] text-info" title={contagem100.motivo ?? undefined}>
+                      contagem pausada
+                    </span>
+                  ) : null}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Última movimentação</dt>
