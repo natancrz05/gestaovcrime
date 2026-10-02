@@ -73,7 +73,9 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
-  const processoIds = useMemo(() => [...new Set(todas.map((a) => a.processo_id))], [todas]);
+  // Carrega etiquetas de todo o acervo exibível nesta aba, inclusive processos
+  // que estão apenas na Central aguardando marcação e ainda não possuem audiência.
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const prox = futuras(todas);
   const deHoje = prox.filter((a) => a.dias === 0);
@@ -140,17 +142,18 @@ function Pagina() {
 
       <CentralAudiencias
         processos={processos}
+        etiquetasPorProcesso={etiquetasPorProcesso}
         podeEditar={podeEditar}
         onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
-        <GrupoProximas titulo="Hoje" itens={deHoje} destaque onAbrir={setDetalhe} />
-        <GrupoProximas titulo="Próximos 7 dias" itens={em7} onAbrir={setDetalhe} />
-        <GrupoProximas titulo="Próximos 30 dias" itens={em30} onAbrir={setDetalhe} />
+        <GrupoProximas titulo="Hoje" itens={deHoje} etiquetasPorProcesso={etiquetasPorProcesso} destaque onAbrir={setDetalhe} />
+        <GrupoProximas titulo="Próximos 7 dias" itens={em7} etiquetasPorProcesso={etiquetasPorProcesso} onAbrir={setDetalhe} />
+        <GrupoProximas titulo="Próximos 30 dias" itens={em30} etiquetasPorProcesso={etiquetasPorProcesso} onAbrir={setDetalhe} />
       </section>
 
-      <Calendario audiencias={todas} onAbrir={setDetalhe} />
+      <Calendario audiencias={todas} etiquetasPorProcesso={etiquetasPorProcesso} onAbrir={setDetalhe} />
 
       <Secao titulo="Todas as audiências">
         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -289,7 +292,15 @@ function Pagina() {
   );
 }
 
-function GrupoProximas({ titulo, itens, destaque, onAbrir }: { titulo: string; itens: AudienciaListada[]; destaque?: boolean; onAbrir: (a: AudienciaListada) => void }) {
+function GrupoProximas({
+  titulo, itens, etiquetasPorProcesso, destaque, onAbrir,
+}: {
+  titulo: string;
+  itens: AudienciaListada[];
+  etiquetasPorProcesso: Record<string, EtiquetaDoProcesso[]>;
+  destaque?: boolean;
+  onAbrir: (a: AudienciaListada) => void;
+}) {
   return (
     <div className={cn("rounded-lg border bg-card p-4 shadow-card", destaque && itens.length ? "border-l-4 border-border border-l-urgente" : "border-border")}>
       <div className="flex items-baseline justify-between">
@@ -302,6 +313,15 @@ function GrupoProximas({ titulo, itens, destaque, onAbrir }: { titulo: string; i
             <button className="w-full rounded px-1 py-0.5 text-left text-xs hover:bg-muted" onClick={() => onAbrir(a)}>
               <span className="font-medium">{formatarData(a.data).slice(0, 5)} {horaCurta(a.horario)}</span> · {a.tipo}
               <span className="numero-processo block text-muted-foreground">{a.numero}</span>
+              {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
+                <span className="mt-1 flex flex-wrap gap-1">
+                  {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
+                    <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                      {e.nome}
+                    </Etiqueta>
+                  ))}
+                </span>
+              ) : null}
             </button>
           </li>
         ))}
@@ -463,7 +483,13 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const deISO = (s: string) => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
 const somar = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
-function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; onAbrir: (a: AudienciaListada) => void }) {
+function Calendario({
+  audiencias, etiquetasPorProcesso, onAbrir,
+}: {
+  audiencias: AudienciaListada[];
+  etiquetasPorProcesso: Record<string, EtiquetaDoProcesso[]>;
+  onAbrir: (a: AudienciaListada) => void;
+}) {
   const hoje = hojeISO();
   const [visao, setVisao] = useState<Visao>("mes");
   const [ref, setRef] = useState(() => deISO(hoje));
@@ -532,6 +558,15 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
               <button onClick={() => onAbrir(a)} className="w-full rounded-md border border-border p-3 text-left text-sm hover:bg-muted/40">
                 <span className="font-semibold">{horaCurta(a.horario)}</span> · {a.tipo} · <span className="numero-processo">{a.numero}</span>
                 <span className="block text-xs text-muted-foreground">{a.reu} · {a.modalidade} · {a.local || "—"}</span>
+                {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
+                      <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                        {e.nome}
+                      </Etiqueta>
+                    ))}
+                  </span>
+                ) : null}
               </button>
             </li>
           ))}
@@ -560,7 +595,14 @@ function Calendario({ audiencias, onAbrir }: { audiencias: AudienciaListada[]; o
 
 /* ---------------- Central: processos aguardando marcação ---------------- */
 
-function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Parameters<typeof listarCentral>[0]; podeEditar: boolean; onMarcar: (processoId: string) => void }) {
+function CentralAudiencias({
+  processos, etiquetasPorProcesso, podeEditar, onMarcar,
+}: {
+  processos: Parameters<typeof listarCentral>[0];
+  etiquetasPorProcesso: Record<string, EtiquetaDoProcesso[]>;
+  podeEditar: boolean;
+  onMarcar: (processoId: string) => void;
+}) {
   const itens = useMemo(() => listarCentral(processos), [processos]);
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
@@ -632,6 +674,15 @@ function CentralAudiencias({ processos, podeEditar, onMarcar }: { processos: Par
                 <div className="min-w-0 flex-1">
                   <Link to="/processos/$id" params={{ id: i.processo.id }} className="numero-processo font-medium hover:underline">{i.processo.numero}</Link>
                   <p className="truncate text-xs text-muted-foreground">{i.reu} · {i.processo.classe}</p>
+                  {(etiquetasPorProcesso[i.processo.id] ?? []).length ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(etiquetasPorProcesso[i.processo.id] ?? []).map((e) => (
+                        <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
+                          {e.nome}
+                        </Etiqueta>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   Últ. mov.: {formatarData(i.ultimaMov)} · <span className="font-semibold text-foreground">{i.dias ?? "—"} dias</span>
