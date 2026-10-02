@@ -4,6 +4,7 @@ import { diasSemMovimentacao, hojeISO, reuPrincipal, ultimaMovimentacao, type Pr
 import { CATEGORIAS, COR_CLASSES, type AlertaGestao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 import type { EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 
 export function EtiquetaAlerta({ alerta }: { alerta: AlertaGestao }) {
   return (
@@ -70,7 +71,7 @@ export function ListaAtencao({ itens, etiquetasPorProcesso = {} }: { itens: { pr
                 </Link>
                 {(etiquetasPorProcesso[p.id] ?? []).length > 0 ? (
                   <div className="mt-1 flex flex-wrap gap-1.5">
-                    {(etiquetasPorProcesso[p.id] ?? []).map((e) => <span key={e.id} className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{e.nome}</span>)}
+                    {(etiquetasPorProcesso[p.id] ?? []).map((e) => <EtiquetaProcesso key={e.id} processoId={p.id} etiqueta={e} />)}
                   </div>
                 ) : null}
                 <p className="mt-0.5 text-sm text-foreground">
