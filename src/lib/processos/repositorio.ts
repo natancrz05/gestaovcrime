@@ -162,20 +162,21 @@ export interface EtiquetaEntrada {
   favorita: boolean;
 }
 
-export async function salvarEtiqueta(e: EtiquetaEntrada, id?: string) {
+export async function salvarEtiqueta(e: EtiquetaEntrada, id?: string): Promise<string> {
   const payload = { nome: e.nome.trim(), cor: e.cor, favorita: e.favorita };
   if (!payload.nome) throw new Error("Informe o nome da etiqueta.");
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) throw new Error("Usuário não autenticado.");
 
   const resultado = id
-    ? await supabase.from("etiquetas").update(payload).eq("id", id)
-    : await supabase.from("etiquetas").insert({ ...payload, criado_por: userData.user.id });
+    ? await supabase.from("etiquetas").update(payload).eq("id", id).select("id").single()
+    : await supabase.from("etiquetas").insert({ ...payload, criado_por: userData.user.id }).select("id").single();
 
   if (resultado.error) {
     if (resultado.error.code === "23505") throw new Error("Já existe uma etiqueta com este nome.");
     throw new Error(`${resultado.error.message} [${resultado.error.code ?? "sem código"}]`);
   }
+  return resultado.data.id;
 }
 
 export async function removerEtiqueta(id: string) {
