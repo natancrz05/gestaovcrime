@@ -16,6 +16,7 @@ import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
   diasSemMovimentacao,
+  estadoContagem100Dias,
   rotuloFluxo,
   hojeISO,
   pendenciasAbertas,
@@ -44,7 +45,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "ordem", "pagina"] as const;
+const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "contagem100", "fluxo", "ordem", "pagina"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
 
@@ -83,7 +84,7 @@ function Pagina() {
   const { data: etiquetas = [] } = useQuery(etiquetasQuery());
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processos.map((p) => p.id)));
   const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
-  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", ordem = sp.ordem ?? "processo";
+  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", contagem100 = sp.contagem100 ?? "", fluxo = sp.fluxo ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({
       to: "/processos",
@@ -116,6 +117,11 @@ function Pagina() {
     return [...classesPorChave.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [processos]);
 
+  const fluxos = useMemo(
+    () => [...new Set(processos.map(rotuloFluxo).filter((x) => x && x !== "—"))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [processos],
+  );
+
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
     const lista = processos.filter((p) => {
@@ -130,6 +136,10 @@ function Pagina() {
       if (situacao === "suspensos" && p.status !== "Suspenso") return false;
       if (situacao === "arquivados" && !["Arquivado", "Baixado"].includes(p.status)) return false;
       if (classe && p.classe !== classe) return false;
+      if (fluxo && rotuloFluxo(p) !== fluxo) return false;
+      const estado100 = estadoContagem100Dias(p);
+      if (contagem100 === "ativa" && estado100.pausada) return false;
+      if (contagem100 === "pausada" && !estado100.pausada) return false;
       if (etiqueta && !(etiquetasPorProcesso[p.id] ?? []).some((e) => e.id === etiqueta)) return false;
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
@@ -142,7 +152,10 @@ function Pagina() {
       if (gestaoPendencia === "com" && pendenciasAbertas(p).length === 0) return false;
       if (gestaoPendencia === "sem" && pendenciasAbertas(p).length > 0) return false;
       if (flag("audiencia") && p.audiencias.length === 0) return false;
-      if (flag("semMov")) { const d = diasSemMovimentacao(p, hoje); if (d === null || d <= CONFIG_PRIORIDADES.limiteDiasSemMovimentacao) return false; }
+      if (flag("semMov")) {
+        const d = diasSemMovimentacao(p, hoje);
+        if (estadoContagem100Dias(p).pausada || d === null || d <= CONFIG_PRIORIDADES.limiteDiasSemMovimentacao) return false;
+      }
       if (movimentacao) {
         const d = diasSemMovimentacao(p, hoje);
         if (movimentacao === "30+" && (d === null || d <= 30)) return false;
@@ -246,6 +259,15 @@ function Pagina() {
             <option value="">Todas as classes</option>
             <Opcoes valores={classes} />
           </select>
+          <select className={CLASSE_CAMPO} value={contagem100} onChange={(e) => set("contagem100", e.target.value)} aria-label="Contagem dos 100 dias">
+            <option value="">100 dias: todos</option>
+            <option value="ativa">100 dias: em contagem</option>
+            <option value="pausada">100 dias: pausada</option>
+          </select>
+          <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={fluxo} onChange={(e) => set("fluxo", e.target.value)} aria-label="Fluxo atual">
+            <option value="">Fluxo atual: todos</option>
+            <Opcoes valores={fluxos} />
+          </select>
           <select className={CLASSE_CAMPO} value={preso} onChange={(e) => set("preso", e.target.value)} aria-label="Réu preso">
             <option value="">Réu preso: todos</option>
             <option value="sim">Com réu preso</option>
@@ -347,6 +369,7 @@ function Pagina() {
                 const reu = reuPrincipal(p);
                 const ult = ultimaMovimentacao(p);
                 const dias = diasSemMovimentacao(p, hoje);
+                const estado100 = estadoContagem100Dias(p);
                 const aud = proximaAudiencia(p, hoje);
                 const pend = pendenciasAbertas(p).length;
                 return (
@@ -399,7 +422,17 @@ function Pagina() {
                       <div>{formatarData(ult?.data ?? null)}</div>
                       <div className="text-xs text-muted-foreground">{ult?.descricao}</div>
                     </td>
-                    <td className="break-words px-2 py-2 font-medium">{dias === null ? "—" : `${dias} dias`}</td>
+                    <td className="break-words px-2 py-2 font-medium">
+                      <div>{dias === null ? "—" : `${dias} dias`}</div>
+                      {estado100.pausada ? (
+                        <span
+                          className="mt-1 inline-flex rounded border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info"
+                          title={estado100.motivo ?? "Contagem de 100 dias pausada"}
+                        >
+                          Pausada
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="break-words px-2 py-2 text-muted-foreground">
                       {(() => { const al = alertasDoProcesso(p, hoje); return al.length ? <div className="flex flex-wrap gap-1">{al.map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}</div> : "—"; })()}
                     </td>
