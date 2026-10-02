@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { ImportarPautaAudiencias } from "@/components/processos/ImportarPautaAudiencias";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -180,7 +181,7 @@ function Pagina() {
                       {etiquetasPorProcesso[a.processo_id]?.length ? (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {etiquetasPorProcesso[a.processo_id].map((e: EtiquetaDoProcesso) => (
-                            <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>{e.nome}</Etiqueta>
+                            <EtiquetaProcesso key={e.id} processoId={a.processo_id} etiqueta={e} />
                           ))}
                         </div>
                       ) : null}
@@ -235,6 +236,9 @@ function Pagina() {
                 {detalhe.prazoExtenso ? <EtiquetaExtenso /> : null}
                 {detalhe.aguardando_nova_data ? <SeloAguardando /> : null}
                 {mostrarSelo(detalhe) ? <SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(detalhe)} /> : null}
+                {(etiquetasPorProcesso[detalhe.processo_id] ?? []).map((e) => (
+                  <EtiquetaProcesso key={e.id} processoId={detalhe.processo_id} etiqueta={e} />
+                ))}
               </div>
               {detalhe.datas_anteriores?.length ? (
                 <div className="text-xs"><p className="text-muted-foreground">Datas anteriores</p>
@@ -309,20 +313,18 @@ function GrupoProximas({
       </div>
       <ul className="mt-2 space-y-1.5">
         {itens.slice(0, 4).map((a) => (
-          <li key={a.id}>
-            <button className="w-full rounded px-1 py-0.5 text-left text-xs hover:bg-muted" onClick={() => onAbrir(a)}>
+          <li key={a.id} className="rounded px-1 py-0.5 text-xs hover:bg-muted">
+            <button className="w-full text-left" onClick={() => onAbrir(a)}>
               <span className="font-medium">{formatarData(a.data).slice(0, 5)} {horaCurta(a.horario)}</span> · {a.tipo}
               <span className="numero-processo block text-muted-foreground">{a.numero}</span>
-              {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
-                <span className="mt-1 flex flex-wrap gap-1">
-                  {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
-                    <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                      {e.nome}
-                    </Etiqueta>
-                  ))}
-                </span>
-              ) : null}
             </button>
+            {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
+                  <EtiquetaProcesso key={e.id} processoId={a.processo_id} etiqueta={e} />
+                ))}
+              </div>
+            ) : null}
           </li>
         ))}
         {itens.length === 0 ? <li className="text-xs text-muted-foreground">Nenhuma audiência.</li> : null}
@@ -554,20 +556,18 @@ function Calendario({
       {visao === "dia" ? (
         <ul className="space-y-2">
           {(porDia.get(iso(ref)) ?? []).map((a) => (
-            <li key={a.id}>
-              <button onClick={() => onAbrir(a)} className="w-full rounded-md border border-border p-3 text-left text-sm hover:bg-muted/40">
+            <li key={a.id} className="rounded-md border border-border p-3 text-sm hover:bg-muted/40">
+              <button onClick={() => onAbrir(a)} className="w-full text-left">
                 <span className="font-semibold">{horaCurta(a.horario)}</span> · {a.tipo} · <span className="numero-processo">{a.numero}</span>
                 <span className="block text-xs text-muted-foreground">{a.reu} · {a.modalidade} · {a.local || "—"}</span>
-                {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
-                  <span className="mt-1 flex flex-wrap gap-1">
-                    {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
-                      <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                        {e.nome}
-                      </Etiqueta>
-                    ))}
-                  </span>
-                ) : null}
               </button>
+              {(etiquetasPorProcesso[a.processo_id] ?? []).length ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(etiquetasPorProcesso[a.processo_id] ?? []).map((e) => (
+                    <EtiquetaProcesso key={e.id} processoId={a.processo_id} etiqueta={e} />
+                  ))}
+                </div>
+              ) : null}
             </li>
           ))}
           {!(porDia.get(iso(ref)) ?? []).length ? <li className="text-sm text-muted-foreground">Nenhuma audiência neste dia.</li> : null}
@@ -677,9 +677,7 @@ function CentralAudiencias({
                   {(etiquetasPorProcesso[i.processo.id] ?? []).length ? (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {(etiquetasPorProcesso[i.processo.id] ?? []).map((e) => (
-                        <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                          {e.nome}
-                        </Etiqueta>
+                        <EtiquetaProcesso key={e.id} processoId={i.processo.id} etiqueta={e} />
                       ))}
                     </div>
                   ) : null}
