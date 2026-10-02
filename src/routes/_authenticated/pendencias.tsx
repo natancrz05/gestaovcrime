@@ -42,7 +42,9 @@ function Pagina() {
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
   const podeEditar = usePode("editar");
   const todas = useMemo(() => listarPendenciasDe(processos), [processos]);
-  const processoIds = useMemo(() => [...new Set(todas.map((p) => p.processo_id))], [todas]);
+  // Mantém um único mapa de etiquetas para todo o acervo visível nesta aba.
+  // Isso evita depender apenas do subconjunto de pendências já materializado.
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const [status, setStatus] = useState("");
   const [prioridade, setPrioridade] = useState("");
