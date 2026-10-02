@@ -13,9 +13,9 @@ import { ROTULO_TIPO_PROC, tipoPrisaoDe, type ProcRel } from "@/lib/processos/im
 import { toast } from "sonner";
 import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
-import { etiquetasDosProcessosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
-import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
@@ -209,8 +209,8 @@ function Pagina() {
                         {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
                         {p.processo_id && etiquetasPorProcesso[p.processo_id]?.length ? (
                           <div className="mt-1.5 flex flex-wrap gap-1">
-                            {etiquetasPorProcesso[p.processo_id].map((e: EtiquetaDoProcesso) => (
-                              <Etiqueta key={e.id} severidade="info">{e.nome}</Etiqueta>
+                            {etiquetasPorProcesso[p.processo_id].map((e) => (
+                              <EtiquetaProcesso key={e.id} processoId={p.processo_id!} etiqueta={e} />
                             ))}
                           </div>
                         ) : null}
