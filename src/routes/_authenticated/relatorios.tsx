@@ -20,6 +20,7 @@ import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
   diasSemMovimentacao,
+  estadoContagem100Dias,
   reuPrincipal,
   ultimaMovimentacao,
   type ProcessoCompleto,
@@ -194,11 +195,11 @@ function Relatorio({ tipo, titulo, processos }: { tipo: Tipo; titulo: string; pr
       .map(({ p, r }) => ({ chave: r.id, processoId: p.id, celulas: [p.numero, etiquetasDo(p.id), r.nome, r.situacao || "—", r.tipo_prisao, fmt(r.data_prisao), r.observacoes || "—"] }));
   } else if (tipo === "sem-movimentacao") {
     const lim = CONFIG_PRIORIDADES.limiteDiasSemMovimentacao;
-    nota = `Processos com mais de ${lim} dias desde a última movimentação registrada. Critério administrativo de acompanhamento.`;
+    nota = `Processos com mais de ${lim} dias desde a última movimentação registrada e com contagem de 100 dias ativa. Fluxos de espera/arquivo com contagem pausada ficam fora deste relatório, mas continuam visíveis no acervo geral.`;
     colunas = ["Processo", "Etiquetas", "Réu", "Última movimentação", "Data da última movimentação", "Dias sem movimentação"];
     linhas = processos
-      .map((p) => ({ p, d: diasSemMovimentacao(p), u: ultimaMovimentacao(p) }))
-      .filter((x) => x.d !== null && x.d > lim)
+      .map((p) => ({ p, d: diasSemMovimentacao(p), u: ultimaMovimentacao(p), contagem100: estadoContagem100Dias(p) }))
+      .filter((x) => !x.contagem100.pausada && x.d !== null && x.d > lim)
       .sort((a, b) => (b.d ?? 0) - (a.d ?? 0))
       .map(({ p, d, u }) => ({ chave: p.id, processoId: p.id, destaque: "atencao" as const, celulas: [p.numero, etiquetasDo(p.id), reuPrincipal(p)?.nome ?? "—", u?.descricao ?? "—", fmt(u?.data), d ?? "—"] }));
   } else if (tipo === "audiencias") {
