@@ -15,9 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   baixarCSV, formatarValor, lerPlanilha, rotuloCampo,
-  type Analise, type LinhaProblema, type LinhaValida, type ResultadoSimulacao,
+  type Analise, type LinhaProblema, type ResultadoSimulacao,
 } from "@/lib/processos/importacao";
-import { adicionarReu, listarProcessosCompletos } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/importar")({
   beforeLoad: ({ context }) => {
@@ -47,119 +46,6 @@ interface Importacao {
 
 const dataHora = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-const normalizarNome = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
-
-async function enriquecerAcervo(linhas: LinhaValida[], conflitos: ResultadoSimulacao["conflitos"]) {
-  const processos = await listarProcessosCompletos();
-  const porNumero = new Map(processos.map((p) => [p.numero.replace(/\D/g, ""), p]));
-  const conflitosMovimentacao = new Set(
-    conflitos
-      .filter((c) => c.campo === "pje_ultima_mov_data")
-      .map((c) => c.numero.replace(/\D/g, "")),
-  );
-
-  let reusAdicionados = 0;
-  let reusInstitucionaisRemovidos = 0;
-  let movimentacoesPjeAcrescentadas = 0;
-  let conflitosPjeReconciliados = 0;
-  let naoLocalizados = 0;
-
-  for (const linha of linhas) {
-    const processo = porNumero.get(linha.numero.replace(/\D/g, ""));
-    if (!processo) {
-      naoLocalizados++;
-      continue;
-    }
-
-    if (linha.reusInferidos.length) {
-      const existentes = new Set(processo.reus.map((r) => normalizarNome(r.nome)));
-      let ordem = processo.reus.reduce((m, r) => Math.max(m, r.ordem), -1) + 1;
-
-      for (const nome of linha.reusInferidos) {
-        const chave = normalizarNome(nome);
-        if (!chave || existentes.has(chave)) continue;
-        await adicionarReu({
-          processo_id: processo.id,
-          nome,
-          situacao: "",
-          preso: false,
-          tipo_prisao: "Não preso",
-          data_prisao: null,
-          observacoes: "Réu identificado pela atualização do acervo PJe.",
-          ordem,
-        });
-        existentes.add(chave);
-        ordem++;
-        reusAdicionados++;
-      }
-    }
-
-    // Corrige resíduos de importações antigas que cadastraram órgão público,
-    // Ministério Público, polícia ou juízo como se fossem réus. A remoção é
-    // conservadora: só alcança o nome institucional exatamente identificado na
-    // planilha e apenas quando o registro não tem prisão, situação ou observação
-    // manual associada.
-    if (linha.partesInstitucionaisIgnoradas.length) {
-      const institucionais = new Set(linha.partesInstitucionaisIgnoradas.map(normalizarNome));
-      for (const reu of processo.reus) {
-        if (
-          institucionais.has(normalizarNome(reu.nome)) &&
-          !reu.preso &&
-          !reu.situacao.trim() &&
-          !reu.observacoes.trim()
-        ) {
-          const { error: deleteError } = await supabase.from("reus").delete().eq("id", reu.id);
-          if (deleteError) throw deleteError;
-          reusInstitucionaisRemovidos++;
-        }
-      }
-
-      if (!linha.reusInferidos.length && processo.pje_reu) {
-        const { error: limparError } = await supabase.from("processos").update({ pje_reu: null }).eq("id", processo.id);
-        if (limparError) throw limparError;
-      }
-    }
-
-    // O importador antigo comparava a data do PJe com qualquer movimentação
-    // interna. Uma anotação manual mais recente podia impedir a atualização do
-    // retrato do PJe. Aqui reconciliamos apenas esse caso, sem apagar a
-    // movimentação manual nem mexer na data de autuação.
-    const numeroNormalizado = linha.numero.replace(/\D/g, "");
-    if (conflitosMovimentacao.has(numeroNormalizado) && linha.campos.pje_ultima_mov_data) {
-      const patch = {
-        pje_ultima_mov_data: linha.campos.pje_ultima_mov_data,
-        pje_ultima_mov_descricao: linha.campos.pje_ultima_mov_descricao ?? processo.pje_ultima_mov_descricao,
-        pje_qtde_dias: linha.campos.pje_qtde_dias ? Number(linha.campos.pje_qtde_dias) : processo.pje_qtde_dias,
-      };
-
-      const { error: updateError } = await supabase.from("processos").update(patch).eq("id", processo.id);
-      if (updateError) throw updateError;
-      conflitosPjeReconciliados++;
-
-      const data = linha.campos.pje_ultima_mov_data;
-      const descricao = linha.campos.pje_ultima_mov_descricao;
-      if (
-        descricao &&
-        !processo.movimentacoes.some((m) => m.data === data && normalizarNome(m.descricao) === normalizarNome(descricao))
-      ) {
-        const { error: movError } = await supabase.from("movimentacoes").insert({
-          processo_id: processo.id,
-          data,
-          descricao,
-          origem: "pje_tjba",
-          tipo: "",
-          observacao: "Movimentação identificada na atualização do acervo PJe.",
-        });
-        if (movError) throw movError;
-        movimentacoesPjeAcrescentadas++;
-      }
-    }
-  }
-
-  return { reusAdicionados, reusInstitucionaisRemovidos, movimentacoesPjeAcrescentadas, conflitosPjeReconciliados, naoLocalizados };
-}
-
 function Pagina() {
   const sessao = useSessao();
   const qc = useQueryClient();
@@ -170,13 +56,6 @@ function Pagina() {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Importacao | null>(null);
-  const [enriquecimento, setEnriquecimento] = useState<{
-    reusAdicionados: number;
-    reusInstitucionaisRemovidos: number;
-    movimentacoesPjeAcrescentadas: number;
-    conflitosPjeReconciliados: number;
-    naoLocalizados: number;
-  } | null>(null);
   const [aberta, setAberta] = useState<Importacao | null>(null);
 
   const historico = useQuery({
@@ -203,7 +82,7 @@ function Pagina() {
 
   async function analisar() {
     if (!arquivo) return;
-    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null); setEnriquecimento(null);
+    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null);
     try {
       const a = await lerPlanilha(arquivo);
       await simular(a, aplicarConflitos);
@@ -225,7 +104,7 @@ function Pagina() {
   }
 
   function cancelar() {
-    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false); setEnriquecimento(null);
+    setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false);
   }
 
   async function confirmar() {
@@ -244,27 +123,11 @@ function Pagina() {
     }
     const id = (data as { id: string }).id;
 
-    // O RPC atualiza os campos do processo. Em seguida, a camada inteligente do
-    // leitor completa apenas réus ausentes, sem apagar cadastros manuais.
-    let enriquecimento = {
-      reusAdicionados: 0,
-      reusInstitucionaisRemovidos: 0,
-      movimentacoesPjeAcrescentadas: 0,
-      conflitosPjeReconciliados: 0,
-      naoLocalizados: 0,
-    };
-    try {
-      await qc.invalidateQueries({ queryKey: ["processos"] });
-      await qc.invalidateQueries({ queryKey: ["processos-seletor"] });
-      enriquecimento = await enriquecerAcervo(analise.validas, sim?.conflitos ?? []);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "falha desconhecida";
-      setErro(`Os processos foram importados, mas houve falha em parte do enriquecimento inteligente do acervo: ${msg}`);
-    }
-
+    // Regra de segurança: depois da RPC nenhuma outra escrita relacionada à
+    // importação é feita no cliente. Assim, toda alteração permanece registrada
+    // em importacao_itens e pode ser tratada pelo mecanismo "Desfazer importação".
     const { data: imp } = await supabase.from("importacoes").select("*").eq("id", id).single();
     setResultado(imp as unknown as Importacao);
-    setEnriquecimento(enriquecimento);
     setAnalise(null); setSim(null); setArquivo(null);
     qc.invalidateQueries({ queryKey: ["processos"] });
     qc.invalidateQueries({ queryKey: ["processos-seletor"] });
@@ -309,19 +172,10 @@ function Pagina() {
         <div className={`${CARTAO} space-y-4`}>
           <h2 className="text-lg font-semibold">Importação #{resultado.numero} — {resultado.status}</h2>
           <Resumo imp={resultado} />
-          {enriquecimento ? (
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-              <p>
-                Enriquecimento do acervo: <strong>{enriquecimento.reusAdicionados}</strong> réu(s) ausente(s) acrescentado(s),
-                {" "}<strong>{enriquecimento.reusInstitucionaisRemovidos}</strong> cadastro(s) institucional(is) incorreto(s) removido(s),
-                {" "}<strong>{enriquecimento.conflitosPjeReconciliados}</strong> retrato(s) de movimentação do PJe reconciliado(s)
-                e <strong>{enriquecimento.movimentacoesPjeAcrescentadas}</strong> movimentação(ões) do PJe acrescentada(s) sem apagar registros internos.
-              </p>
-              {enriquecimento.naoLocalizados ? (
-                <p className="mt-1 text-xs text-atencao">{enriquecimento.naoLocalizados} processo(s) não puderam ser relocalizados para enriquecimento.</p>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Esta importação não executou alterações paralelas fora do histórico. Réus existentes não são excluídos,
+            movimentações não são criadas pelo navegador e o campo de réu não é limpo após a RPC.
+          </div>
           <ListaProblemas imp={resultado} />
           <button className={BOTAO_SEC} onClick={() => setResultado(null)}><Upload className="size-4" /> Nova importação</button>
         </div>
@@ -395,7 +249,7 @@ function Previa({ analise, sim, aplicarConflitos, onConflitos, ocupado, onCancel
           Aba utilizada: <strong>{analise.aba}</strong>. Colunas usadas na atualização: {analise.reconhecidas.join(", ")}.
           {analise.contextuais.length ? ` Colunas contextuais reconhecidas (sem sobrescrever o cadastro): ${analise.contextuais.join(", ")}.` : ""}
           {analise.naoReconhecidas.length ? ` Colunas desconhecidas/ignoradas: ${analise.naoReconhecidas.join(", ")}.` : ""}
-          {` ${analise.reusInferidosTotal} ocorrência(s) de réu foram interpretadas para conferência/enriquecimento do acervo.`}
+          {` ${analise.reusInferidosTotal} ocorrência(s) de réu foram interpretadas para normalizar os dados enviados ao importador, sem excluir cadastros internos.`}
         </p>
       </div>
 
