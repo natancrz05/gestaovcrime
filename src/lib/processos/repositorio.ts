@@ -348,16 +348,6 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   );
   if (mesmoHorario) throw new Error("O processo já possui outra audiência neste mesmo horário.");
 
-  const mesmaFinalidadeOutroProcesso = (existentes ?? []).find((a) =>
-    a.id !== id &&
-    a.processo_id !== e.processo_id &&
-    tipoAudienciaCanonico(a.tipo) === finalidade &&
-    (a.horario ?? "").slice(0, 5) === (horario ?? ""),
-  );
-  if (mesmaFinalidadeOutroProcesso) {
-    throw new Error("Já existe outra audiência no mesmo horário com a mesma finalidade.");
-  }
-
   const payload = { ...e, tipo: finalidade, horario };
   const { error } = id
     ? await supabase.from("audiencias").update(payload as never).eq("id", id)
