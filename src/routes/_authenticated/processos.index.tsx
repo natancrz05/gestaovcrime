@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
-import { CONFIG_PRIORIDADES, alertasDoProcesso } from "@/lib/processos/prioridades";
+import { alertasDoProcesso } from "@/lib/processos/prioridades";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Opcoes } from "@/components/processos/campos";
@@ -45,17 +45,9 @@ export const Route = createFileRoute("/_authenticated/processos/")({
   component: Pagina,
 });
 
-const CHAVES = ["q", "status", "situacao", "classe", "preso", "tipoPrisao", "periodo", "movimentacao", "temporaria", "prioridade", "pendencia", "audiencia", "audienciaStatus", "semMov", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "contagem100", "fluxo", "ordem", "pagina"] as const;
+const CHAVES = ["q", "status", "classe", "preso", "tipoPrisao", "movimentacao", "audienciaStatus", "gestaoPrioridade", "gestaoPendencia", "etiqueta", "contagem100", "fluxo", "ordem", "pagina"] as const;
 type Chave = (typeof CHAVES)[number];
 type BuscaProcessos = Partial<Record<Chave, string>>;
-
-const FLAGS: { k: Chave; r: string }[] = [
-  { k: "temporaria", r: "Prisão temporária" },
-  { k: "prioridade", r: "Com prioridade" },
-  { k: "pendencia", r: "Com pendência aberta" },
-  { k: "audiencia", r: "Com audiência cadastrada" },
-  { k: "semMov", r: `Mais de ${CONFIG_PRIORIDADES.limiteDiasSemMovimentacao} dias sem movimentação` },
-];
 
 const ORDENS = [
   { v: "processo", r: "Número do processo" },
@@ -65,11 +57,12 @@ const ORDENS = [
   { v: "prioridade", r: "Prioridade (mais alertas)" },
 ];
 
-const PERIODOS = [
-  { v: "", r: "Qualquer período" },
-  { v: "0-30", r: "Até 30 dias" },
-  { v: "31-100", r: "31 a 100 dias" },
-  { v: "101-", r: "Mais de 100 dias" },
+const TEMPO_SEM_MOVIMENTACAO = [
+  { v: "", r: "Tempo s/ mov.: qualquer" },
+  { v: "30+", r: "Mais de 30 dias" },
+  { v: "60+", r: "Mais de 60 dias" },
+  { v: "90+", r: "Mais de 90 dias" },
+  { v: "100+", r: "Mais de 100 dias" },
   { v: "sem", r: "Sem movimentação registrada" },
 ];
 
@@ -83,8 +76,8 @@ function Pagina() {
   const podeEditar = usePode("editar");
   const { data: etiquetas = [] } = useQuery(etiquetasQuery());
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processos.map((p) => p.id)));
-  const busca = sp.q ?? "", status = sp.status ?? "", situacao = sp.situacao ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
-  const tipoPrisao = sp.tipoPrisao ?? "", periodo = sp.periodo ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", contagem100 = sp.contagem100 ?? "", fluxo = sp.fluxo ?? "", ordem = sp.ordem ?? "processo";
+  const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
+  const tipoPrisao = sp.tipoPrisao ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", contagem100 = sp.contagem100 ?? "", fluxo = sp.fluxo ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
     navigate({
       to: "/processos",
@@ -96,7 +89,6 @@ function Pagina() {
       },
       replace: true,
     });
-  const flag = (k: Chave) => sp[k] === "1";
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && k !== "pagina" && sp[k]);
   const hoje = hojeISO();
   const marcarConferencia = async (id: string, conferir: boolean) => {
@@ -132,9 +124,6 @@ function Pagina() {
         if (!alvo.includes(t)) return false;
       }
       if (status && p.status !== status) return false;
-      if (situacao === "ativos" && ["Suspenso", "Arquivado", "Baixado"].includes(p.status)) return false;
-      if (situacao === "suspensos" && p.status !== "Suspenso") return false;
-      if (situacao === "arquivados" && !["Arquivado", "Baixado"].includes(p.status)) return false;
       if (classe && p.classe !== classe) return false;
       if (fluxo && rotuloFluxo(p) !== fluxo) return false;
       const estado100 = estadoContagem100Dias(p);
@@ -144,20 +133,13 @@ function Pagina() {
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
-      if (flag("temporaria") && !p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária")) return false;
-      if (flag("prioridade") && alertasDoProcesso(p, hoje).length === 0) return false;
-      if (flag("pendencia") && pendenciasAbertas(p).length === 0) return false;
       if (gestaoPrioridade === "com" && alertasDoProcesso(p, hoje).length === 0) return false;
       if (gestaoPrioridade === "sem" && alertasDoProcesso(p, hoje).length > 0) return false;
       if (gestaoPendencia === "com" && pendenciasAbertas(p).length === 0) return false;
       if (gestaoPendencia === "sem" && pendenciasAbertas(p).length > 0) return false;
-      if (flag("audiencia") && p.audiencias.length === 0) return false;
-      if (flag("semMov")) {
-        const d = diasSemMovimentacao(p, hoje);
-        if (estadoContagem100Dias(p).pausada || d === null || d <= CONFIG_PRIORIDADES.limiteDiasSemMovimentacao) return false;
-      }
       if (movimentacao) {
         const d = diasSemMovimentacao(p, hoje);
+        if (movimentacao === "sem" && d !== null) return false;
         if (movimentacao === "30+" && (d === null || d <= 30)) return false;
         if (movimentacao === "60+" && (d === null || d <= 60)) return false;
         if (movimentacao === "90+" && (d === null || d <= 90)) return false;
@@ -171,13 +153,6 @@ function Pagina() {
         if (audienciaStatus === "cancelada" && !p.audiencias.some((a) => a.situacao === "Cancelada")) return false;
         if (audienciaStatus === "aguardando" && !p.audiencias.some((a) => a.aguardando_nova_data)) return false;
         if (audienciaStatus === "nao-aguardando" && !p.audiencias.some((a) => !a.aguardando_nova_data && a.situacao !== "Realizada" && a.situacao !== "Cancelada")) return false;
-      }
-      if (periodo) {
-        const d = diasSemMovimentacao(p, hoje);
-        if (periodo === "sem") return d === null;
-        if (d === null) return false;
-        const [min, max] = periodo.split("-");
-        if (d < Number(min) || (max && d > Number(max))) return false;
       }
       return true;
     });
@@ -245,38 +220,42 @@ function Pagina() {
               aria-label="Pesquisar processos"
             />
           </div>
-          <select className={CLASSE_CAMPO} value={situacao} onChange={(e) => set("situacao", e.target.value)} aria-label="Situação">
-            <option value="">Situação: todos</option>
-            <option value="ativos">Ativos</option>
-            <option value="suspensos">Suspensos</option>
-            <option value="arquivados">Arquivados</option>
-          </select>
           <select className={CLASSE_CAMPO} value={status} onChange={(e) => set("status", e.target.value)} aria-label="Status">
-            <option value="">Todos os status</option>
+            <option value="">Status: todos</option>
             <Opcoes valores={STATUS_PROCESSO} />
           </select>
+
           <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={classe} onChange={(e) => set("classe", e.target.value)} aria-label="Classe">
-            <option value="">Todas as classes</option>
+            <option value="">Classe: todas</option>
             <Opcoes valores={classes} />
           </select>
-          <select className={CLASSE_CAMPO} value={contagem100} onChange={(e) => set("contagem100", e.target.value)} aria-label="Contagem dos 100 dias">
-            <option value="">100 dias: todos</option>
-            <option value="ativa">100 dias: em contagem</option>
-            <option value="pausada">100 dias: pausada</option>
-          </select>
+
           <select className={`${CLASSE_CAMPO} lg:col-span-2`} value={fluxo} onChange={(e) => set("fluxo", e.target.value)} aria-label="Fluxo atual">
             <option value="">Fluxo atual: todos</option>
             <Opcoes valores={fluxos} />
           </select>
+
+          <select className={CLASSE_CAMPO} value={contagem100} onChange={(e) => set("contagem100", e.target.value)} aria-label="Controle dos 100 dias">
+            <option value="">Controle 100 dias: todos</option>
+            <option value="ativa">Controle 100 dias: em contagem</option>
+            <option value="pausada">Controle 100 dias: pausada</option>
+          </select>
+
+          <select className={CLASSE_CAMPO} value={movimentacao} onChange={(e) => set("movimentacao", e.target.value)} aria-label="Tempo sem movimentação">
+            {TEMPO_SEM_MOVIMENTACAO.map((p) => <option key={p.v} value={p.v}>{p.r}</option>)}
+          </select>
+
+          <select className={CLASSE_CAMPO} value={etiqueta} onChange={(e) => set("etiqueta", e.target.value)} aria-label="Etiqueta">
+            <option value="">Etiqueta: todas</option>
+            {etiquetas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+
           <select className={CLASSE_CAMPO} value={preso} onChange={(e) => set("preso", e.target.value)} aria-label="Réu preso">
             <option value="">Réu preso: todos</option>
             <option value="sim">Com réu preso</option>
             <option value="nao">Sem réu preso</option>
           </select>
-          <select className={CLASSE_CAMPO} value={etiqueta} onChange={(e) => set("etiqueta", e.target.value)} aria-label="Etiqueta">
-            <option value="">Etiqueta: todas</option>
-            {etiquetas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-          </select>
+
           <select className={CLASSE_CAMPO} value={tipoPrisao} onChange={(e) => set("tipoPrisao", e.target.value)} aria-label="Tipo de prisão">
             <option value="">Prisão: qualquer</option>
             <option value="Prisão preventiva">Preventiva</option>
@@ -284,57 +263,43 @@ function Pagina() {
             <option value="Prisão em flagrante">Em flagrante</option>
             <option value="Outra">Outras</option>
           </select>
-          <select className={CLASSE_CAMPO} value={movimentacao} onChange={(e) => set("movimentacao", e.target.value)} aria-label="Movimentação">
-            <option value="">Movimentação: qualquer</option>
-            <option value="30+">Mais de 30 dias</option>
-            <option value="60+">Mais de 60 dias</option>
-            <option value="90+">Mais de 90 dias</option>
-            <option value="100+">Mais de 100 dias</option>
-          </select>
+
           <select className={CLASSE_CAMPO} value={audienciaStatus} onChange={(e) => set("audienciaStatus", e.target.value)} aria-label="Audiência">
             <option value="">Audiência: qualquer</option>
-            <option value="aguardando">Aguardando</option>
-            <option value="nao-aguardando">Não aguardando</option>
+            <option value="aguardando">Aguardando nova data</option>
+            <option value="nao-aguardando">Pendente com data</option>
             <option value="agendada">Agendada</option>
             <option value="redesignada">Redesignada</option>
             <option value="realizada">Realizada</option>
             <option value="cancelada">Cancelada</option>
             <option value="sem">Sem audiência</option>
           </select>
+
           <select className={CLASSE_CAMPO} value={gestaoPrioridade} onChange={(e) => set("gestaoPrioridade", e.target.value)} aria-label="Prioridade">
             <option value="">Prioridade: qualquer</option>
             <option value="com">Com prioridade</option>
             <option value="sem">Sem prioridade</option>
           </select>
+
           <select className={CLASSE_CAMPO} value={gestaoPendencia} onChange={(e) => set("gestaoPendencia", e.target.value)} aria-label="Pendência">
             <option value="">Pendência: qualquer</option>
             <option value="com">Com pendência</option>
             <option value="sem">Sem pendência</option>
           </select>
-          <select className={CLASSE_CAMPO} value={periodo} onChange={(e) => set("periodo", e.target.value)} aria-label="Última movimentação">
-            {PERIODOS.map((p) => <option key={p.v} value={p.v}>{p.r}</option>)}
-          </select>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:col-span-3 lg:col-span-6">
-            {FLAGS.map((f) => (
-              <label key={f.k} className="inline-flex items-center gap-1.5 text-sm text-foreground">
-                <input type="checkbox" className="size-4 accent-primary" checked={flag(f.k)} onChange={(e) => set(f.k, e.target.checked ? "1" : "")} />
-                {f.r}
-              </label>
-            ))}
-            <div className="ml-auto flex items-center gap-2">
-              <label className="text-xs text-muted-foreground" htmlFor="ordem">Ordenar por</label>
-              <select id="ordem" className={`${CLASSE_CAMPO} w-auto`} value={ordem} onChange={(e) => set("ordem", e.target.value === "processo" ? "" : e.target.value)}>
-                {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.r}</option>)}
-              </select>
-              <button
-                type="button"
-                disabled={!algumFiltro}
-                onClick={() => navigate({ to: "/processos", search: ordem === "processo" ? {} : { ordem }, replace: true })}
-                className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-foreground hover:bg-muted disabled:opacity-50"
-              >
-                <X className="size-4" /> Limpar filtros
-              </button>
-            </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-3 lg:col-span-6">
+            <label className="text-xs text-muted-foreground" htmlFor="ordem">Ordenar por</label>
+            <select id="ordem" className={`${CLASSE_CAMPO} w-auto`} value={ordem} onChange={(e) => set("ordem", e.target.value === "processo" ? "" : e.target.value)}>
+              {ORDENS.map((o) => <option key={o.v} value={o.v}>{o.r}</option>)}
+            </select>
+            <button
+              type="button"
+              disabled={!algumFiltro}
+              onClick={() => navigate({ to: "/processos", search: ordem === "processo" ? {} : { ordem }, replace: true })}
+              className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <X className="size-4" /> Limpar filtros
+            </button>
           </div>
         </div>
       </details>
