@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import { useMemo } from "react";
 import { FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { EtiquetaAlerta } from "@/components/processos/Prioridades";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { CONFIG_PRIORIDADES, alertasDoProcesso } from "@/lib/processos/prioridades";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
@@ -22,7 +23,7 @@ import {
   reuPrincipal,
   ultimaMovimentacao,
 } from "@/lib/processos/modelo";
-import { etiquetasDosProcessosQuery, etiquetasQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, etiquetasQuery, processosQuery } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/")({
   head: () => ({
@@ -383,10 +384,8 @@ function Pagina() {
                       <div>{reu ? reu.nome : "—"}</div>
                       {(etiquetasPorProcesso[p.id] ?? []).length ? (
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {(etiquetasPorProcesso[p.id] ?? []).map((e: EtiquetaDoProcesso) => (
-                            <Etiqueta key={e.id} severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-                              {e.nome}
-                            </Etiqueta>
+                          {(etiquetasPorProcesso[p.id] ?? []).map((e) => (
+                            <EtiquetaProcesso key={e.id} processoId={p.id} etiqueta={e} />
                           ))}
                         </div>
                       ) : null}
