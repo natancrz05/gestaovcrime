@@ -15,6 +15,7 @@ import { classificar as classificarPend } from "@/lib/processos/pendencias";
 import { horaCurta } from "@/lib/processos/audiencias";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
+import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Cabecalho";
@@ -42,7 +43,6 @@ import {
   adicionarReu,
   processoQuery,
   etiquetasDoProcessoQuery,
-  removerEtiquetaDoProcesso,
 } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/$id")({
@@ -94,28 +94,7 @@ function Pagina() {
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">Etiquetas:</span>
         {etiquetas.length ? etiquetas.map((e) => (
-          <span key={e.id} className="group relative inline-flex items-center">
-            <Etiqueta severidade={e.cor === "urgente" ? "urgente" : e.cor === "alerta" ? "alerta" : e.cor === "concluido" ? "concluido" : "info"}>
-              <span className={podeEditar ? "pr-3" : undefined}>{e.nome}</span>
-            </Etiqueta>
-            {podeEditar ? (
-              <button
-                type="button"
-                aria-label={"Remover etiqueta " + e.nome}
-                title={"Remover etiqueta " + e.nome}
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded px-0.5 text-[11px] font-bold opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100 focus:opacity-100"
-                onClick={async () => {
-                  await removerEtiquetaDoProcesso(p.id, e.id);
-                  await Promise.all([
-                    qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
-                    qc.invalidateQueries({ queryKey: ["processos", p.id, "etiquetas"] }),
-                  ]);
-                }}
-              >
-                ×
-              </button>
-            ) : null}
-          </span>
+          <EtiquetaProcesso key={e.id} processoId={p.id} etiqueta={e} />
         )) : <span className="text-xs text-muted-foreground">Nenhuma</span>}
         {podeEditar ? (
           <GerenciarEtiquetasProcesso processoId={p.id} etiquetasAtuais={etiquetas}>
