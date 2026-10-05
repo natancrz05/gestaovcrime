@@ -3,15 +3,17 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import { useMemo, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
+import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
-import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
+import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
-import { ROTULO_TIPO_PROC, tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
+import { tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
+import { normalizarCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 import { toast } from "sonner";
-import { usePode, useSessao } from "@/lib/sessao";
+import { usePode } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
@@ -19,16 +21,27 @@ import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 
 interface Preso extends ReuEditavel {
   processos_relacionados: ProcRel[];
-  conferir: boolean; motivo_conferencia: string; processos: { numero: string } | null;
+  conferir: boolean;
+  motivo_conferencia: string;
+  processos: { numero: string } | null;
+}
+
+interface PrioridadeResumo {
+  id: string;
+  processo_id: string;
+  titulo: string;
+  motivo: string;
+  nivel: string;
+  observacao: string;
 }
 
 export const Route = createFileRoute("/_authenticated/reus-presos")({
   head: () => ({
     meta: [
       { title: "Presos Provisórios — Gestão da Vara Criminal" },
-      { name: "description", content: "Presos provisórios da Vara Criminal, com processos relacionados e importação de planilha." },
+      { name: "description", content: "Presos provisórios da Vara Criminal, com visão operacional de prisão, prazos e sinalizações." },
       { property: "og:title", content: "Presos Provisórios — Gestão da Vara Criminal" },
-      { property: "og:description", content: "Presos provisórios da Vara Criminal, com processos relacionados e importação de planilha." },
+      { property: "og:description", content: "Visão operacional dos presos provisórios da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(presosQuery()),
@@ -37,12 +50,93 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
 });
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const BTN_P = "text-xs text-primary hover:underline";
 
 // A espécie da planilha é a fonte de verdade para a classificação exibida.
 // O tipo legado do cadastro fica como fallback para registros sem espécie.
 const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
   p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
+
+const NIVEL_PRIORIDADE = {
+  critico: { rotulo: "Crítico", severidade: "urgente", ordem: 0 },
+  alta: { rotulo: "Urgente", severidade: "alerta", ordem: 1 },
+  media: { rotulo: "Atenção", severidade: "atencao", ordem: 2 },
+  conferir: { rotulo: "Conferir", severidade: "conferir", ordem: 3 },
+  baixa: { rotulo: "Informativo", severidade: "info", ordem: 4 },
+} as const;
+
+const ORDEM_ETIQUETA = {
+  critico: 0,
+  urgente: 1,
+  atencao: 2,
+  conferir: 3,
+  informativo: 4,
+  concluido: 5,
+} as const;
+
+function normalizarData(v?: string | null): string | null {
+  const s = v?.trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+function somarDiasISO(iso: string, dias: number): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(a, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + dias);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
+
+function maiorData(datas: Array<string | null>): string | null {
+  const validas = datas.filter((d): d is string => Boolean(d)).sort();
+  return validas.at(-1) ?? null;
+}
+
+function resumoPrazoPrisao(p: Preso, hoje: string) {
+  const tipo = tipoExibido(p);
+  const dp = p.dados_planilha ?? {};
+
+  if (tipo === "Prisão temporária") {
+    const termino = maiorData([
+      normalizarData(dp["Término de eventual prazo"]),
+      normalizarData(dp["Termino de eventual prazo"]),
+      normalizarData(dp["Término do prazo"]),
+      normalizarData(dp["Termino do prazo"]),
+    ]);
+    if (!termino) {
+      return { principal: "Sem data registrada", detalhe: "Término da temporária", cls: "text-muted-foreground" };
+    }
+    const dias = diasEntre(hoje, termino);
+    if (dias < 0) return { principal: `Vencido há ${Math.abs(dias)}d`, detalhe: `Término: ${formatarData(termino)}`, cls: "font-medium text-urgente" };
+    if (dias === 0) return { principal: "Término hoje", detalhe: formatarData(termino), cls: "font-medium text-urgente" };
+    if (dias === 1) return { principal: "Falta 1 dia", detalhe: `Término: ${formatarData(termino)}`, cls: "font-medium text-urgente" };
+    if (dias <= 5) return { principal: `Faltam ${dias} dias`, detalhe: `Término: ${formatarData(termino)}`, cls: "font-medium text-alerta" };
+    if (dias <= 15) return { principal: `Faltam ${dias} dias`, detalhe: `Término: ${formatarData(termino)}`, cls: "font-medium text-atencao" };
+    return { principal: "Regular", detalhe: `Término: ${formatarData(termino)}`, cls: "text-foreground" };
+  }
+
+  if (tipo === "Prisão preventiva") {
+    const base = maiorData([
+      normalizarData(dp["Última reavaliação"]),
+      normalizarData(dp["Data da última reavaliação"]),
+      normalizarData(dp["Data da decisão da preventiva"]),
+      normalizarData(dp["Data da decisão preventiva"]),
+    ]);
+    if (!base) {
+      return { principal: "Conferir reavaliação", detalhe: "Sem data-base confiável", cls: "font-medium text-temporaria" };
+    }
+    const limite = somarDiasISO(base, 90);
+    const dias = diasEntre(hoje, limite);
+    if (dias < 0) return { principal: `Vencida há ${Math.abs(dias)}d`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-urgente" };
+    if (dias === 0) return { principal: "Revisão hoje", detalhe: formatarData(limite), cls: "font-medium text-urgente" };
+    if (dias <= 5) return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-alerta" };
+    if (dias <= 15) return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-atencao" };
+    return { principal: "Regular", detalhe: `Próxima revisão: ${formatarData(limite)}`, cls: "text-foreground" };
+  }
+
+  return { principal: "—", detalhe: null as string | null, cls: "text-muted-foreground" };
+}
 
 function Pagina() {
   const data = useSuspenseQuery(presosQuery()).data as unknown as Preso[];
@@ -53,6 +147,27 @@ function Pagina() {
     [data],
   );
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
+  const { data: prioridades = [] } = useQuery({
+    queryKey: ["processos", "prioridades", processoIds],
+    enabled: processoIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async (): Promise<PrioridadeResumo[]> => {
+      const { data: lista, error } = await supabase
+        .from("prioridades")
+        .select("id, processo_id, titulo, motivo, nivel, observacao")
+        .in("processo_id", processoIds);
+      if (error) throw error;
+      return (lista ?? []) as PrioridadeResumo[];
+    },
+  });
+  const prioridadesPorProcesso = useMemo(() => {
+    const mapa: Record<string, PrioridadeResumo[]> = {};
+    for (const prioridade of prioridades) {
+      (mapa[prioridade.processo_id] ??= []).push(prioridade);
+    }
+    return mapa;
+  }, [prioridades]);
+
   const [importar, setImportar] = useState(false);
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
@@ -62,6 +177,7 @@ function Pagina() {
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
   const atualizar = () => qc.invalidateQueries({ queryKey: ["reus-presos"] });
+
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
     if (error) { toast.error(error.message); return; }
@@ -86,7 +202,8 @@ function Pagina() {
   };
 
   const exibidos = useMemo(() => {
-    const t = semAcento(termo.trim()); const d = t.replace(/\D/g, "");
+    const t = semAcento(termo.trim());
+    const d = t.replace(/\D/g, "");
     return data.filter((p) => {
       const tipoAtual = tipoExibido(p);
       if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(tipoAtual) : tipo && tipoAtual !== tipo) return false;
@@ -104,14 +221,16 @@ function Pagina() {
         <RetirarPrisao reu={soltar} onFechar={() => setSoltar(null)} onSalvo={atualizar} />
         <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={atualizar} />
       </> : null}
+
       <Cabecalho
         titulo="Presos Provisórios"
-        subtitulo={`${data.length} réus custodiados — prioridade máxima de tramitação`}
+        subtitulo={`${data.length} réus custodiados — visão operacional de prisão, revisão e sinalizações`}
         acao={podeEditar ? <div className="flex gap-2">
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted" onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
           <button className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground" onClick={() => setForm({ reu: null })}><Plus className="size-4" /> Adicionar preso provisório</button>
         </div> : undefined}
       />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {([
           ["", "Presos provisórios", data.length],
@@ -126,6 +245,7 @@ function Pagina() {
           </button>
         ))}
       </div>
+
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full max-w-md">
           <label htmlFor="pesq-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Pesquisar presos provisórios</label>
@@ -134,16 +254,23 @@ function Pagina() {
         <div>
           <label htmlFor="tipo-presos" className="mb-1 block text-xs font-medium text-muted-foreground">Tipo de prisão</label>
           <select id="tipo-presos" className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="">Todos</option>{TIPOS_CUSTODIA.map((x) => <option key={x}>{x}</option>)}<option value="outras">Outras prisões (exceto temporária e preventiva)</option>
+            <option value="">Todos</option>
+            {TIPOS_CUSTODIA.map((x) => <option key={x}>{x}</option>)}
+            <option value="outras">Outras prisões (exceto temporária e preventiva)</option>
           </select>
         </div>
       </div>
+
       <Secao titulo={`Presos provisórios (${exibidos.length})`}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum preso provisório encontrado.</p> : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Processo", "Réu custodiado", "Espécie", "Data da prisão", "Dias preso", "Processos relacionados", "Última reavaliação", "Situação da revisão", ...(podeEditar ? ["Ações"] : [])].map((h, i, arr) => <th key={h} className={`px-2 py-2 font-medium ${podeEditar && i === arr.length - 1 ? "sticky right-0 z-20 bg-card shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]" : ""}`}>{h}</th>)}</tr>
+                <tr>
+                  {["Processo", "Réu custodiado", "Prisão", "Prazo / revisão", "Sinalizações", ...(podeEditar ? ["Ações"] : [])].map((h, i, arr) => (
+                    <th key={h} className={`px-3 py-2 font-medium ${podeEditar && i === arr.length - 1 ? "sticky right-0 z-20 bg-card shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]" : ""}`}>{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody className="divide-y divide-border align-top">
                 {exibidos.map((p) => {
@@ -152,141 +279,169 @@ function Pagina() {
                     p.processos_relacionados.some((r) => r.numero?.trim()),
                   );
                   const semProcessoValido = !temProcessoValido;
-                  const rel = p.processos_relacionados.length ? p.processos_relacionados
-                    : p.processo_id && p.processos?.numero ? [{ tipo: "", numero: p.processos.numero, processo_id: p.processo_id, situacao: "encontrado" }] : [];
-                  const dias = p.data_prisao ? diasEntre(p.data_prisao, hoje) : null;
-                  const dp = p.dados_planilha ?? {};
-                  const rev = situacaoRevisao(tipoExibido(p), dp["Última reavaliação"] || undefined, hoje, diasEntre);
+                  const processoRelacionado = p.processos_relacionados.find((r) => r.numero?.trim()) ?? null;
+                  const numeroProcesso = p.processos?.numero?.trim() || processoRelacionado?.numero || "";
+                  const resumo = resumoPrazoPrisao(p, hoje);
+
+                  const prioridadesDoProcesso = p.processo_id ? prioridadesPorProcesso[p.processo_id] ?? [] : [];
+                  const prioridadeDominante = [...prioridadesDoProcesso]
+                    .filter((pr) => pr.nivel in NIVEL_PRIORIDADE)
+                    .sort((a, b) =>
+                      NIVEL_PRIORIDADE[a.nivel as keyof typeof NIVEL_PRIORIDADE].ordem -
+                      NIVEL_PRIORIDADE[b.nivel as keyof typeof NIVEL_PRIORIDADE].ordem
+                    )[0] ?? null;
+
+                  const etiquetas = p.processo_id
+                    ? [...(etiquetasPorProcesso[p.processo_id] ?? [])].sort(
+                        (a, b) =>
+                          ORDEM_ETIQUETA[normalizarCorEtiqueta(a.cor)] -
+                          ORDEM_ETIQUETA[normalizarCorEtiqueta(b.cor)] ||
+                          a.nome.localeCompare(b.nome, "pt-BR"),
+                      )
+                    : [];
+
+                  const mostrarConferirCadastro = p.conferir && prioridadeDominante?.nivel !== "conferir";
+                  const totalSinalizacoes = (prioridadeDominante ? 1 : 0) + (mostrarConferirCadastro ? 1 : 0) + etiquetas.length;
+                  let vagas = 2;
+
                   return (
-                    <tr key={p.id}>
-                      <td className="px-2 py-2 text-xs whitespace-nowrap">
-                        {p.processo_id && p.processos?.numero ? <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">{p.processos.numero}</Link>
-                          : rel[0] ? <span className="numero-processo">{rel[0].numero}</span> : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">Não vinculado</span>
-                              {podeEditar ? (
-                                <button
-                                  type="button"
-                                  className="rounded border border-primary/30 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
-                                  onClick={() => setForm({ reu: p })}
-                                >
-                                  Vincular processo
-                                </button>
-                              ) : null}
-                              {podeEditar ? (
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-medium text-destructive hover:underline"
-                                  onClick={() => void excluirCadastroSemProcesso(p)}
-                                >
-                                  Excluir
-                                </button>
-                              ) : null}
-                            </div>
-                          )}
+                    <tr key={p.id} className="hover:bg-muted/20">
+                      <td className="px-3 py-3 text-xs whitespace-nowrap">
+                        {p.processo_id && p.processos?.numero ? (
+                          <Link to="/processos/$id" params={{ id: p.processo_id }} className="numero-processo font-medium text-primary hover:underline">
+                            {p.processos.numero}
+                          </Link>
+                        ) : numeroProcesso ? (
+                          <span className="numero-processo">{numeroProcesso}</span>
+                        ) : (
+                          <div className="space-y-1">
+                            <span className="block text-muted-foreground">Não vinculado</span>
+                            {podeEditar ? (
+                              <button
+                                type="button"
+                                className="text-[11px] font-medium text-primary hover:underline"
+                                onClick={() => setForm({ reu: p })}
+                              >
+                                Vincular processo
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="font-medium">
-                          {p.nome}
-                          {p.conferir ? (
-                            <span className="group/selo relative ml-2 inline-flex align-middle" title={p.motivo_conferencia}>
-                              <span onClick={podeEditar ? () => setForm({ reu: p }) : undefined} className={podeEditar ? "cursor-pointer rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta" : "rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta"}>Conferir</span>
-                              {podeEditar ? (
-                                <button
-                                  type="button"
-                                  aria-label="Remover selo Conferir deste cadastro"
-                                  title="Remover o selo Conferir (os dados do cadastro são mantidos)"
-                                  onClick={() => marcarConferencia(p.id, false)}
-                                  className="absolute -right-1.5 -top-1.5 hidden size-3.5 items-center justify-center rounded-full border border-alerta/40 bg-background text-[9px] font-bold leading-none text-alerta group-hover/selo:flex hover:bg-alerta hover:text-primary-foreground"
-                                >×</button>
-                              ) : null}
-                            </span>
-                          ) : null}
+
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-foreground">{p.nome}</div>
+                        {p.rji ? <div className="mt-0.5 text-xs text-muted-foreground">RJI {p.rji}</div> : null}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-foreground">{tipoExibido(p)}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {p.data_prisao ? `Desde ${formatarData(p.data_prisao)}` : "Data não informada"}
                         </div>
-                        {p.conferir && p.motivo_conferencia ? <div className="text-xs text-alerta">{p.motivo_conferencia}</div> : null}
-                        {!p.conferir && p.motivo_conferencia ? <div className="text-xs text-muted-foreground">Revisão do cadastro: concluída</div> : null}
-                        {p.rji ? <div className="text-xs text-muted-foreground">RJI {p.rji}</div> : null}
-                        {p.situacao ? <div className="text-xs text-muted-foreground">{p.situacao}</div> : null}
-                        {p.processo_id && etiquetasPorProcesso[p.processo_id]?.length ? (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {etiquetasPorProcesso[p.processo_id].map((e) => (
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <div className={resumo.cls}>{resumo.principal}</div>
+                        {resumo.detalhe ? <div className="mt-0.5 text-xs text-muted-foreground">{resumo.detalhe}</div> : null}
+                      </td>
+
+                      <td className="px-3 py-3">
+                        {totalSinalizacoes === 0 ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex max-w-[280px] flex-wrap items-center gap-1">
+                            {prioridadeDominante && vagas > 0 ? (() => {
+                              vagas -= 1;
+                              const cfg = NIVEL_PRIORIDADE[prioridadeDominante.nivel as keyof typeof NIVEL_PRIORIDADE];
+                              return (
+                                <Etiqueta
+                                  key={`prioridade-${prioridadeDominante.id}`}
+                                  severidade={cfg.severidade}
+                                  className="whitespace-nowrap"
+                                >
+                                  <span title={`Prioridade manual: ${prioridadeDominante.titulo || prioridadeDominante.motivo || cfg.rotulo}`}>{cfg.rotulo}</span>
+                                </Etiqueta>
+                              );
+                            })() : null}
+
+                            {mostrarConferirCadastro && vagas > 0 ? (() => {
+                              vagas -= 1;
+                              return (
+                                <Etiqueta key="conferir-cadastro" severidade="conferir" className="whitespace-nowrap">
+                                  <span title={p.motivo_conferencia || "Cadastro marcado para conferência"}>Conferir cadastro</span>
+                                </Etiqueta>
+                              );
+                            })() : null}
+
+                            {etiquetas.slice(0, Math.max(0, vagas)).map((e) => (
                               <EtiquetaProcesso key={e.id} processoId={p.processo_id!} etiqueta={e} />
                             ))}
+
+                            {totalSinalizacoes > 2 ? (
+                              <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                +{totalSinalizacoes - 2}
+                              </span>
+                            ) : null}
                           </div>
-                        ) : null}
+                        )}
                       </td>
-                      <td className="px-2 py-2">{tipoExibido(p)}{p.especie_cautelar ? <div className="text-xs text-muted-foreground">{p.especie_cautelar}</div> : null}</td>
-                      <td className="px-2 py-2">{formatarData(p.data_prisao)}</td>
-                      <td className="px-2 py-2 tabular-nums">{dias ?? dp["Dias preso (planilha)"] ?? "—"}</td>
-                      <td className="px-2 py-2 text-xs">
-                        {rel.length === 0 ? <span className="text-muted-foreground">Não vinculado</span> : rel.map((r, i) => (
-                          <div key={i} className="whitespace-nowrap">
-                            {r.tipo ? <span className="text-muted-foreground">{ROTULO_TIPO_PROC[r.tipo] ?? r.tipo}: </span> : null}
-                            {r.processo_id ? <Link to="/processos/$id" params={{ id: r.processo_id }} className="numero-processo text-primary hover:underline">{r.numero}</Link>
-                              : <span className="numero-processo">{r.numero} <span className="text-alerta">(não vinculado)</span></span>}
-                          </div>
-                        ))}
-                        {dp["Sistema"] ? <div className="text-muted-foreground">Sistema: {dp["Sistema"]}</div> : null}
-                      </td>
-                      <td className="px-2 py-2 text-xs">
-                        {dp["Última reavaliação"] ? <div>{formatarData(dp["Última reavaliação"])}</div> : <div className="text-muted-foreground">—</div>}
-                        {dp["Data de reavaliação"] ? <div className="text-muted-foreground">Próxima: {formatarData(dp["Data de reavaliação"])}</div> : null}
-                        {dp["Prazo de reavaliação"] ? <div className="text-muted-foreground">Prazo: {dp["Prazo de reavaliação"]}</div> : null}
-                        {dp["Término de eventual prazo"] ? <div className="text-muted-foreground">Término: {formatarData(dp["Término de eventual prazo"])}</div> : null}
-                        {dp["Andamento do último procedimento"] ? <div className="text-muted-foreground">{dp["Andamento do último procedimento"]}</div> : null}
-                      </td>
-                      <td className="px-2 py-2 text-xs">
-                        {rev ? <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 font-medium ${rev.cls}`}>{rev.rotulo}{rev.dias !== null ? ` · ${rev.dias}d` : ""}</span> : <span className="text-muted-foreground">—</span>}
-                      </td>
+
                       {podeEditar ? (
-                        <td className="sticky right-0 z-10 bg-card px-2 py-2 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
-                          <div className="flex items-center gap-2">
-                            <button className={BTN_P} onClick={() => setForm({ reu: p })}>{semProcessoValido ? "Vincular processo" : (p.conferir ? "Conferir" : "Editar")}</button>
-                            {semProcessoValido ? (
+                        <td className="sticky right-0 z-10 bg-card px-3 py-3 whitespace-nowrap shadow-[-6px_0_10px_-10px_rgba(0,0,0,0.35)]">
+                          {semProcessoValido ? (
+                            <div className="flex items-center gap-2">
+                              <button className="text-xs font-medium text-primary hover:underline" onClick={() => setForm({ reu: p })}>
+                                Vincular processo
+                              </button>
                               <button
                                 className="text-xs text-destructive hover:underline"
                                 type="button"
                                 onClick={() => void excluirCadastroSemProcesso(p)}
                               >
-                                Excluir cadastro
+                                Excluir
                               </button>
-                            ) : (
-                              <button className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted" type="button" aria-haspopup="menu" aria-expanded={acoesAberta === p.id} onClick={() => setAcoesAberta(acoesAberta === p.id ? null : p.id)}>Ações ▾</button>
-                            )}
-                          </div>
-                          {acoesAberta === p.id ? (
-                            <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
-                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setForm({ reu: p }); setAcoesAberta(null); }}>Atualizar prisão</button>
-                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setReav(p); setAcoesAberta(null); }}>Registrar reavaliação</button>
-                              {p.processo_id ? (
-                                <GerenciarEtiquetasProcesso
-                                  processoId={p.processo_id}
-                                  etiquetasAtuais={etiquetasPorProcesso[p.processo_id] ?? []}
-                                >
-                                  {(abrir) => (
-                                    <button
-                                      type="button"
-                                      className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted"
-                                      onClick={() => { setAcoesAberta(null); abrir(); }}
-                                    >
-                                      Adicionar etiqueta
-                                    </button>
-                                  )}
-                                </GerenciarEtiquetasProcesso>
-                              ) : null}
-                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-urgente hover:bg-urgente-suave" onClick={() => { setSoltar(p); setAcoesAberta(null); }}>Encerrar situação prisional</button>
-                              <div className="my-1 border-t border-border" />
-                              <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { marcarConferencia(p.id, !p.conferir); setAcoesAberta(null); }}>{p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}</button>
-                              {!p.processo_id ? (
-                                <button
-                                  className="block w-full rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
-                                  onClick={() => { setAcoesAberta(null); void excluirCadastroSemProcesso(p); }}
-                                >
-                                  Excluir cadastro
-                                </button>
-                              ) : null}
                             </div>
-                          ) : null}
+                          ) : (
+                            <>
+                              <button
+                                className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted"
+                                type="button"
+                                aria-haspopup="menu"
+                                aria-expanded={acoesAberta === p.id}
+                                onClick={() => setAcoesAberta(acoesAberta === p.id ? null : p.id)}
+                              >
+                                Ações ▾
+                              </button>
+                              {acoesAberta === p.id ? (
+                                <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
+                                  <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setForm({ reu: p }); setAcoesAberta(null); }}>Atualizar prisão</button>
+                                  <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setReav(p); setAcoesAberta(null); }}>Registrar reavaliação</button>
+                                  {p.processo_id ? (
+                                    <GerenciarEtiquetasProcesso
+                                      processoId={p.processo_id}
+                                      etiquetasAtuais={etiquetasPorProcesso[p.processo_id] ?? []}
+                                    >
+                                      {(abrir) => (
+                                        <button
+                                          type="button"
+                                          className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted"
+                                          onClick={() => { setAcoesAberta(null); abrir(); }}
+                                        >
+                                          Adicionar etiqueta
+                                        </button>
+                                      )}
+                                    </GerenciarEtiquetasProcesso>
+                                  ) : null}
+                                  <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-urgente hover:bg-urgente-suave" onClick={() => { setSoltar(p); setAcoesAberta(null); }}>Encerrar situação prisional</button>
+                                  <div className="my-1 border-t border-border" />
+                                  <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { marcarConferencia(p.id, !p.conferir); setAcoesAberta(null); }}>
+                                    {p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </>
+                          )}
                         </td>
                       ) : null}
                     </tr>
@@ -297,7 +452,10 @@ function Pagina() {
           </div>
         )}
       </Secao>
-      <p className="text-xs text-muted-foreground">Situação da revisão: alerta operacional interno aos 85 dias da última reavaliação (somente prisão preventiva). Não representa prazo legal.</p>
+
+      <p className="text-xs text-muted-foreground">
+        A tela inicial prioriza processo, custodiado, espécie da prisão, prazo/revisão e sinalizações. Detalhes completos permanecem disponíveis no processo e nas ações do cadastro.
+      </p>
     </div>
   );
 }
