@@ -69,7 +69,7 @@ function textoPrazo(item: ItemAtencaoBeta) {
   return `Faltam ${item.diasRestantes} dia${item.diasRestantes === 1 ? "" : "s"}`;
 }
 
-export function PrioridadesAlertasBeta() {
+export function PrioridadesAlertas() {
   const { perfil } = useSessao();
   const ehAdmin = perfil === "administrador";
   const podeEditar = usePode("editar");
@@ -225,14 +225,14 @@ export function PrioridadesAlertasBeta() {
   }
 
   if (presos.isLoading || comparecimentos.isLoading || auxiliares.isLoading) {
-    return <EstadoVazio titulo="Carregando versão beta" descricao="Calculando prioridades e alertas a partir dos dados atuais do sistema." />;
+    return <EstadoVazio titulo="Carregando prioridades e alertas" descricao="Calculando prioridades e alertas a partir dos dados atuais do sistema." />;
   }
 
   return (
     <div className="space-y-6">
       <Cabecalho
         titulo="Prioridades e Alertas"
-        subtitulo="BETA — visão unificada e calculada em tempo real; a versão atual permanece preservada para comparação."
+        subtitulo="Visão unificada de prioridades manuais, alertas automáticos, etiquetas e conferências operacionais."
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
