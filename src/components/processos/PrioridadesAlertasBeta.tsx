@@ -87,7 +87,7 @@ export function PrioridadesAlertasBeta() {
   const [manual, setManual] = useState({
     processo_id: "",
     titulo: "",
-    nivel: "media" as "alta" | "media" | "baixa",
+    nivel: "media" as "critico" | "alta" | "media" | "conferir" | "baixa",
     observacao: "",
   });
   const [salvandoManual, setSalvandoManual] = useState(false);
@@ -263,10 +263,12 @@ export function PrioridadesAlertasBeta() {
                 <select
                   className={CLASSE_CAMPO}
                   value={manual.nivel}
-                  onChange={(e) => setManual({ ...manual, nivel: e.target.value as "alta" | "media" | "baixa" })}
+                  onChange={(e) => setManual({ ...manual, nivel: e.target.value as "critico" | "alta" | "media" | "conferir" | "baixa" })}
                 >
+                  <option value="critico">Crítico</option>
                   <option value="alta">Urgente</option>
                   <option value="media">Atenção</option>
+                  <option value="conferir">Conferir</option>
                   <option value="baixa">Informativo</option>
                 </select>
               </Campo>
