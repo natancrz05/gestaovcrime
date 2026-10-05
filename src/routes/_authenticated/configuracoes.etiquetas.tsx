@@ -12,6 +12,11 @@ import {
   salvarEtiqueta,
   type EtiquetaDoProcesso,
 } from "@/lib/processos/repositorio";
+import {
+  OPCOES_COR_ETIQUETA,
+  normalizarCorEtiqueta,
+  opcaoCorEtiqueta,
+} from "@/lib/processos/etiquetas-niveis";
 
 export const Route = createFileRoute("/_authenticated/configuracoes/etiquetas")({
   head: () => ({
@@ -25,13 +30,6 @@ export const Route = createFileRoute("/_authenticated/configuracoes/etiquetas")(
 
 const BOTAO = "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50";
-const CORES = [
-  { valor: "default", rotulo: "Padrão", severidade: "info" as const },
-  { valor: "urgente", rotulo: "Urgente", severidade: "urgente" as const },
-  { valor: "alerta", rotulo: "Alerta", severidade: "alerta" as const },
-  { valor: "concluido", rotulo: "Concluído", severidade: "concluido" as const },
-];
-
 type Edicao = { id?: string; nome: string; cor: string; favorita: boolean };
 
 function Pagina() {
@@ -44,7 +42,7 @@ function Pagina() {
 
   function nova() {
     setErro("");
-    setEdicao({ nome: "", cor: "default", favorita: false });
+    setEdicao({ nome: "", cor: "informativo", favorita: false });
   }
 
   async function salvar(e: React.FormEvent) {
@@ -108,7 +106,7 @@ function Pagina() {
               <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">Nenhuma etiqueta cadastrada.</td></tr>
             ) : null}
             {etiquetas.map((e) => {
-              const cor = CORES.find((x) => x.valor === e.cor) ?? CORES[0];
+              const cor = opcaoCorEtiqueta(e.cor);
               return (
                 <tr key={e.id}>
                   <td className="px-4 py-2.5"><Etiqueta severidade={cor.severidade}>{e.nome}</Etiqueta></td>
@@ -119,7 +117,7 @@ function Pagina() {
                   <td className="px-4 py-2.5">
                     {podeEditar ? (
                       <div className="flex justify-end gap-1.5">
-                        <button className={BOTAO_SEC} aria-label="Editar etiqueta" onClick={() => { setErro(""); setEdicao({ id: e.id, nome: e.nome, cor: e.cor, favorita: e.favorita }); }}>
+                        <button className={BOTAO_SEC} aria-label="Editar etiqueta" onClick={() => { setErro(""); setEdicao({ id: e.id, nome: e.nome, cor: normalizarCorEtiqueta(e.cor), favorita: e.favorita }); }}>
                           <Pencil className="size-3.5" /> Editar
                         </button>
                         <button className={BOTAO_SEC + " text-urgente"} aria-label="Excluir etiqueta" onClick={() => excluir(e)}>
@@ -145,7 +143,7 @@ function Pagina() {
               </Campo>
               <Campo rotulo="Cor">
                 <select className={CLASSE_CAMPO} value={edicao.cor} onChange={(e) => setEdicao({ ...edicao, cor: e.target.value })}>
-                  {CORES.map((c) => <option key={c.valor} value={c.valor}>{c.rotulo}</option>)}
+                  {OPCOES_COR_ETIQUETA.map((c) => <option key={c.valor} value={c.valor}>{c.rotulo}</option>)}
                 </select>
               </Campo>
               <label className="flex items-center gap-2 text-sm">
