@@ -181,7 +181,7 @@ function Pagina() {
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="px-2 py-2 font-medium">{c.pessoa}{c.conferir ? (
+                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">{c.pessoa}{c.conferir ? (
                       <span className="group/selo relative ml-2 inline-flex align-middle" title={c.motivo_conferencia}>
                         <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span>
                         {podeEditar ? (
@@ -195,18 +195,18 @@ function Pagina() {
                         ) : null}
                       </span>
                     ) : null}</td>
-                    <td className="break-words px-2 py-2">
+                    <td className="px-2 py-2 align-top leading-snug">
                       {(() => {
                         const processoEtiquetaId = processoIdParaEtiquetas(c);
                         const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
                         return (
                           <>
                             {c.processo_id ? (
-                              <span className="numero-processo">{c.numero}</span>
+                              <span className="numero-processo break-words">{c.numero}</span>
                             ) : (
                               <>
                                 Não vinculado
-                                {c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
+                                {c.numeros_informados?.length ? <span className="block break-words text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
                               </>
                             )}
                             {etiquetas.length ? (
@@ -220,11 +220,11 @@ function Pagina() {
                         );
                       })()}
                     </td>
-                    <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
-                    <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
-                    <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
-                    <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
+                    <td className="whitespace-nowrap px-2 py-2 align-top leading-snug">{formatarData(c.ultimo)}</td>
+                    <td className="whitespace-nowrap px-2 py-2 align-top leading-snug font-medium">{formatarData(c.proximo)}</td>
+                    <td className="px-2 py-2 align-top leading-snug">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
+                    <td className="px-2 py-2 text-right align-top" onClick={(e) => e.stopPropagation()}>
+                      {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC + " whitespace-nowrap"} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                     </td>
                   </tr>
                 ))}
