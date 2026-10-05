@@ -91,6 +91,14 @@ function Pagina() {
     });
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && k !== "pagina" && sp[k]);
   const hoje = hojeISO();
+  const alertasPorProcesso = useMemo(
+    () =>
+      Object.fromEntries(
+        processos.map((p) => [p.id, alertasDoProcesso(p, hoje, etiquetasPorProcesso)]),
+      ),
+    [processos, hoje, etiquetasPorProcesso],
+  );
+
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("processos").update({ conferir }).eq("id", id);
     if (error) { toast.error(error.message); return; }
@@ -133,8 +141,8 @@ function Pagina() {
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
-      if (gestaoPrioridade === "com" && alertasDoProcesso(p, hoje).length === 0) return false;
-      if (gestaoPrioridade === "sem" && alertasDoProcesso(p, hoje).length > 0) return false;
+      if (gestaoPrioridade === "com" && (alertasPorProcesso[p.id] ?? []).length === 0) return false;
+      if (gestaoPrioridade === "sem" && (alertasPorProcesso[p.id] ?? []).length > 0) return false;
       if (gestaoPendencia === "com" && pendenciasAbertas(p).length === 0) return false;
       if (gestaoPendencia === "sem" && pendenciasAbertas(p).length > 0) return false;
       if (movimentacao) {
@@ -162,10 +170,10 @@ function Pagina() {
       distribuicao: (a, b) => (b.data_distribuicao ?? "").localeCompare(a.data_distribuicao ?? ""),
       movimentacao: (a, b) => (ultimaMovimentacao(b)?.data ?? "").localeCompare(ultimaMovimentacao(a)?.data ?? ""),
       dias: (a, b) => dias(b) - dias(a),
-      prioridade: (a, b) => alertasDoProcesso(b, hoje).length - alertasDoProcesso(a, hoje).length || a.numero.localeCompare(b.numero),
+      prioridade: (a, b) => (alertasPorProcesso[b.id] ?? []).length - (alertasPorProcesso[a.id] ?? []).length || a.numero.localeCompare(b.numero),
     };
     return [...lista].sort(ORD[ordem] ?? ORD["processo"]);
-  }, [processos, sp, hoje]);
+  }, [processos, sp, hoje, alertasPorProcesso, etiquetasPorProcesso]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PROCESSOS_POR_PAGINA));
   const paginaSolicitada = Math.max(1, Number.parseInt(sp.pagina ?? "1", 10) || 1);
@@ -399,7 +407,7 @@ function Pagina() {
                       ) : null}
                     </td>
                     <td className="break-words px-2 py-2 text-muted-foreground">
-                      {(() => { const al = alertasDoProcesso(p, hoje); return al.length ? <div className="flex flex-wrap gap-1">{al.map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}</div> : "—"; })()}
+                      {(() => { const al = alertasPorProcesso[p.id] ?? []; return al.length ? <div className="flex flex-wrap gap-1">{al.map((a, i) => <EtiquetaAlerta key={i} alerta={a} />)}</div> : "—"; })()}
                     </td>
                     <td className="break-words px-2 py-2">{formatarData(aud?.data ?? null)}</td>
                     <td className="px-3 py-2.5">
