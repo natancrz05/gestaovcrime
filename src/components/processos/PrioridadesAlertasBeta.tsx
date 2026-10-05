@@ -1,16 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Bell, Database, FileSpreadsheet, Search, X } from "lucide-react";
+import { Bell, Database, FileSpreadsheet, Plus, Search, X } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
-import { CLASSE_CAMPO } from "@/components/processos/campos";
+import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
+import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { cn } from "@/lib/utils";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { comparecimentosQuery } from "@/lib/processos/comparecimentos";
-import { useSessao } from "@/lib/sessao";
+import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
-import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, salvarPrioridadeManual } from "@/lib/processos/repositorio";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
   dadosAuxiliaresAlertasBetaQuery,
@@ -67,6 +68,8 @@ function textoPrazo(item: ItemAtencaoBeta) {
 export function PrioridadesAlertasBeta() {
   const { perfil } = useSessao();
   const ehAdmin = perfil === "administrador";
+  const podeEditar = usePode("editar");
+  const qc = useQueryClient();
   const { data: processos } = useSuspenseQuery(processosQuery());
   const presos = useQuery(presosQuery());
   const comparecimentos = useQuery(comparecimentosQuery());
@@ -80,6 +83,15 @@ export function PrioridadesAlertasBeta() {
   const [categoria, setCategoria] = useState("");
   const [modulo, setModulo] = useState("");
   const [prazo, setPrazo] = useState("");
+  const [mostrarManual, setMostrarManual] = useState(false);
+  const [manual, setManual] = useState({
+    processo_id: "",
+    titulo: "",
+    nivel: "media" as "alta" | "media" | "baixa",
+    observacao: "",
+  });
+  const [salvandoManual, setSalvandoManual] = useState(false);
+  const [erroManual, setErroManual] = useState("");
 
   const hoje = hojeISO();
   const dadosAux = auxiliares.data ?? DADOS_VAZIOS_ALERTAS_BETA;
@@ -156,6 +168,31 @@ export function PrioridadesAlertasBeta() {
   const basePje = statusBasePjeBeta(dadosAux, hoje);
   const algumFiltro = Boolean(busca || nivel || origem || categoria || modulo || prazo);
 
+  async function adicionarManual(e: React.FormEvent) {
+    e.preventDefault();
+    if (!manual.processo_id || !manual.titulo.trim()) {
+      setErroManual("Selecione o processo e informe o título.");
+      return;
+    }
+    setSalvandoManual(true);
+    setErroManual("");
+    try {
+      await salvarPrioridadeManual({
+        processo_id: manual.processo_id,
+        titulo: manual.titulo.trim(),
+        nivel: manual.nivel,
+        observacao: manual.observacao.trim(),
+      });
+      await qc.invalidateQueries({ queryKey: ["processos"] });
+      setManual({ processo_id: "", titulo: "", nivel: "media", observacao: "" });
+      setMostrarManual(false);
+    } catch (err) {
+      setErroManual(err instanceof Error ? err.message : "Erro ao adicionar prioridade.");
+    } finally {
+      setSalvandoManual(false);
+    }
+  }
+
   if (presos.isLoading || comparecimentos.isLoading || auxiliares.isLoading) {
     return <EstadoVazio titulo="Carregando versão beta" descricao="Calculando prioridades e alertas a partir dos dados atuais do sistema." />;
   }
@@ -189,6 +226,72 @@ export function PrioridadesAlertasBeta() {
           );
         })}
       </div>
+
+      {podeEditar ? (
+        <section className="rounded-lg border border-border bg-card p-4 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Prioridade ou alerta manual</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Adicione uma sinalização interna vinculada a um processo. Ela permanecerá ativa até ser removida manualmente.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setMostrarManual((v) => !v); setErroManual(""); }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              {mostrarManual ? <X className="size-4" /> : <Plus className="size-4" />}
+              {mostrarManual ? "Cancelar" : "Adicionar prioridade / alerta"}
+            </button>
+          </div>
+
+          {mostrarManual ? (
+            <form onSubmit={adicionarManual} className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-[2fr_2fr_1fr] md:items-end">
+              <Campo rotulo="Processo">
+                <SeletorProcesso value={manual.processo_id} onChange={(id) => setManual({ ...manual, processo_id: id })} />
+              </Campo>
+              <Campo rotulo="Título">
+                <input
+                  className={CLASSE_CAMPO}
+                  placeholder="Ex.: conferir manifestação do MP"
+                  value={manual.titulo}
+                  onChange={(e) => setManual({ ...manual, titulo: e.target.value })}
+                />
+              </Campo>
+              <Campo rotulo="Nível">
+                <select
+                  className={CLASSE_CAMPO}
+                  value={manual.nivel}
+                  onChange={(e) => setManual({ ...manual, nivel: e.target.value as "alta" | "media" | "baixa" })}
+                >
+                  <option value="alta">Urgente</option>
+                  <option value="media">Atenção</option>
+                  <option value="baixa">Informativo</option>
+                </select>
+              </Campo>
+              <div className="md:col-span-2">
+                <Campo rotulo="Observação">
+                  <input
+                    className={CLASSE_CAMPO}
+                    placeholder="Observação opcional"
+                    value={manual.observacao}
+                    onChange={(e) => setManual({ ...manual, observacao: e.target.value })}
+                  />
+                </Campo>
+              </div>
+              <button
+                type="submit"
+                disabled={salvandoManual}
+                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                {salvandoManual ? "Adicionando..." : "Adicionar"}
+              </button>
+              {erroManual ? <p className="text-sm text-urgente md:col-span-3">{erroManual}</p> : null}
+            </form>
+          ) : null}
+        </section>
+      ) : null}
 
       {ehAdmin ? <section className={cn(
         "rounded-lg border p-4 shadow-card",
@@ -335,7 +438,7 @@ export function PrioridadesAlertasBeta() {
       )}
 
       <p className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-        Durante o beta, o cadastro, edição e exclusão das prioridades manuais continuam disponíveis na versão atual. Nenhuma tabela nova foi criada e nenhum alerta beta é gravado no banco.
+        Durante o beta, novas prioridades e alertas manuais podem ser adicionados aqui. A edição e a exclusão dos registros manuais continuam disponíveis na versão atual. Nenhuma tabela nova foi criada.
       </p>
     </div>
   );
