@@ -35,6 +35,11 @@ interface PrioridadeResumo {
   observacao: string;
 }
 
+interface ReavaliacaoResumo {
+  reu_id: string;
+  data_reavaliacao: string;
+}
+
 export const Route = createFileRoute("/_authenticated/reus-presos")({
   head: () => ({
     meta: [
@@ -90,10 +95,10 @@ function somarDiasISO(iso: string, dias: number): string {
 
 function maiorData(datas: Array<string | null>): string | null {
   const validas = datas.filter((d): d is string => Boolean(d)).sort();
-  return validas.at(-1) ?? null;
+  return validas[validas.length - 1] ?? null;
 }
 
-function resumoPrazoPrisao(p: Preso, hoje: string) {
+function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: string | null) {
   const tipo = tipoExibido(p);
   const dp = p.dados_planilha ?? {};
 
@@ -118,6 +123,7 @@ function resumoPrazoPrisao(p: Preso, hoje: string) {
 
   if (tipo === "Prisão preventiva") {
     const base = maiorData([
+      normalizarData(ultimaReavaliacaoHistorico),
       normalizarData(dp["Última reavaliação"]),
       normalizarData(dp["Data da última reavaliação"]),
       normalizarData(dp["Data da decisão da preventiva"]),
@@ -168,6 +174,31 @@ function Pagina() {
     return mapa;
   }, [prioridades]);
 
+  const reuIds = useMemo(() => data.map((p) => p.id), [data]);
+  const { data: reavaliacoes = [] } = useQuery({
+    queryKey: ["reus-presos", "reavaliacoes", reuIds],
+    enabled: reuIds.length > 0,
+    staleTime: 0,
+    queryFn: async (): Promise<ReavaliacaoResumo[]> => {
+      const { data: lista, error } = await supabase
+        .from("reu_reavaliacoes")
+        .select("reu_id, data_reavaliacao")
+        .in("reu_id", reuIds)
+        .order("data_reavaliacao", { ascending: false });
+      if (error) throw error;
+      return (lista ?? []) as ReavaliacaoResumo[];
+    },
+  });
+  const ultimaReavaliacaoPorReu = useMemo(() => {
+    const mapa: Record<string, string> = {};
+    for (const reavaliacao of reavaliacoes) {
+      if (!mapa[reavaliacao.reu_id] || reavaliacao.data_reavaliacao > mapa[reavaliacao.reu_id]) {
+        mapa[reavaliacao.reu_id] = reavaliacao.data_reavaliacao;
+      }
+    }
+    return mapa;
+  }, [reavaliacoes]);
+
   const [importar, setImportar] = useState(false);
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
@@ -176,7 +207,12 @@ function Pagina() {
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
-  const atualizar = () => qc.invalidateQueries({ queryKey: ["reus-presos"] });
+  const atualizar = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["reus-presos"] }),
+      qc.invalidateQueries({ queryKey: ["reus-presos", "reavaliacoes"] }),
+    ]);
+  };
 
   const marcarConferencia = async (id: string, conferir: boolean) => {
     const { error } = await supabase.from("reus").update({ conferir }).eq("id", id);
@@ -281,7 +317,7 @@ function Pagina() {
                   const semProcessoValido = !temProcessoValido;
                   const processoRelacionado = p.processos_relacionados.find((r) => r.numero?.trim()) ?? null;
                   const numeroProcesso = p.processos?.numero?.trim() || processoRelacionado?.numero || "";
-                  const resumo = resumoPrazoPrisao(p, hoje);
+                  const resumo = resumoPrazoPrisao(p, hoje, ultimaReavaliacaoPorReu[p.id] ?? null);
 
                   const prioridadesDoProcesso = p.processo_id ? prioridadesPorProcesso[p.processo_id] ?? [] : [];
                   const prioridadeDominante = [...prioridadesDoProcesso]
