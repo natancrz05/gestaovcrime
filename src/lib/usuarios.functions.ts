@@ -118,20 +118,22 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
       supabaseAdmin.from("usuarios").select("nome, ativo").eq("id", data.id).maybeSingle(),
       supabaseAdmin.from("user_roles").select("id, role").eq("user_id", data.id),
     ]);
-    const perfilAntes = rolesAntes?.[0]?.role ?? null;
+    const papeisAtuais = rolesAntes ?? [];
+    const papelAtual = papeisAtuais[0] ?? null;
+    const perfilAntes = papelAtual?.role ?? null;
 
     // Troca o perfil sem abrir uma janela em que o usuário fique sem papel.
-    const papelDesejado = rolesAntes?.find((r: any) => r.role === data.perfil);
+    const papelDesejado = papeisAtuais.find((r: any) => r.role === data.perfil);
     if (papelDesejado) {
-      const extras = (rolesAntes ?? []).filter((r: any) => r.id !== papelDesejado.id).map((r: any) => r.id);
+      const extras = papeisAtuais.filter((r: any) => r.id !== papelDesejado.id).map((r: any) => r.id);
       if (extras.length) {
         const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
         if (limpeza.error) throw new Error(limpeza.error.message);
       }
-    } else if (rolesAntes?.[0]) {
-      const troca = await supabaseAdmin.from("user_roles").update({ role: data.perfil }).eq("id", rolesAntes[0].id);
+    } else if (papelAtual) {
+      const troca = await supabaseAdmin.from("user_roles").update({ role: data.perfil }).eq("id", papelAtual.id);
       if (troca.error) throw new Error(troca.error.message);
-      const extras = rolesAntes.slice(1).map((r: any) => r.id);
+      const extras = papeisAtuais.slice(1).map((r: any) => r.id);
       if (extras.length) {
         const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
         if (limpeza.error) throw new Error(limpeza.error.message);
