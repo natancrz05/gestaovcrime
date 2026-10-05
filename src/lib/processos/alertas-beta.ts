@@ -84,7 +84,8 @@ export const DADOS_VAZIOS_ALERTAS_BETA: DadosAuxiliaresAlertasBeta = {
 export const dadosAuxiliaresAlertasBetaQuery = () =>
   queryOptions({
     queryKey: ["alertas-beta", "dados-auxiliares"],
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async (): Promise<DadosAuxiliaresAlertasBeta> => {
       const [reavaliacoes, encerramentos, importacao] = await Promise.all([
         supabase
@@ -152,8 +153,8 @@ function dataLocalDeTimestamp(timestamp: string): string {
 }
 
 function maiorData(datas: Array<string | null | undefined>): string | null {
-  const validas = datas.filter((d): d is string => Boolean(d));
-  return validas.length ? [...validas].sort().at(-1) ?? null : null;
+  const validas = datas.filter((d): d is string => Boolean(d)).sort();
+  return validas.length ? validas[validas.length - 1] ?? null : null;
 }
 
 function tipoCustodia(p: ReuPresoBeta) {
@@ -502,9 +503,10 @@ export function montarItensAtencaoBeta(params: {
     if (comparecimento.situacao === "Encerrado") continue;
     const proximo = normalizarData(comparecimento.proximo);
     if (!proximo || proximo >= hoje) continue;
-    const houveRegistroPosterior = comparecimento.comparecimento_registros.some(
-      (r) => normalizarData(r.data_realizada) && r.data_realizada >= proximo,
-    );
+    const houveRegistroPosterior = comparecimento.comparecimento_registros.some((r) => {
+      const realizada = normalizarData(r.data_realizada);
+      return Boolean(realizada && realizada >= proximo);
+    });
     if (houveRegistroPosterior) continue;
 
     const disparo = somarMeses(proximo, 1);
