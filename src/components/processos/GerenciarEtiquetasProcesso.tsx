@@ -240,7 +240,7 @@ export function GerenciarEtiquetasProcesso({
                       onClick={() => {
                         setErro("");
                         setCriando(false);
-                        setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
+                        setNovaEtiqueta({ nome: "", cor: "informativo", favorita: false });
                       }}
                     >
                       Voltar
