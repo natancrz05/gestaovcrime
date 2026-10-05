@@ -73,6 +73,27 @@ export type Database = {
           },
         ]
       }
+      alertas_ocultos: {
+        Row: {
+          alerta_chave: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+        }
+        Insert: {
+          alerta_chave: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+        }
+        Update: {
+          alerta_chave?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       auditoria: {
         Row: {
           acao: string
