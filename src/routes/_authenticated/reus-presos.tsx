@@ -337,8 +337,9 @@ function Pagina() {
                     : [];
 
                   const mostrarConferirCadastro = p.conferir && prioridadeDominante?.nivel !== "conferir";
-                  const totalSinalizacoes = (prioridadeDominante ? 1 : 0) + (mostrarConferirCadastro ? 1 : 0) + etiquetas.length;
-                  let vagas = 2;
+                  const ocupadasAntesDasEtiquetas = (prioridadeDominante ? 1 : 0) + (mostrarConferirCadastro ? 1 : 0);
+                  const etiquetasVisiveis = etiquetas.slice(0, Math.max(0, 2 - ocupadasAntesDasEtiquetas));
+                  const totalSinalizacoes = ocupadasAntesDasEtiquetas + etiquetas.length;
 
                   return (
                     <tr key={p.id} className="hover:bg-muted/20">
@@ -387,8 +388,7 @@ function Pagina() {
                           <span className="text-xs text-muted-foreground">—</span>
                         ) : (
                           <div className="flex max-w-[280px] flex-wrap items-center gap-1">
-                            {prioridadeDominante && vagas > 0 ? (() => {
-                              vagas -= 1;
+                            {prioridadeDominante ? (() => {
                               const cfg = NIVEL_PRIORIDADE[prioridadeDominante.nivel as keyof typeof NIVEL_PRIORIDADE];
                               return (
                                 <Etiqueta
@@ -401,16 +401,13 @@ function Pagina() {
                               );
                             })() : null}
 
-                            {mostrarConferirCadastro && vagas > 0 ? (() => {
-                              vagas -= 1;
-                              return (
-                                <Etiqueta key="conferir-cadastro" severidade="conferir" className="whitespace-nowrap">
-                                  <span title={p.motivo_conferencia || "Cadastro marcado para conferência"}>Conferir cadastro</span>
-                                </Etiqueta>
-                              );
-                            })() : null}
+                            {mostrarConferirCadastro ? (
+                              <Etiqueta key="conferir-cadastro" severidade="conferir" className="whitespace-nowrap">
+                                <span title={p.motivo_conferencia || "Cadastro marcado para conferência"}>Conferir cadastro</span>
+                              </Etiqueta>
+                            ) : null}
 
-                            {etiquetas.slice(0, Math.max(0, vagas)).map((e) => (
+                            {etiquetasVisiveis.map((e) => (
                               <EtiquetaProcesso key={e.id} processoId={p.processo_id!} etiqueta={e} />
                             ))}
 
