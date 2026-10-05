@@ -11,6 +11,7 @@ import {
   type EtiquetaDoProcesso,
 } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
+import { OPCOES_COR_ETIQUETA } from "@/lib/processos/etiquetas-niveis";
 
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC = "inline-flex h-9 items-center rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:opacity-60";
@@ -31,7 +32,7 @@ export function GerenciarEtiquetasProcesso({
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [criando, setCriando] = useState(false);
-  const [novaEtiqueta, setNovaEtiqueta] = useState({ nome: "", cor: "default", favorita: false });
+  const [novaEtiqueta, setNovaEtiqueta] = useState({ nome: "", cor: "informativo", favorita: false });
 
   const { data: etiquetas = [], isLoading } = useQuery({
     ...etiquetasQuery(),
@@ -47,7 +48,7 @@ export function GerenciarEtiquetasProcesso({
     setErro("");
     setEtiquetaId("");
     setCriando(false);
-    setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
+    setNovaEtiqueta({ nome: "", cor: "informativo", favorita: false });
     setAberto(true);
   };
 
@@ -101,7 +102,7 @@ export function GerenciarEtiquetasProcesso({
         qc.invalidateQueries({ queryKey: ["processos", processoId, "etiquetas"] }),
       ]);
       setCriando(false);
-      setNovaEtiqueta({ nome: "", cor: "default", favorita: false });
+      setNovaEtiqueta({ nome: "", cor: "informativo", favorita: false });
       setAberto(false);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível criar a etiqueta.");
@@ -217,10 +218,9 @@ export function GerenciarEtiquetasProcesso({
                       value={novaEtiqueta.cor}
                       onChange={(e) => setNovaEtiqueta({ ...novaEtiqueta, cor: e.target.value })}
                     >
-                      <option value="default">Padrão</option>
-                      <option value="urgente">Urgente</option>
-                      <option value="alerta">Alerta</option>
-                      <option value="concluido">Concluído</option>
+                      {OPCOES_COR_ETIQUETA.map((cor) => (
+                        <option key={cor.valor} value={cor.valor}>{cor.rotulo}</option>
+                      ))}
                     </select>
                   </Campo>
                   <label className="flex items-center gap-2 text-sm">
