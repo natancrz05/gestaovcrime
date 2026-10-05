@@ -134,7 +134,7 @@ function Pagina() {
         subtitulo={`${prox.length} audiências futuras · ${todas.length} registradas`}
         acao={podeEditar ? (
           <div className="flex flex-wrap items-center gap-2">
-            <ImportarPautaAudiencias onConcluido={recarregarAcervo} />
+            <ImportarPautaAudiencias onConcluido={recarregarAcervo} processos={processos} />
             <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button>
           </div>
         ) : undefined}
