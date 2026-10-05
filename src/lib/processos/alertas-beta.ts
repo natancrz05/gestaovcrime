@@ -188,14 +188,16 @@ function categoriaExistente(categoria: string): string {
 function nivelDoAlertaExistente(
   categoria: string,
   cor: "urgente" | "temporaria" | "atencao" | "alerta",
-  manual?: { nivel: "alta" | "media" | "baixa" },
+  manual?: { nivel: "critico" | "alta" | "media" | "conferir" | "baixa" },
 ): NivelAtencaoBeta {
   // +100 dias e audiência permanecem consultáveis, mas não ocupam
   // as faixas de Atenção/Urgente, reservadas a providências com prazo próximo.
   if (categoria === "sem-movimentacao" || categoria === "urgencia-audiencia") return "informativo";
   if (manual) {
+    if (manual.nivel === "critico") return "critico";
     if (manual.nivel === "alta") return "urgente";
     if (manual.nivel === "media") return "atencao";
+    if (manual.nivel === "conferir") return "conferir";
     return "informativo";
   }
   if (cor === "urgente") return "urgente";
