@@ -11,7 +11,7 @@ import {
   type ProblemaPauta,
   type ResultadoImportacaoPauta,
 } from "@/lib/processos/importacao-pauta-audiencias";
-import { listarProcessosCompletos } from "@/lib/processos/repositorio";
+import type { ProcessoCompleto } from "@/lib/processos/modelo";
 
 const BOTAO =
   "inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60";
@@ -48,8 +48,10 @@ function Problemas({ titulo, itens }: { titulo: string; itens: ProblemaPauta[] }
 
 export function ImportarPautaAudiencias({
   onConcluido,
+  processos,
 }: {
   onConcluido: () => Promise<void> | void;
+  processos: ProcessoCompleto[];
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [aberto, setAberto] = useState(false);
@@ -81,10 +83,9 @@ export function ImportarPautaAudiencias({
     setLendo(true);
     try {
       const leitura = await lerPautaAudiencias(arquivoSelecionado);
-      const acervoAtual = await listarProcessosCompletos();
       setLinhas(leitura.linhas);
       setErrosLeitura(leitura.erros);
-      setAnalise(analisarPautaAudiencias(leitura.linhas, acervoAtual, leitura.erros));
+      setAnalise(analisarPautaAudiencias(leitura.linhas, processos, leitura.erros));
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível ler a pauta.");
     } finally {
@@ -99,8 +100,6 @@ export function ImportarPautaAudiencias({
     try {
       const r = await executarImportacaoPauta(linhas, errosLeitura);
       await onConcluido();
-      const acervoAtual = await listarProcessosCompletos();
-      setAnalise(analisarPautaAudiencias(linhas, acervoAtual, errosLeitura));
       setResultado(r);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível importar a pauta.");
