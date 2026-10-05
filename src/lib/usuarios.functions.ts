@@ -84,9 +84,17 @@ export const criarUsuario = createServerFn({ method: "POST" })
     });
     if (error || !criado.user) throw new Error(traduzirErro(error?.message));
     const id = criado.user.id;
-    const r1 = await supabaseAdmin.from("usuarios").insert({ id, nome: data.nome, email: data.email, ativo: true });
-    const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: id, role: data.perfil });
-    if (r1.error || r2.error) throw new Error((r1.error ?? r2.error)!.message);
+    try {
+      const r1 = await supabaseAdmin.from("usuarios").insert({ id, nome: data.nome, email: data.email, ativo: true });
+      if (r1.error) throw r1.error;
+
+      const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: id, role: data.perfil });
+      if (r2.error) throw r2.error;
+    } catch (e) {
+      // Evita conta órfã no Auth quando o cadastro interno falha.
+      await supabaseAdmin.auth.admin.deleteUser(id).catch(() => undefined);
+      throw new Error(e instanceof Error ? e.message : "Não foi possível concluir o cadastro do usuário.");
+    }
     await auditarUsuario(supabaseAdmin, context.userId, id, "Criado", `Usuário ${data.nome} criado com perfil ${data.perfil}`);
     return { id };
   });
@@ -108,16 +116,40 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: antes }, { data: rolesAntes }] = await Promise.all([
       supabaseAdmin.from("usuarios").select("nome, ativo").eq("id", data.id).maybeSingle(),
-      supabaseAdmin.from("user_roles").select("role").eq("user_id", data.id),
+      supabaseAdmin.from("user_roles").select("id, role").eq("user_id", data.id),
     ]);
     const perfilAntes = rolesAntes?.[0]?.role ?? null;
+
+    // Troca o perfil sem abrir uma janela em que o usuário fique sem papel.
+    const papelDesejado = rolesAntes?.find((r: any) => r.role === data.perfil);
+    if (papelDesejado) {
+      const extras = (rolesAntes ?? []).filter((r: any) => r.id !== papelDesejado.id).map((r: any) => r.id);
+      if (extras.length) {
+        const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
+        if (limpeza.error) throw new Error(limpeza.error.message);
+      }
+    } else if (rolesAntes?.[0]) {
+      const troca = await supabaseAdmin.from("user_roles").update({ role: data.perfil }).eq("id", rolesAntes[0].id);
+      if (troca.error) throw new Error(troca.error.message);
+      const extras = rolesAntes.slice(1).map((r: any) => r.id);
+      if (extras.length) {
+        const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
+        if (limpeza.error) throw new Error(limpeza.error.message);
+      }
+    } else {
+      const novoPapel = await supabaseAdmin.from("user_roles").insert({ user_id: data.id, role: data.perfil });
+      if (novoPapel.error) throw new Error(novoPapel.error.message);
+    }
+
     const r1 = await supabaseAdmin.from("usuarios").update({ nome: data.nome, ativo: data.ativo }).eq("id", data.id);
     if (r1.error) throw new Error(r1.error.message);
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
-    const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: data.id, role: data.perfil });
-    if (r2.error) throw new Error(r2.error.message);
+
     // Usuário inativo fica impedido de entrar no sistema.
-    await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: data.ativo ? "none" : "876000h" });
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: data.ativo ? "none" : "876000h" });
+    if (authUpdate.error) {
+      if (antes) await supabaseAdmin.from("usuarios").update({ ativo: antes.ativo }).eq("id", data.id);
+      throw new Error("Não foi possível sincronizar o estado do usuário com a autenticação.");
+    }
     if (antes && antes.ativo !== data.ativo)
       await auditarUsuario(supabaseAdmin, context.userId, data.id, "Alteração de status", `Usuário ${data.nome} ${data.ativo ? "ativado" : "inativado"}`);
     if (perfilAntes !== data.perfil)
