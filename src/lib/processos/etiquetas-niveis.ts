@@ -13,11 +13,11 @@ export const OPCOES_COR_ETIQUETA: {
   rotulo: string;
   severidade: Severidade;
 }[] = [
-  { valor: "critico", rotulo: "Alerta crítico", severidade: "urgente" },
-  { valor: "urgente", rotulo: "Alerta urgente", severidade: "alerta" },
-  { valor: "atencao", rotulo: "Alerta atenção", severidade: "atencao" },
-  { valor: "conferir", rotulo: "Alerta conferir", severidade: "conferir" },
-  { valor: "informativo", rotulo: "Alerta informativo", severidade: "info" },
+  { valor: "critico", rotulo: "Crítico", severidade: "urgente" },
+  { valor: "urgente", rotulo: "Urgente", severidade: "alerta" },
+  { valor: "atencao", rotulo: "Atenção", severidade: "atencao" },
+  { valor: "conferir", rotulo: "Conferir", severidade: "conferir" },
+  { valor: "informativo", rotulo: "Informativo", severidade: "info" },
   { valor: "concluido", rotulo: "Concluído", severidade: "concluido" },
 ];
 
