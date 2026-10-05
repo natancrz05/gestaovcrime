@@ -214,7 +214,7 @@ function categoriaExistente(categoria: string): string {
     "prisao-temporaria": "Prisão temporária",
     "sem-movimentacao": "+100 dias",
     "urgencia-audiencia": "Audiência",
-    "etiqueta-urgente": "Etiqueta urgente",
+    "etiqueta-urgente": "Alerta urgente",
     manual: "Prioridade manual",
   };
   return mapa[categoria] ?? categoria;
