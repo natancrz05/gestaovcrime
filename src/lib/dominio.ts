@@ -15,7 +15,7 @@ export type SinalizadorTipo =
   | "pendencia"
   | "prazo-proximo";
 
-export type Severidade = "urgente" | "atencao" | "alerta" | "info" | "concluido";
+export type Severidade = "urgente" | "atencao" | "alerta" | "conferir" | "info" | "concluido";
 
 export interface Sinalizador {
   tipo: SinalizadorTipo;
@@ -67,6 +67,7 @@ export const SEVERIDADE_CLASSES: Record<Severidade, string> = {
   urgente: "bg-urgente-suave text-urgente border-urgente/25",
   atencao: "bg-atencao-suave text-atencao border-atencao/25",
   alerta: "bg-alerta-suave text-alerta border-alerta/30",
+  conferir: "bg-temporaria-suave text-temporaria border-temporaria/25",
   info: "bg-info-suave text-info border-info/25",
   concluido: "bg-concluido-suave text-concluido border-concluido/25",
 };
