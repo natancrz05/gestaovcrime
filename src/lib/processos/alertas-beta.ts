@@ -81,6 +81,41 @@ export const DADOS_VAZIOS_ALERTAS_BETA: DadosAuxiliaresAlertasBeta = {
   importacoesDisponiveis: true,
 };
 
+export const alertasOcultosBetaQuery = () =>
+  queryOptions({
+    queryKey: ["alertas-beta", "ocultos"],
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("alertas_ocultos")
+        .select("alerta_chave")
+        .order("criado_em", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((x) => x.alerta_chave);
+    },
+  });
+
+export async function ocultarAlertaBeta(alertaChave: string) {
+  const { data: userData } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("alertas_ocultos")
+    .upsert(
+      {
+        alerta_chave: alertaChave,
+        criado_por: userData.user?.id ?? null,
+      },
+      { onConflict: "alerta_chave", ignoreDuplicates: true },
+    );
+  if (error) throw error;
+}
+
+export function chaveOcultacaoAlertaBeta(item: ItemAtencaoBeta): string {
+  if (item.dataLimite) return `${item.id}|${item.dataLimite}`;
+  if (item.id === "base-pje") return `${item.id}|${item.descricao}`;
+  return item.id;
+}
+
 export const dadosAuxiliaresAlertasBetaQuery = () =>
   queryOptions({
     queryKey: ["alertas-beta", "dados-auxiliares"],
