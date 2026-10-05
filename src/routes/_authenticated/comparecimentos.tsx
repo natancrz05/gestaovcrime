@@ -165,23 +165,23 @@ function Pagina() {
 
       <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
-          <div className="overflow-hidden rounded-md border border-border">
-            <table className="w-full table-fixed text-sm">
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[1000px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[22%]" />
-                <col className="w-[28%]" />
-                <col className="w-[15%]" />
-                <col className="w-[15%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
+                <col className="w-[20%] min-w-[170px]" />
+                <col className="w-[24%] min-w-[200px]" />
+                <col className="w-[12%] min-w-[110px]" />
+                <col className="w-[13%] min-w-[120px]" />
+                <col className="w-[11%] min-w-[100px]" />
+                <col className="w-[20%] min-w-[190px]" />
               </colgroup>
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", "Ações"].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="px-2 py-2 font-medium">{c.pessoa}{c.conferir ? (
+                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">{c.pessoa}{c.conferir ? (
                       <span className="group/selo relative ml-2 inline-flex align-middle" title={c.motivo_conferencia}>
                         <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span>
                         {podeEditar ? (
@@ -195,18 +195,18 @@ function Pagina() {
                         ) : null}
                       </span>
                     ) : null}</td>
-                    <td className="break-words px-2 py-2">
+                    <td className="px-2 py-2 align-top leading-snug">
                       {(() => {
                         const processoEtiquetaId = processoIdParaEtiquetas(c);
                         const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
                         return (
                           <>
                             {c.processo_id ? (
-                              <span className="numero-processo">{c.numero}</span>
+                              <span className="numero-processo break-words">{c.numero}</span>
                             ) : (
                               <>
                                 Não vinculado
-                                {c.numeros_informados?.length ? <span className="block text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
+                                {c.numeros_informados?.length ? <span className="block break-words text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
                               </>
                             )}
                             {etiquetas.length ? (
@@ -220,11 +220,11 @@ function Pagina() {
                         );
                       })()}
                     </td>
-                    <td className="px-2 py-2">{formatarData(c.ultimo)}</td>
-                    <td className="px-2 py-2 font-medium">{formatarData(c.proximo)}</td>
-                    <td className="px-2 py-2">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
-                    <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
+                    <td className="whitespace-nowrap px-2 py-2 align-top leading-snug">{formatarData(c.ultimo)}</td>
+                    <td className="whitespace-nowrap px-2 py-2 align-top leading-snug font-medium">{formatarData(c.proximo)}</td>
+                    <td className="px-2 py-2 align-top leading-snug">{c.situacao === "Encerrado" ? "Encerrado" : <EtiquetaComparecimento s={c.status} />}</td>
+                    <td className="px-2 py-2 text-right align-top" onClick={(e) => e.stopPropagation()}>
+                      {podeEditar && c.situacao !== "Encerrado" ? <button className={BOTAO_SEC + " whitespace-nowrap"} onClick={() => setRegistro(c)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button> : null}
                     </td>
                   </tr>
                 ))}
