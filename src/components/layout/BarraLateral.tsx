@@ -31,7 +31,7 @@ export const ITENS_NAV = [
   { para: "/reus-presos", rotulo: "Presos Provisórios", icone: Lock, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
-  { para: "/prioridades", rotulo: "Prioridades e Alertas (BETA)", icone: Bell, exato: false },
+  { para: "/prioridades", rotulo: "Prioridades e Alertas", icone: Bell, exato: false },
   { para: "/sugestoes", rotulo: "Problemas e Sugestões", icone: MessageSquareWarning, exato: false },
   { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2, exato: false },
   { para: "/configuracoes", rotulo: "Configurações", icone: Settings, exato: false },
