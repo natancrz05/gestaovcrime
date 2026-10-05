@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
+import { PrioridadesAlertasBeta } from "@/components/processos/PrioridadesAlertasBeta";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { processosQuery, removerPrioridadeManual, salvarPrioridadeManual, etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { NIVEIS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
@@ -31,6 +32,40 @@ const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm f
 const NIVEL_ROTULO: Record<string, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
 
 function Pagina() {
+  const [modo, setModo] = useState<"beta" | "atual">("beta");
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Teste isolado do novo sistema</p>
+          <p className="text-xs text-muted-foreground">
+            A versão atual foi preservada integralmente. Alterne entre as duas durante a validação.
+          </p>
+        </div>
+        <div className="flex rounded-md border border-border bg-background p-1">
+          <button
+            type="button"
+            onClick={() => setModo("beta")}
+            className={`rounded px-3 py-1.5 text-xs font-medium ${modo === "beta" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+          >
+            Versão BETA
+          </button>
+          <button
+            type="button"
+            onClick={() => setModo("atual")}
+            className={`rounded px-3 py-1.5 text-xs font-medium ${modo === "atual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+          >
+            Versão atual
+          </button>
+        </div>
+      </div>
+
+      {modo === "beta" ? <PrioridadesAlertasBeta /> : <PaginaAtual />}
+    </div>
+  );
+}
+
+function PaginaAtual() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const qc = useQueryClient();
   const podeEditar = usePode("editar");
