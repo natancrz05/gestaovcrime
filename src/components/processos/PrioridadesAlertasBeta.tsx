@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { comparecimentosQuery } from "@/lib/processos/comparecimentos";
+import { useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
 import {
@@ -64,6 +65,8 @@ function textoPrazo(item: ItemAtencaoBeta) {
 }
 
 export function PrioridadesAlertasBeta() {
+  const { perfil } = useSessao();
+  const ehAdmin = perfil === "administrador";
   const { data: processos } = useSuspenseQuery(processosQuery());
   const presos = useQuery(presosQuery());
   const comparecimentos = useQuery(comparecimentosQuery());
@@ -94,18 +97,23 @@ export function PrioridadesAlertasBeta() {
     [processos, presos.data, comparecimentos.data, etiquetasPorProcesso, dadosAux, hoje],
   );
 
+  const itensVisiveis = useMemo(
+    () => (ehAdmin ? itens : itens.filter((i) => i.id !== "base-pje")),
+    [itens, ehAdmin],
+  );
+
   const categorias = useMemo(
-    () => [...new Set(itens.map((i) => i.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [itens],
+    () => [...new Set(itensVisiveis.map((i) => i.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [itensVisiveis],
   );
   const modulos = useMemo(
-    () => [...new Set(itens.map((i) => i.modulo))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [itens],
+    () => [...new Set(itensVisiveis.map((i) => i.modulo))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [itensVisiveis],
   );
 
   const exibidos = useMemo(() => {
     const termo = normalizarBusca(busca.trim());
-    return itens.filter((i) => {
+    return itensVisiveis.filter((i) => {
       if (nivel && i.nivel !== nivel) return false;
       if (origem && i.origem !== origem) return false;
       if (categoria && i.categoria !== categoria) return false;
@@ -137,13 +145,13 @@ export function PrioridadesAlertasBeta() {
       }
       return true;
     });
-  }, [itens, busca, nivel, origem, categoria, modulo, prazo]);
+  }, [itensVisiveis, busca, nivel, origem, categoria, modulo, prazo]);
 
   const contagens = useMemo(() => {
     const mapa = Object.fromEntries(NIVEIS.map((n) => [n.valor, 0])) as Record<NivelAtencaoBeta, number>;
-    for (const i of itens) mapa[i.nivel]++;
+    for (const i of itensVisiveis) mapa[i.nivel]++;
     return mapa;
-  }, [itens]);
+  }, [itensVisiveis]);
 
   const basePje = statusBasePjeBeta(dadosAux, hoje);
   const algumFiltro = Boolean(busca || nivel || origem || categoria || modulo || prazo);
@@ -182,7 +190,7 @@ export function PrioridadesAlertasBeta() {
         })}
       </div>
 
-      <section className={cn(
+      {ehAdmin ? <section className={cn(
         "rounded-lg border p-4 shadow-card",
         basePje.atualizadoHoje ? "border-concluido/30 bg-concluido-suave" : "border-border bg-card",
       )}>
@@ -203,13 +211,13 @@ export function PrioridadesAlertasBeta() {
             <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">Administrativo</span>
           )}
         </div>
-      </section>
+      </section> : null}
 
       <section className="rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="mb-3 flex items-center gap-2">
           <Bell className="size-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Checagem</h2>
-          <span className="text-xs text-muted-foreground">{exibidos.length} de {itens.length} item(ns)</span>
+          <span className="text-xs text-muted-foreground">{exibidos.length} de {itensVisiveis.length} item(ns)</span>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -231,7 +239,7 @@ export function PrioridadesAlertasBeta() {
 
           <select className={CLASSE_CAMPO} value={origem} onChange={(e) => setOrigem(e.target.value)}>
             <option value="">Origem: todas</option>
-            {ORIGENS.map((o) => <option key={o}>{o}</option>)}
+            {ORIGENS.filter((o) => ehAdmin || o !== "Administrativo").map((o) => <option key={o}>{o}</option>)}
           </select>
 
           <select className={CLASSE_CAMPO} value={categoria} onChange={(e) => setCategoria(e.target.value)}>
