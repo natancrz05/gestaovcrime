@@ -9,7 +9,6 @@ export type NivelAtencaoBeta =
   | "critico"
   | "urgente"
   | "atencao"
-  | "acompanhamento"
   | "informativo"
   | "conferir"
   | "administrativo";
@@ -191,9 +190,9 @@ function nivelDoAlertaExistente(
   cor: "urgente" | "temporaria" | "atencao" | "alerta",
   manual?: { nivel: "alta" | "media" | "baixa" },
 ): NivelAtencaoBeta {
-  // Alertas legados de acompanhamento do acervo continuam visíveis na central,
-  // mas não ocupam as faixas de urgência reservadas a providências com prazo.
-  if (categoria === "sem-movimentacao" || categoria === "urgencia-audiencia") return "acompanhamento";
+  // +100 dias e audiência permanecem consultáveis, mas não ocupam
+  // as faixas de Atenção/Urgente, reservadas a providências com prazo próximo.
+  if (categoria === "sem-movimentacao" || categoria === "urgencia-audiencia") return "informativo";
   if (manual) {
     if (manual.nivel === "alta") return "urgente";
     if (manual.nivel === "media") return "atencao";
@@ -277,6 +276,9 @@ export function montarItensAtencaoBeta(params: {
   for (const processo of processos) {
     const alertas = alertasDoProcesso(processo, hoje, etiquetasPorProcesso);
     alertas.forEach((a, indice) => {
+      // O beta não transforma a simples condição de "réu preso" ou "prisão temporária"
+      // em alerta. Prisões entram pela regra específica de prazo/revisão abaixo.
+      if (a.categoria === "reu-preso" || a.categoria === "prisao-temporaria") return;
       itens.push(
         item({
           id: `existente:${processo.id}:${a.categoria}:${a.manual?.id ?? indice}`,
@@ -560,8 +562,7 @@ export function montarItensAtencaoBeta(params: {
     atencao: 2,
     conferir: 3,
     informativo: 4,
-    acompanhamento: 5,
-    administrativo: 6,
+    administrativo: 5,
   };
 
   return itens.sort(
