@@ -52,7 +52,10 @@ function Pagina() {
     setErro("");
     try {
       await salvarEtiqueta(edicao, edicao.id);
-      await qc.invalidateQueries({ queryKey: ["etiquetas"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["etiquetas"] }),
+        qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
+      ]);
       setEdicao(null);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Não foi possível salvar a etiqueta.");
