@@ -32,7 +32,7 @@ export const CATEGORIAS: {
     descricao: "Tempo desde a última movimentação registrada",
     cor: "atencao",
   },
-  { chave: "etiqueta-urgente", titulo: "Etiquetas urgentes", descricao: "Processos marcados com etiqueta de urgência", cor: "urgente" },
+  { chave: "etiqueta-urgente", titulo: "Alertas urgentes", descricao: "Processos marcados com etiqueta de nível urgente", cor: "urgente" },
   { chave: "manual", titulo: "Prioridades manuais", descricao: "Marcadas pelo servidor", cor: "alerta" },
 ];
 
@@ -71,7 +71,7 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO(), etiquet
     a.push({ categoria: "sem-movimentacao", rotulo: `${dias} dias sem movimentação`, cor: "atencao" });
   const etiquetasUrgentes = (etiquetasPorProcesso[p.id] ?? []).filter((e) => e.cor === "urgente");
   if (etiquetasUrgentes.length)
-    a.push({ categoria: "etiqueta-urgente", rotulo: `Etiqueta urgente — ${etiquetasUrgentes.map((e) => e.nome).join(", ")}`, cor: "urgente" });
+    a.push({ categoria: "etiqueta-urgente", rotulo: `Alerta urgente — ${etiquetasUrgentes.map((e) => e.nome).join(", ")}`, cor: "urgente" });
   const c = itemCentral(p, hoje);
   if (c && c.dias !== null && c.nivel !== "normal")
     a.push({ categoria: "urgencia-audiencia", rotulo: `Urgência de audiência — ${c.dias} dias sem movimentação`, cor: c.nivel === "critica" ? "urgente" : "atencao" });
