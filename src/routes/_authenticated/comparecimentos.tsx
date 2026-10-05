@@ -165,18 +165,18 @@ function Pagina() {
 
       <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
-          <div className="overflow-hidden rounded-md border border-border">
-            <table className="w-full table-fixed text-sm">
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[1000px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[22%]" />
-                <col className="w-[28%]" />
-                <col className="w-[15%]" />
-                <col className="w-[15%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
+                <col className="w-[20%] min-w-[170px]" />
+                <col className="w-[24%] min-w-[200px]" />
+                <col className="w-[12%] min-w-[110px]" />
+                <col className="w-[13%] min-w-[120px]" />
+                <col className="w-[11%] min-w-[100px]" />
+                <col className="w-[20%] min-w-[190px]" />
               </colgroup>
               <thead className="text-left text-xs text-muted-foreground">
-                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", ""].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Pessoa", "Processo", "Último comparecimento", "Próximo comparecimento", "Situação", "Ações"].map((h) => <th key={h} className="px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (

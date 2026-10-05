@@ -24,6 +24,7 @@ import { Route as AuthenticatedSemMovimentacaoRouteImport } from './routes/_auth
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
 import { Route as AuthenticatedConfiguracoesIndexRouteImport } from './routes/_authenticated/configuracoes.index'
 import { Route as AuthenticatedConfiguracoesAuditoriaRouteImport } from './routes/_authenticated/configuracoes.auditoria'
+import { Route as AuthenticatedConfiguracoesEtiquetasRouteImport } from './routes/_authenticated/configuracoes.etiquetas'
 import { Route as AuthenticatedConfiguracoesUsuariosRouteImport } from './routes/_authenticated/configuracoes.usuarios'
 import { Route as AuthenticatedProcessosIndexRouteImport } from './routes/_authenticated/processos.index'
 import { Route as AuthenticatedProcessosIdRouteImport } from './routes/_authenticated/processos.$id'
@@ -110,6 +111,12 @@ const AuthenticatedConfiguracoesAuditoriaRoute =
     path: '/configuracoes/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracoesEtiquetasRoute =
+  AuthenticatedConfiguracoesEtiquetasRouteImport.update({
+    id: '/configuracoes/etiquetas',
+    path: '/configuracoes/etiquetas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracoesUsuariosRoute =
   AuthenticatedConfiguracoesUsuariosRouteImport.update({
     id: '/configuracoes/usuarios',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/sem-movimentacao': typeof AuthenticatedSemMovimentacaoRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
+  '/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/processos/importar': typeof AuthenticatedProcessosImportarRoute
@@ -176,6 +184,7 @@ export interface FileRoutesByTo {
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/': typeof AuthenticatedIndexRoute
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
+  '/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/processos/importar': typeof AuthenticatedProcessosImportarRoute
@@ -199,6 +208,7 @@ export interface FileRoutesById {
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
+  '/_authenticated/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/_authenticated/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
   '/_authenticated/processos/$id': typeof AuthenticatedProcessosIdRoute
   '/_authenticated/processos/importar': typeof AuthenticatedProcessosImportarRoute
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/sem-movimentacao'
     | '/sugestoes'
     | '/configuracoes/auditoria'
+    | '/configuracoes/etiquetas'
     | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/importar'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/sugestoes'
     | '/'
     | '/configuracoes/auditoria'
+    | '/configuracoes/etiquetas'
     | '/configuracoes/usuarios'
     | '/processos/$id'
     | '/processos/importar'
@@ -265,6 +277,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sugestoes'
     | '/_authenticated/'
     | '/_authenticated/configuracoes/auditoria'
+    | '/_authenticated/configuracoes/etiquetas'
     | '/_authenticated/configuracoes/usuarios'
     | '/_authenticated/processos/$id'
     | '/_authenticated/processos/importar'
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracoesAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes/etiquetas': {
+      id: '/_authenticated/configuracoes/etiquetas'
+      path: '/configuracoes/etiquetas'
+      fullPath: '/configuracoes/etiquetas'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesEtiquetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracoes/usuarios': {
       id: '/_authenticated/configuracoes/usuarios'
       path: '/configuracoes/usuarios'
@@ -436,6 +456,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedConfiguracoesAuditoriaRoute: typeof AuthenticatedConfiguracoesAuditoriaRoute
+  AuthenticatedConfiguracoesEtiquetasRoute: typeof AuthenticatedConfiguracoesEtiquetasRoute
   AuthenticatedConfiguracoesUsuariosRoute: typeof AuthenticatedConfiguracoesUsuariosRoute
   AuthenticatedProcessosIdRoute: typeof AuthenticatedProcessosIdRoute
   AuthenticatedProcessosImportarRoute: typeof AuthenticatedProcessosImportarRoute
@@ -458,6 +479,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedConfiguracoesAuditoriaRoute:
     AuthenticatedConfiguracoesAuditoriaRoute,
+  AuthenticatedConfiguracoesEtiquetasRoute:
+    AuthenticatedConfiguracoesEtiquetasRoute,
   AuthenticatedConfiguracoesUsuariosRoute:
     AuthenticatedConfiguracoesUsuariosRoute,
   AuthenticatedProcessosIdRoute: AuthenticatedProcessosIdRoute,
