@@ -9,6 +9,7 @@ export type NivelAtencaoBeta =
   | "critico"
   | "urgente"
   | "atencao"
+  | "acompanhamento"
   | "informativo"
   | "conferir"
   | "administrativo";
@@ -186,9 +187,13 @@ function categoriaExistente(categoria: string): string {
 }
 
 function nivelDoAlertaExistente(
+  categoria: string,
   cor: "urgente" | "temporaria" | "atencao" | "alerta",
   manual?: { nivel: "alta" | "media" | "baixa" },
 ): NivelAtencaoBeta {
+  // Alertas legados de acompanhamento do acervo continuam visíveis na central,
+  // mas não ocupam as faixas de urgência reservadas a providências com prazo.
+  if (categoria === "sem-movimentacao" || categoria === "urgencia-audiencia") return "acompanhamento";
   if (manual) {
     if (manual.nivel === "alta") return "urgente";
     if (manual.nivel === "media") return "atencao";
@@ -280,7 +285,7 @@ export function montarItensAtencaoBeta(params: {
           pessoa: processo.reus.find((r) => r.preso)?.nome ?? processo.reus[0]?.nome ?? null,
           categoria: categoriaExistente(a.categoria),
           titulo: a.rotulo,
-          nivel: nivelDoAlertaExistente(a.cor, a.manual),
+          nivel: nivelDoAlertaExistente(a.categoria, a.cor, a.manual),
           origem: origemDoAlerta(a.categoria),
           modulo: moduloDoAlerta(a.categoria),
           descricao: a.manual?.observacao ?? "",
@@ -555,7 +560,8 @@ export function montarItensAtencaoBeta(params: {
     atencao: 2,
     conferir: 3,
     informativo: 4,
-    administrativo: 5,
+    acompanhamento: 5,
+    administrativo: 6,
   };
 
   return itens.sort(
