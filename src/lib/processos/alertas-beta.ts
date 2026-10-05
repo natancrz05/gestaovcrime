@@ -522,7 +522,7 @@ export function montarItensAtencaoBeta(params: {
         categoria: "Comparecimento não registrado",
         titulo: "Comparecimento sem registro após 1 mês de inadimplência",
         descricao: `Comparecimento previsto para ${proximo}; não há registro posterior nem encerramento do acompanhamento.`,
-        nivel: "atencao",
+        nivel: "critico",
         origem: "Automático",
         modulo: "Comparecimentos",
         dataLimite: proximo,
