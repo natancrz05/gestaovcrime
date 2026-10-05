@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Bell, Database, FileSpreadsheet, Plus, Search, X } from "lucide-react";
+import { Bell, Database, FileSpreadsheet, Pencil, Plus, Search, X } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
@@ -97,6 +97,7 @@ export function PrioridadesAlertas() {
   });
   const [salvandoManual, setSalvandoManual] = useState(false);
   const [erroManual, setErroManual] = useState("");
+  const [editandoManualId, setEditandoManualId] = useState<string | null>(null);
   const [removendoId, setRemovendoId] = useState<string | null>(null);
 
   const hoje = hojeISO();
@@ -192,9 +193,10 @@ export function PrioridadesAlertas() {
         titulo: manual.titulo.trim(),
         nivel: manual.nivel,
         observacao: manual.observacao.trim(),
-      });
+      }, editandoManualId ?? undefined);
       await qc.invalidateQueries({ queryKey: ["processos"] });
       setManual({ processo_id: "", titulo: "", nivel: "media", observacao: "" });
+      setEditandoManualId(null);
       setMostrarManual(false);
     } catch (err) {
       setErroManual(err instanceof Error ? err.message : "Erro ao adicionar prioridade.");
@@ -203,6 +205,29 @@ export function PrioridadesAlertas() {
     }
   }
 
+
+  function editarManual(item: ItemAtencaoBeta) {
+    if (item.origem !== "Manual" || !item.processoId) return;
+    const prioridadeId = item.id.split(":").pop();
+    if (!prioridadeId) return;
+
+    const nivelManual =
+      item.nivel === "critico" ? "critico" :
+      item.nivel === "urgente" ? "alta" :
+      item.nivel === "atencao" ? "media" :
+      item.nivel === "conferir" ? "conferir" :
+      "baixa";
+
+    setManual({
+      processo_id: item.processoId,
+      titulo: item.titulo.replace(/ \((crítico|urgente|atenção|conferir|informativo)\)$/i, ""),
+      nivel: nivelManual,
+      observacao: item.descricao,
+    });
+    setEditandoManualId(prioridadeId);
+    setErroManual("");
+    setMostrarManual(true);
+  }
 
   async function removerAlerta(item: ItemAtencaoBeta) {
     setRemovendoId(item.id);
@@ -269,7 +294,15 @@ export function PrioridadesAlertas() {
             </div>
             <button
               type="button"
-              onClick={() => { setMostrarManual((v) => !v); setErroManual(""); }}
+              onClick={() => {
+                const proximo = !mostrarManual;
+                setMostrarManual(proximo);
+                setErroManual("");
+                if (!proximo || editandoManualId) {
+                  setEditandoManualId(null);
+                  setManual({ processo_id: "", titulo: "", nivel: "media", observacao: "" });
+                }
+              }}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted"
             >
               {mostrarManual ? <X className="size-4" /> : <Plus className="size-4" />}
@@ -318,7 +351,7 @@ export function PrioridadesAlertas() {
                 disabled={salvandoManual}
                 className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
               >
-                {salvandoManual ? "Adicionando..." : "Adicionar"}
+                {salvandoManual ? "Salvando..." : editandoManualId ? "Salvar alteração" : "Adicionar"}
               </button>
               {erroManual ? <p className="text-sm text-urgente md:col-span-3">{erroManual}</p> : null}
             </form>
@@ -414,7 +447,7 @@ export function PrioridadesAlertas() {
 
           <div className="flex items-center md:col-span-2 xl:col-span-5">
             <p className="text-xs text-muted-foreground">
-              Alertas automáticos não são apagados manualmente: desaparecem quando a condição que os originou deixa de existir.
+              Ao remover um alerta automático, apenas a ocorrência atual é ocultada. Se a condição mudar ou gerar novo prazo, um novo alerta poderá aparecer.
             </p>
           </div>
 
@@ -478,16 +511,29 @@ export function PrioridadesAlertas() {
                   <td className="px-3 py-3 text-xs font-medium">{textoPrazo(i)}</td>
                   <td className="px-2 py-3 text-right">
                     {podeEditar ? (
-                      <button
-                        type="button"
-                        aria-label={`Remover alerta: ${i.titulo}`}
-                        title="Remover alerta"
-                        disabled={removendoId === i.id}
-                        onClick={() => removerAlerta(i)}
-                        className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                      >
-                        <X className="size-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        {i.origem === "Manual" ? (
+                          <button
+                            type="button"
+                            aria-label={`Editar prioridade manual: ${i.titulo}`}
+                            title="Editar prioridade manual"
+                            onClick={() => editarManual(i)}
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          aria-label={`Remover alerta: ${i.titulo}`}
+                          title="Remover alerta"
+                          disabled={removendoId === i.id}
+                          onClick={() => removerAlerta(i)}
+                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
                     ) : null}
                   </td>
                 </tr>
