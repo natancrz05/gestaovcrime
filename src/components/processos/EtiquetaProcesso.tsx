@@ -4,10 +4,7 @@ import { toast } from "sonner";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { usePode } from "@/lib/sessao";
 import { removerEtiquetaDoProcesso, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
-
-function severidadeDaEtiqueta(cor: string) {
-  return cor === "urgente" ? "urgente" : cor === "alerta" ? "alerta" : cor === "concluido" ? "concluido" : "info";
-}
+import { severidadeDaCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 
 /**
  * Etiqueta vinculada a um processo.
@@ -51,7 +48,7 @@ export function EtiquetaProcesso({
   return (
     <span className="group/etiqueta relative inline-flex items-center">
       <Etiqueta
-        severidade={severidadeDaEtiqueta(etiqueta.cor)}
+        severidade={severidadeDaCorEtiqueta(etiqueta.cor)}
         className={`${podeEditar ? "pr-5" : ""} ${removendo ? "opacity-60" : ""} ${className ?? ""}`}
       >
         {etiqueta.nome}
