@@ -44,18 +44,28 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
-function withSecurityHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
+function aplicarCabecalhosSeguranca(headers: Headers) {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Referrer-Policy", "same-origin");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+}
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+function withSecurityHeaders(response: Response): Response {
+  // Preserva a Response original (inclusive múltiplos Set-Cookie e streaming)
+  // sempre que os headers forem mutáveis. O fallback cobre Responses imutáveis.
+  try {
+    aplicarCabecalhosSeguranca(response.headers);
+    return response;
+  } catch {
+    const headers = new Headers(response.headers);
+    aplicarCabecalhosSeguranca(headers);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
 }
 
 export default {
