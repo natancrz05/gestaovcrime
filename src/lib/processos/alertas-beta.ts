@@ -440,6 +440,7 @@ export function montarItensAtencaoBeta(params: {
         let nivel: NivelAtencaoBeta | null = null;
         if (dias <= 1) nivel = "critico";
         else if (dias <= 5) nivel = "urgente";
+        else if (dias <= 15) nivel = "atencao";
 
         if (nivel) {
           itens.push(
