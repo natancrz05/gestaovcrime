@@ -55,8 +55,9 @@ function Dashboard() {
   const hoje = hojeISO();
 
   const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
+  const reuIds = useMemo(() => presos.map((p) => p.id), [presos]);
   const etiquetas = useQuery(etiquetasDosProcessosQuery(processoIds));
-  const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery());
+  const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery(reuIds));
   const ocultos = useQuery(alertasOcultosBetaQuery());
   const [nivelSelecionado, setNivelSelecionado] = useState<Exclude<NivelAtencaoBeta, "administrativo"> | null>(null);
 
