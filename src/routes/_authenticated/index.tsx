@@ -97,8 +97,8 @@ function Dashboard() {
           <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-atencao">{audExtensas}</p>
           <p className="mt-1 text-xs text-muted-foreground">Critério administrativo de acompanhamento</p>
         </Link>
-        <Link to="/pendencias" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendências</p>
+        <Link to="/prioridades" className="rounded-lg border border-border bg-card p-4 shadow-card hover:shadow-card-hover">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendências em acompanhamento</p>
           <p className="mt-2 text-3xl font-semibold leading-none tracking-tight tabular-nums text-foreground">{pendAbertas}</p>
           <p className="mt-1 text-xs text-muted-foreground">Ainda não concluídas</p>
         </Link>
@@ -168,7 +168,7 @@ function Dashboard() {
               <li key={a.id} className="flex items-start gap-3 px-4 py-3">
                 <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.atrasada ? "bg-urgente" : a.prioridade === "alta" ? "bg-atencao" : "bg-info")} />
                 <div className="min-w-0 flex-1">
-                  <Link to="/pendencias" className="text-sm font-medium text-foreground hover:underline">{a.titulo || a.descricao}</Link>
+                  <Link to="/processos/$id" params={{ id: a.processo_id }} className="text-sm font-medium text-foreground hover:underline">{a.titulo || a.descricao}</Link>
                   <p className="mt-0.5 text-xs text-muted-foreground"><Link to="/processos/$id" params={{ id: a.processo_id }} className="numero-processo hover:underline">{a.numero}</Link>{a.responsavel ? ` · ${a.responsavel}` : ""}</p>
                 </div>
                 <span className={cn("shrink-0 text-xs tabular-nums", a.atrasada ? "font-medium text-urgente" : "text-muted-foreground")}>{a.atrasada ? "Atrasada · " : ""}{formatarData(a.prazo)}</span>
