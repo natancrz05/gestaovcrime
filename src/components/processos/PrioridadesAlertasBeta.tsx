@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Bell, Database, Search, X } from "lucide-react";
+import { Bell, Database, FileSpreadsheet, Search, X } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { cn } from "@/lib/utils";
@@ -205,11 +205,19 @@ export function PrioridadesAlertasBeta() {
               <p className="mt-1 text-xs text-muted-foreground">{basePje.detalhe}</p>
             </div>
           </div>
-          {basePje.atualizadoHoje ? (
-            <span className="rounded-full border border-concluido/30 bg-background px-2.5 py-1 text-xs font-medium text-concluido">Atualizada</span>
-          ) : (
-            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">Administrativo</span>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {basePje.atualizadoHoje ? (
+              <span className="rounded-full border border-concluido/30 bg-background px-2.5 py-1 text-xs font-medium text-concluido">Atualizada</span>
+            ) : (
+              <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">Administrativo</span>
+            )}
+            <Link
+              to="/processos/importar"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              <FileSpreadsheet className="size-3.5" /> Atualizar acervo
+            </Link>
+          </div>
         </div>
       </section> : null}
 
