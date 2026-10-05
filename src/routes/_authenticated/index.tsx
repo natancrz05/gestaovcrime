@@ -1,18 +1,25 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
-import { CartoesCategorias, ListaAtencao, contarCategorias } from "@/components/processos/Prioridades";
 import { formatarData } from "@/lib/dominio";
 import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
-import { tipoPrisaoDe } from "@/lib/processos/importacao-reus";
-import { CATEGORIAS, processosQueRequeremAtencao, type CategoriaPrioridade } from "@/lib/processos/prioridades";
 import { cn } from "@/lib/utils";
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
 import { listarCentral } from "@/lib/processos/central";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
+import { hojeISO } from "@/lib/processos/modelo";
+import {
+  DADOS_VAZIOS_ALERTAS_BETA,
+  alertasOcultosBetaQuery,
+  chaveOcultacaoAlertaBeta,
+  dadosAuxiliaresAlertasBetaQuery,
+  montarItensAtencaoBeta,
+  type NivelAtencaoBeta,
+  type ReuPresoBeta,
+} from "@/lib/processos/alertas-beta";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -28,34 +35,71 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
+const NIVEIS_DASHBOARD: {
+  valor: Exclude<NivelAtencaoBeta, "administrativo">;
+  rotulo: string;
+  texto: string;
+  selo: string;
+}[] = [
+  { valor: "critico", rotulo: "Crítico", texto: "text-urgente", selo: "border-urgente/30 bg-urgente-suave text-urgente" },
+  { valor: "urgente", rotulo: "Urgente", texto: "text-alerta", selo: "border-alerta/30 bg-alerta-suave text-alerta" },
+  { valor: "atencao", rotulo: "Atenção", texto: "text-atencao", selo: "border-atencao/30 bg-atencao-suave text-atencao" },
+  { valor: "conferir", rotulo: "Conferir", texto: "text-temporaria", selo: "border-temporaria/30 bg-temporaria-suave text-temporaria" },
+  { valor: "informativo", rotulo: "Informativo", texto: "text-info", selo: "border-info/30 bg-info/10 text-info" },
+];
+
 function Dashboard() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const { data: presos } = useSuspenseQuery(presosQuery());
-  const navigate = useNavigate();
-  const [categoria, setCategoria] = useState<CategoriaPrioridade | null>(null);
-  const atencao = useMemo(() => processosQueRequeremAtencao(processos), [processos]);
-  const processoIds = useMemo(() => [...new Set(atencao.map((x) => x.processo.id))], [atencao]);
-  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
-  const contagens = contarCategorias(atencao);
-  const contagensDashboard = {
-    ...contagens,
-    "reu-preso": presos.length,
-    "prisao-temporaria": presos.filter((p) => (p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao) === "Prisão temporária").length,
-  };
-  const selecionarCategoria = (c: CategoriaPrioridade | null) => {
-    if (c === "reu-preso" || c === "prisao-temporaria") {
-      navigate({ to: "/reus-presos" });
-      return;
-    }
-    setCategoria(c);
-  };
-  const exibidos = categoria ? atencao.filter((x) => x.alertas.some((a) => a.categoria === categoria)) : atencao;
+  const { data: compData } = useSuspenseQuery(comparecimentosQuery());
+  const hoje = hojeISO();
+
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
+  const etiquetas = useQuery(etiquetasDosProcessosQuery(processoIds));
+  const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery());
+  const ocultos = useQuery(alertasOcultosBetaQuery());
+  const [nivelSelecionado, setNivelSelecionado] = useState<Exclude<NivelAtencaoBeta, "administrativo"> | null>(null);
+
+  const alertasCarregando = etiquetas.isLoading || auxiliares.isLoading || ocultos.isLoading;
+  const itensAlertas = useMemo(() => {
+    if (alertasCarregando) return [];
+    return montarItensAtencaoBeta({
+      processos,
+      presos: presos as unknown as ReuPresoBeta[],
+      comparecimentos: compData,
+      etiquetasPorProcesso: etiquetas.data ?? {},
+      auxiliares: auxiliares.data ?? DADOS_VAZIOS_ALERTAS_BETA,
+      hoje,
+    });
+  }, [alertasCarregando, processos, presos, compData, etiquetas.data, auxiliares.data, hoje]);
+
+  const chavesOcultas = useMemo(() => new Set(ocultos.data ?? []), [ocultos.data]);
+  const alertasVisiveis = useMemo(
+    () =>
+      itensAlertas.filter(
+        (item) =>
+          item.nivel !== "administrativo" &&
+          !chavesOcultas.has(chaveOcultacaoAlertaBeta(item)),
+      ),
+    [itensAlertas, chavesOcultas],
+  );
+
+  const contagensAlertas = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const nivel of NIVEIS_DASHBOARD) mapa[nivel.valor] = 0;
+    for (const item of alertasVisiveis) mapa[item.nivel] = (mapa[item.nivel] ?? 0) + 1;
+    return mapa;
+  }, [alertasVisiveis]);
+
+  const alertasExibidos = nivelSelecionado
+    ? alertasVisiveis.filter((item) => item.nivel === nivelSelecionado)
+    : alertasVisiveis;
+
   const pendencias = listarPendenciasDe(processos);
   const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
   const acoes = proximasAcoes(pendencias).slice(0, 8);
   const audFuturas = futuras(listarAudienciasDe(processos));
-  const { data: compData } = useSuspenseQuery(comparecimentosQuery());
-  const comps = preparar(compData).filter((c) => c.situacao !== "Encerrado");
+  const comps = preparar(compData, hoje).filter((c) => c.situacao !== "Encerrado");
   const aguardando = listarCentral(processos).length;
   const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
   const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
@@ -74,8 +118,35 @@ function Dashboard() {
       </header>
 
       <section aria-labelledby="indicadores" className="space-y-3">
-        <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Situações prioritárias</h2>
-        <CartoesCategorias contagens={contagensDashboard} selecionada={categoria} onSelecionar={selecionarCategoria} />
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Prioridades e alertas</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Mesmos níveis e regras da Central de Prioridades e Alertas.</p>
+          </div>
+          <Link to="/prioridades" className="text-xs font-medium text-primary hover:underline">Abrir central</Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {NIVEIS_DASHBOARD.map((nivel) => {
+            const ativo = nivelSelecionado === nivel.valor;
+            return (
+              <button
+                key={nivel.valor}
+                type="button"
+                aria-pressed={ativo}
+                onClick={() => setNivelSelecionado(ativo ? null : nivel.valor)}
+                className={cn(
+                  "rounded-lg border bg-card p-4 text-left shadow-card transition-colors hover:border-primary/40",
+                  ativo ? "border-primary ring-1 ring-primary/30" : "border-border",
+                )}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{nivel.rotulo}</p>
+                <p className={cn("mt-2 text-3xl font-semibold leading-none tabular-nums", nivel.texto)}>
+                  {alertasCarregando ? "—" : contagensAlertas[nivel.valor] ?? 0}
+                </p>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <h2 className="-mb-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agenda e acompanhamento</h2>
@@ -147,15 +218,72 @@ function Dashboard() {
             <div>
               <h2 id="requer-atencao" className="text-lg font-semibold text-foreground">Requer atenção</h2>
               <p className="text-sm text-muted-foreground">
-                {categoria ? `Filtrado: ${CATEGORIAS.find((c) => c.chave === categoria)?.titulo}` : "Processos com ao menos um alerta de gestão"}
-                {categoria ? (
-                  <button className="ml-2 text-primary hover:underline" onClick={() => setCategoria(null)}>Mostrar todos</button>
+                {nivelSelecionado
+                  ? `Filtrado: ${NIVEIS_DASHBOARD.find((n) => n.valor === nivelSelecionado)?.rotulo}`
+                  : "Ocorrências ativas da Central de Prioridades e Alertas"}
+                {nivelSelecionado ? (
+                  <button className="ml-2 text-primary hover:underline" onClick={() => setNivelSelecionado(null)}>Mostrar todos</button>
                 ) : null}
               </p>
             </div>
-            <Link to="/prioridades" className="text-sm font-medium text-primary hover:underline">Gerenciar prioridades</Link>
+            <Link to="/prioridades" className="text-sm font-medium text-primary hover:underline">Abrir central</Link>
           </div>
-          <ListaAtencao itens={exibidos} etiquetasPorProcesso={etiquetasPorProcesso} />
+
+          {alertasCarregando ? (
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Atualizando prioridades e alertas…
+            </div>
+          ) : alertasExibidos.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Nenhum alerta ativo neste nível.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-card">
+              {alertasExibidos.slice(0, 8).map((item) => {
+                const nivel = NIVEIS_DASHBOARD.find((n) => n.valor === item.nivel);
+                return (
+                  <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {nivel ? (
+                          <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium", nivel.selo)}>
+                            {nivel.rotulo}
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] text-muted-foreground">{item.origem} · {item.modulo}</span>
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-foreground">{item.titulo}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {item.processoId && item.processoNumero ? (
+                          <Link to="/processos/$id" params={{ id: item.processoId }} className="numero-processo text-primary hover:underline">
+                            {item.processoNumero}
+                          </Link>
+                        ) : item.pessoa ?? "Sem processo vinculado"}
+                        {item.pessoa && item.processoNumero ? ` · ${item.pessoa}` : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right text-xs text-muted-foreground">
+                      {item.dataLimite ? <div>{formatarData(item.dataLimite)}</div> : null}
+                      {item.diasRestantes !== null ? (
+                        <div className={cn(item.diasRestantes <= 0 && "font-medium text-urgente")}>
+                          {item.diasRestantes < 0
+                            ? `${Math.abs(item.diasRestantes)}d vencido`
+                            : item.diasRestantes === 0
+                              ? "Hoje"
+                              : `Faltam ${item.diasRestantes}d`}
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+              {alertasExibidos.length > 8 ? (
+                <li className="px-4 py-2.5 text-center text-xs text-muted-foreground">
+                  +{alertasExibidos.length - 8} ocorrência(s) na Central
+                </li>
+              ) : null}
+            </ul>
+          )}
         </section>
 
         <section aria-labelledby="proximas-acoes" className="space-y-3">
