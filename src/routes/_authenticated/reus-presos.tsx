@@ -446,8 +446,7 @@ function Pagina() {
                               >
                                 Ações ▾
                               </button>
-                              {acoesAberta === p.id ? (
-                                <div className="relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
+                              <div className={`${acoesAberta === p.id ? "block" : "hidden"} relative z-10 mt-2 w-56 rounded-md border border-border bg-card p-1 shadow-lg`}>
                                   <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setForm({ reu: p }); setAcoesAberta(null); }}>Atualizar prisão</button>
                                   <button className="block w-full rounded px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted" onClick={() => { setReav(p); setAcoesAberta(null); }}>Registrar reavaliação</button>
                                   {p.processo_id ? (
@@ -472,7 +471,6 @@ function Pagina() {
                                     {p.conferir ? "Concluir revisão do cadastro" : "Reabrir revisão do cadastro"}
                                   </button>
                                 </div>
-                              ) : null}
                             </>
                           )}
                         </td>
