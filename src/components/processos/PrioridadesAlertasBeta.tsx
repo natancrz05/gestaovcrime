@@ -25,7 +25,6 @@ const NIVEIS: { valor: NivelAtencaoBeta; rotulo: string; classe: string }[] = [
   { valor: "critico", rotulo: "Crítico", classe: "border-urgente/30 bg-urgente-suave text-urgente" },
   { valor: "urgente", rotulo: "Urgente", classe: "border-alerta/30 bg-alerta-suave text-alerta" },
   { valor: "atencao", rotulo: "Atenção", classe: "border-atencao/30 bg-atencao-suave text-atencao" },
-  { valor: "acompanhamento", rotulo: "Acompanhamento", classe: "border-border bg-muted text-muted-foreground" },
   { valor: "conferir", rotulo: "Conferir", classe: "border-temporaria/30 bg-temporaria-suave text-temporaria" },
   { valor: "informativo", rotulo: "Informativo", classe: "border-info/30 bg-info/10 text-info" },
   { valor: "administrativo", rotulo: "Administrativo", classe: "border-border bg-muted text-muted-foreground" },
@@ -160,7 +159,7 @@ export function PrioridadesAlertasBeta() {
         subtitulo="BETA — visão unificada e calculada em tempo real; a versão atual permanece preservada para comparação."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {NIVEIS.filter((n) => n.valor !== "administrativo").map((n) => {
           const ativo = nivel === n.valor;
           return (
