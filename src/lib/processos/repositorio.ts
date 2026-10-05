@@ -362,6 +362,39 @@ export async function removerAudiencia(id: string) {
 }
 
 
+/** Consulta mínima para telas que precisam apenas identificar o processo. */
+export interface ProcessoReferencia {
+  id: string;
+  numero: string;
+}
+
+export async function listarProcessosReferencia(): Promise<ProcessoReferencia[]> {
+  const pagina = 1000;
+  const todos: ProcessoReferencia[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("processos")
+      .select("id, numero")
+      .order("numero")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = (data ?? []) as ProcessoReferencia[];
+    todos.push(...lote);
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
+}
+
+export const processosReferenciaQuery = () =>
+  queryOptions({
+    queryKey: ["processos-referencia"],
+    staleTime: 60_000,
+    queryFn: listarProcessosReferencia,
+  });
+
 /** Consulta enxuta usada por campos de seleção de processo. */
 export interface ProcessoParaSelecao {
   id: string;
