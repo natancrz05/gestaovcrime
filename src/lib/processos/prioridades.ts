@@ -44,9 +44,11 @@ export const COR_CLASSES = {
 } as const;
 
 export const NIVEIS = [
-  { v: "alta", r: "Alta" },
-  { v: "media", r: "Média" },
-  { v: "baixa", r: "Baixa" },
+  { v: "critico", r: "Crítico" },
+  { v: "alta", r: "Urgente" },
+  { v: "media", r: "Atenção" },
+  { v: "conferir", r: "Conferir" },
+  { v: "baixa", r: "Informativo" },
 ] as const;
 
 export type EtiquetasPorProcesso = Record<string, { id: string; nome: string; cor: string; favorita: boolean }[]>;
@@ -73,7 +75,13 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO(), etiquet
   const c = itemCentral(p, hoje);
   if (c && c.dias !== null && c.nivel !== "normal")
     a.push({ categoria: "urgencia-audiencia", rotulo: `Urgência de audiência — ${c.dias} dias sem movimentação`, cor: c.nivel === "critica" ? "urgente" : "atencao" });
-  const nivelRotulo = { alta: "alta", media: "média", baixa: "baixa" };
+  const nivelRotulo = {
+    critico: "crítico",
+    alta: "urgente",
+    media: "atenção",
+    conferir: "conferir",
+    baixa: "informativo",
+  };
   for (const m of p.prioridades)
     a.push({ categoria: "manual", rotulo: `${m.titulo || m.motivo} (${nivelRotulo[m.nivel] ?? m.nivel})`, cor: "alerta", manual: m });
   return a;
