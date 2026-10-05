@@ -90,8 +90,7 @@ export const alertasOcultosBetaQuery = () =>
     queryFn: async (): Promise<string[]> => {
       const { data, error } = await supabase
         .from("alertas_ocultos")
-        .select("alerta_chave")
-        .order("criado_em", { ascending: false });
+        .select("alerta_chave");
       if (error) throw error;
       return (data ?? []).map((x) => x.alerta_chave);
     },
@@ -117,21 +116,43 @@ export function chaveOcultacaoAlertaBeta(item: ItemAtencaoBeta): string {
   return item.id;
 }
 
-export const dadosAuxiliaresAlertasBetaQuery = () =>
-  queryOptions({
-    queryKey: ["alertas-beta", "dados-auxiliares"],
+async function consultarReavaliacoesBeta(reuIds?: string[]) {
+  if (reuIds?.length === 0) {
+    return { data: [] as ReavaliacaoBeta[], error: null };
+  }
+  let consulta = supabase
+    .from("reu_reavaliacoes")
+    .select("reu_id, data_reavaliacao, proxima_data")
+    .order("data_reavaliacao", { ascending: false });
+  if (reuIds) consulta = consulta.in("reu_id", reuIds);
+  const { data, error } = await consulta;
+  return { data: (data ?? []) as ReavaliacaoBeta[], error };
+}
+
+async function consultarEncerramentosBeta(reuIds?: string[]) {
+  if (reuIds?.length === 0) {
+    return { data: [] as PrisaoEncerradaBeta[], error: null };
+  }
+  let consulta = supabase
+    .from("reu_prisoes_encerradas")
+    .select("reu_id, data_encerramento, data_prisao")
+    .order("data_encerramento", { ascending: false });
+  if (reuIds) consulta = consulta.in("reu_id", reuIds);
+  const { data, error } = await consulta;
+  return { data: (data ?? []) as PrisaoEncerradaBeta[], error };
+}
+
+export const dadosAuxiliaresAlertasBetaQuery = (reuIds?: string[] | null) => {
+  const ids = reuIds === null ? null : reuIds ? [...new Set(reuIds.filter(Boolean))].sort() : undefined;
+  return queryOptions({
+    queryKey: ["alertas-beta", "dados-auxiliares", ids ?? "todos"],
+    enabled: reuIds !== null,
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async (): Promise<DadosAuxiliaresAlertasBeta> => {
       const [reavaliacoes, encerramentos, importacao] = await Promise.all([
-        supabase
-          .from("reu_reavaliacoes")
-          .select("reu_id, data_reavaliacao, proxima_data")
-          .order("data_reavaliacao", { ascending: false }),
-        supabase
-          .from("reu_prisoes_encerradas")
-          .select("reu_id, data_encerramento, data_prisao")
-          .order("data_encerramento", { ascending: false }),
+        consultarReavaliacoesBeta(ids),
+        consultarEncerramentosBeta(ids),
         supabase
           .from("importacoes")
           .select("id, criado_em, arquivo, status")
@@ -143,8 +164,8 @@ export const dadosAuxiliaresAlertasBetaQuery = () =>
       ]);
 
       return {
-        reavaliacoes: reavaliacoes.error ? [] : ((reavaliacoes.data ?? []) as ReavaliacaoBeta[]),
-        encerramentos: encerramentos.error ? [] : ((encerramentos.data ?? []) as PrisaoEncerradaBeta[]),
+        reavaliacoes: reavaliacoes.error ? [] : reavaliacoes.data,
+        encerramentos: encerramentos.error ? [] : encerramentos.data,
         ultimaImportacao: importacao.error ? null : ((importacao.data ?? null) as ImportacaoBeta | null),
         reavaliacoesDisponiveis: !reavaliacoes.error,
         encerramentosDisponiveis: !encerramentos.error,
@@ -152,6 +173,7 @@ export const dadosAuxiliaresAlertasBetaQuery = () =>
       };
     },
   });
+};
 
 const semAcento = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
