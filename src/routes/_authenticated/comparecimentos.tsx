@@ -11,7 +11,7 @@ import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosReferenciaQuery } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/comparecimentos")({
     ],
   }),
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(comparecimentosQuery()), context.queryClient.ensureQueryData(processosQuery())]),
+    Promise.all([context.queryClient.ensureQueryData(comparecimentosQuery()), context.queryClient.ensureQueryData(processosReferenciaQuery())]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar comparecimentos" descricao={error.message} />,
   component: Pagina,
 });
@@ -54,7 +54,7 @@ const BOTAO_SEC = "inline-flex h-8 items-center gap-1 rounded-md border border-b
 
 function Pagina() {
   const { data } = useSuspenseQuery(comparecimentosQuery());
-  const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: processos } = useSuspenseQuery(processosReferenciaQuery());
   const busca = Route.useSearch();
   const navigate = Route.useNavigate();
   const hoje = hojeISO();
