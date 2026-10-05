@@ -29,7 +29,13 @@ export const Route = createFileRoute("/_authenticated/prioridades")({
 
 type Nivel = PrioridadeProcesso["nivel"];
 const BOTAO = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
-const NIVEL_ROTULO: Record<string, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
+const NIVEL_ROTULO: Record<string, string> = {
+  critico: "Crítico",
+  alta: "Urgente",
+  media: "Atenção",
+  conferir: "Conferir",
+  baixa: "Informativo",
+};
 
 function Pagina() {
   const [modo, setModo] = useState<"beta" | "atual">("beta");
