@@ -6,16 +6,20 @@ import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { comparecimentosQuery } from "@/lib/processos/comparecimentos";
 import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
-import { etiquetasDosProcessosQuery, processosQuery, salvarPrioridadeManual } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from "@/lib/processos/repositorio";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
+  alertasOcultosBetaQuery,
+  chaveOcultacaoAlertaBeta,
   dadosAuxiliaresAlertasBetaQuery,
   montarItensAtencaoBeta,
+  ocultarAlertaBeta,
   statusBasePjeBeta,
   type ItemAtencaoBeta,
   type NivelAtencaoBeta,
@@ -74,6 +78,7 @@ export function PrioridadesAlertasBeta() {
   const presos = useQuery(presosQuery());
   const comparecimentos = useQuery(comparecimentosQuery());
   const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery());
+  const ocultos = useQuery(alertasOcultosBetaQuery());
   const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
 
@@ -92,6 +97,7 @@ export function PrioridadesAlertasBeta() {
   });
   const [salvandoManual, setSalvandoManual] = useState(false);
   const [erroManual, setErroManual] = useState("");
+  const [removendoId, setRemovendoId] = useState<string | null>(null);
 
   const hoje = hojeISO();
   const dadosAux = auxiliares.data ?? DADOS_VAZIOS_ALERTAS_BETA;
@@ -109,10 +115,12 @@ export function PrioridadesAlertasBeta() {
     [processos, presos.data, comparecimentos.data, etiquetasPorProcesso, dadosAux, hoje],
   );
 
-  const itensVisiveis = useMemo(
-    () => (ehAdmin ? itens : itens.filter((i) => i.id !== "base-pje")),
-    [itens, ehAdmin],
-  );
+  const chavesOcultas = useMemo(() => new Set(ocultos.data ?? []), [ocultos.data]);
+
+  const itensVisiveis = useMemo(() => {
+    const porPerfil = ehAdmin ? itens : itens.filter((i) => i.id !== "base-pje");
+    return porPerfil.filter((i) => !chavesOcultas.has(chaveOcultacaoAlertaBeta(i)));
+  }, [itens, ehAdmin, chavesOcultas]);
 
   const categorias = useMemo(
     () => [...new Set(itensVisiveis.map((i) => i.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR")),
@@ -166,6 +174,8 @@ export function PrioridadesAlertasBeta() {
   }, [itensVisiveis]);
 
   const basePje = statusBasePjeBeta(dadosAux, hoje);
+  const basePjeItem = itens.find((i) => i.id === "base-pje") ?? null;
+  const basePjeOculta = Boolean(basePjeItem && chavesOcultas.has(chaveOcultacaoAlertaBeta(basePjeItem)));
   const algumFiltro = Boolean(busca || nivel || origem || categoria || modulo || prazo);
 
   async function adicionarManual(e: React.FormEvent) {
@@ -190,6 +200,27 @@ export function PrioridadesAlertasBeta() {
       setErroManual(err instanceof Error ? err.message : "Erro ao adicionar prioridade.");
     } finally {
       setSalvandoManual(false);
+    }
+  }
+
+
+  async function removerAlerta(item: ItemAtencaoBeta) {
+    setRemovendoId(item.id);
+    try {
+      if (item.origem === "Manual") {
+        const prioridadeId = item.id.split(":").pop();
+        if (!prioridadeId) throw new Error("Não foi possível identificar a prioridade manual.");
+        await removerPrioridadeManual(prioridadeId);
+        await qc.invalidateQueries({ queryKey: ["processos"] });
+      } else {
+        await ocultarAlertaBeta(chaveOcultacaoAlertaBeta(item));
+        await qc.invalidateQueries({ queryKey: ["alertas-beta", "ocultos"] });
+      }
+      toast.success("Alerta removido.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover alerta.");
+    } finally {
+      setRemovendoId(null);
     }
   }
 
@@ -295,7 +326,7 @@ export function PrioridadesAlertasBeta() {
         </section>
       ) : null}
 
-      {ehAdmin ? <section className={cn(
+      {ehAdmin && !basePjeOculta ? <section className={cn(
         "rounded-lg border p-4 shadow-card",
         basePje.atualizadoHoje ? "border-concluido/30 bg-concluido-suave" : "border-border bg-card",
       )}>
@@ -322,6 +353,18 @@ export function PrioridadesAlertasBeta() {
             >
               <FileSpreadsheet className="size-3.5" /> Atualizar acervo
             </Link>
+            {podeEditar && basePjeItem ? (
+              <button
+                type="button"
+                aria-label="Remover alerta da Base PJe"
+                title="Remover alerta"
+                disabled={removendoId === basePjeItem.id}
+                onClick={() => removerAlerta(basePjeItem)}
+                className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+              >
+                <X className="size-4" />
+              </button>
+            ) : null}
           </div>
         </div>
       </section> : null}
@@ -403,6 +446,7 @@ export function PrioridadesAlertasBeta() {
                 {["Nível", "Processo / pessoa", "Prioridade ou alerta", "Origem", "Módulo", "Data-limite", "Situação"].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-medium">{h}</th>
                 ))}
+                <th className="w-10 px-2 py-2.5"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -432,6 +476,20 @@ export function PrioridadesAlertasBeta() {
                   <td className="px-3 py-3 text-xs">{i.modulo}</td>
                   <td className="px-3 py-3 text-xs">{i.dataLimite ? formatarData(i.dataLimite) : "—"}</td>
                   <td className="px-3 py-3 text-xs font-medium">{textoPrazo(i)}</td>
+                  <td className="px-2 py-3 text-right">
+                    {podeEditar ? (
+                      <button
+                        type="button"
+                        aria-label={`Remover alerta: ${i.titulo}`}
+                        title="Remover alerta"
+                        disabled={removendoId === i.id}
+                        onClick={() => removerAlerta(i)}
+                        className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -440,7 +498,7 @@ export function PrioridadesAlertasBeta() {
       )}
 
       <p className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-        Durante o beta, novas prioridades e alertas manuais podem ser adicionados aqui. A edição e a exclusão dos registros manuais continuam disponíveis na versão atual. Nenhuma tabela nova foi criada.
+        Prioridades e alertas podem ser removidos pelo X. Nos alertas automáticos, a remoção oculta a ocorrência atual; se surgir um novo prazo ou uma nova ocorrência, o sistema poderá gerar outro alerta.
       </p>
     </div>
   );
