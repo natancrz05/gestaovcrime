@@ -397,8 +397,8 @@ export function montarItensAtencaoBeta(params: {
         const limite = somarDiasISO(base, 90);
         const dias = diasEntre(hoje, limite);
         let nivel: NivelAtencaoBeta | null = null;
-        if (dias <= 3) nivel = "critico";
-        else if (dias <= 7) nivel = "urgente";
+        if (dias <= 0) nivel = "critico";
+        else if (dias <= 5) nivel = "urgente";
         else if (dias <= 15) nivel = "atencao";
 
         if (nivel) {
