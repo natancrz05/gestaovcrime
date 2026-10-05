@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { diasEntre, hojeISO, type ProcessoCompleto } from "./modelo";
 import { somarMeses, type Comparecimento } from "./comparecimentos";
 import { tipoPrisaoDe } from "./importacao-reus";
+import { normalizarCorEtiqueta } from "./etiquetas-niveis";
 import { alertasDoProcesso, type EtiquetasPorProcesso } from "./prioridades";
 
 export type NivelAtencaoBeta =
@@ -315,7 +316,11 @@ export function montarItensAtencaoBeta(params: {
     alertas.forEach((a, indice) => {
       // O beta não transforma a simples condição de "réu preso" ou "prisão temporária"
       // em alerta. Prisões entram pela regra específica de prazo/revisão abaixo.
-      if (a.categoria === "reu-preso" || a.categoria === "prisao-temporaria") return;
+      if (
+        a.categoria === "reu-preso" ||
+        a.categoria === "prisao-temporaria" ||
+        a.categoria === "etiqueta-urgente"
+      ) return;
       itens.push(
         item({
           id: `existente:${processo.id}:${a.categoria}:${a.manual?.id ?? indice}`,
@@ -331,6 +336,37 @@ export function montarItensAtencaoBeta(params: {
         }),
       );
     });
+
+    for (const etiqueta of etiquetasPorProcesso[processo.id] ?? []) {
+      const cor = normalizarCorEtiqueta(etiqueta.cor);
+      if (cor === "concluido") continue;
+
+      const nivelEtiqueta: Record<
+        Exclude<typeof cor, "concluido">,
+        NivelAtencaoBeta
+      > = {
+        critico: "critico",
+        urgente: "urgente",
+        atencao: "atencao",
+        conferir: "conferir",
+        informativo: "informativo",
+      };
+
+      itens.push(
+        item({
+          id: `etiqueta:${processo.id}:${etiqueta.id}`,
+          processoId: processo.id,
+          processoNumero: processo.numero,
+          pessoa: processo.reus.find((r) => r.preso)?.nome ?? processo.reus[0]?.nome ?? null,
+          categoria: "Etiqueta",
+          titulo: etiqueta.nome,
+          descricao: "Etiqueta aplicada ao processo.",
+          nivel: nivelEtiqueta[cor],
+          origem: "Etiqueta",
+          modulo: "Processos",
+        }),
+      );
+    }
   }
 
   const reavaliacoesPorReu = new Map<string, string>();
