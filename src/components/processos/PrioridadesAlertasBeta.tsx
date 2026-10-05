@@ -77,7 +77,8 @@ export function PrioridadesAlertas() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const presos = useQuery(presosQuery());
   const comparecimentos = useQuery(comparecimentosQuery());
-  const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery());
+  const reuIds = useMemo(() => (presos.data ?? []).map((p) => p.id), [presos.data]);
+  const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery(presos.data ? reuIds : null));
   const ocultos = useQuery(alertasOcultosBetaQuery());
   const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
@@ -249,7 +250,7 @@ export function PrioridadesAlertas() {
     }
   }
 
-  if (presos.isLoading || comparecimentos.isLoading || auxiliares.isLoading) {
+  if (presos.isLoading || !presos.data || comparecimentos.isLoading || auxiliares.isLoading) {
     return <EstadoVazio titulo="Carregando prioridades e alertas" descricao="Calculando prioridades e alertas a partir dos dados atuais do sistema." />;
   }
 
