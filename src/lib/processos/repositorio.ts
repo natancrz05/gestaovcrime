@@ -296,7 +296,7 @@ export async function adicionarObservacao(o: { processo_id: string; texto: strin
 export interface PrioridadeManualEntrada {
   processo_id: string;
   titulo: string;
-  nivel: "alta" | "media" | "baixa";
+  nivel: "critico" | "alta" | "media" | "conferir" | "baixa";
   observacao: string;
 }
 
