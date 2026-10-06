@@ -73,22 +73,57 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosQuery());
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
-  // Carrega etiquetas de todo o acervo exibível nesta aba, inclusive processos
-  // que estão apenas na Central aguardando marcação e ainda não possuem audiência.
-  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
-  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
-  const prox = futuras(todas);
-  const deHoje = prox.filter((a) => a.dias === 0);
-  const em7 = prox.filter((a) => a.dias > 0 && a.dias <= 7);
-  const em30 = prox.filter((a) => a.dias > 7 && a.dias <= 30);
-  const extensas = prox.filter((a) => a.prazoExtenso);
+  const itensCentral = useMemo(() => listarCentral(processos), [processos]);
+
+  // Etiquetas só são necessárias para processos efetivamente exibidos nesta tela:
+  // os que possuem audiência e os que aparecem na central aguardando marcação.
+  // Evita consultar etiquetas do acervo inteiro quando boa parte dele não participa
+  // de nenhum dos dois conjuntos.
+  const processoIdsComEtiquetas = useMemo(
+    () => [
+      ...new Set([
+        ...todas.map((a) => a.processo_id),
+        ...itensCentral.map((i) => i.processo.id),
+      ]),
+    ],
+    [todas, itensCentral],
+  );
+  const { data: etiquetasPorProcesso = {} } = useQuery(
+    etiquetasDosProcessosQuery(processoIdsComEtiquetas),
+  );
+
+  const { prox, deHoje, em7, em30, extensas } = useMemo(() => {
+    const proximas = futuras(todas);
+    return {
+      prox: proximas,
+      deHoje: proximas.filter((a) => a.dias === 0),
+      em7: proximas.filter((a) => a.dias > 0 && a.dias <= 7),
+      em30: proximas.filter((a) => a.dias > 7 && a.dias <= 30),
+      extensas: proximas.filter((a) => a.prazoExtenso),
+    };
+  }, [todas]);
 
   const [detalhe, setDetalhe] = useState<AudienciaListada | null>(null);
   const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
   const [filtroSit, setFiltroSit] = useState("Todas");
   const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
-  const filtrar = (s: string) => (s === "Todas" ? todas : s === "A realizar" ? todas.filter(estaPendente) : todas.filter((a) => rotuloSit(a.situacao) === s));
-  const listadas = filtrar(filtroSit);
+  const audienciasPorFiltro = useMemo(() => {
+    const resultado: Record<string, AudienciaListada[]> = {
+      Todas: todas,
+      "A realizar": todas.filter(estaPendente),
+      Agendada: [],
+      Realizada: [],
+      Cancelada: [],
+      Redesignada: [],
+    };
+
+    for (const audiencia of todas) {
+      const chave = rotuloSit(audiencia.situacao);
+      if (resultado[chave]) resultado[chave].push(audiencia);
+    }
+    return resultado;
+  }, [todas]);
+  const listadas = audienciasPorFiltro[filtroSit] ?? todas;
   const mostrarSelo = (a: AudienciaListada) => a.reuPreso && !a.ocultar_selo_reu_preso && estaPendente(a);
   async function removerSelo(a: AudienciaListada) {
     await ocultarSeloReuPreso(a.id);
@@ -141,7 +176,7 @@ function Pagina() {
       />
 
       <CentralAudiencias
-        processos={processos}
+        itens={itensCentral}
         etiquetasPorProcesso={etiquetasPorProcesso}
         podeEditar={podeEditar}
         onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
@@ -159,7 +194,7 @@ function Pagina() {
         <div className="mb-3 flex flex-wrap gap-1.5">
           {["Todas", "A realizar", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
             <button key={s} aria-pressed={filtroSit === s} onClick={() => setFiltroSit(s)} className={cn("rounded-full border border-border px-3 py-1 text-xs", filtroSit === s ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-              {s === "Todas" || s === "A realizar" ? s : s + "s"} ({filtrar(s).length})
+              {s === "Todas" || s === "A realizar" ? s : s + "s"} ({audienciasPorFiltro[s]?.length ?? 0})
             </button>
           ))}
         </div>
@@ -595,14 +630,13 @@ function Calendario({
 /* ---------------- Central: processos aguardando marcação ---------------- */
 
 function CentralAudiencias({
-  processos, etiquetasPorProcesso, podeEditar, onMarcar,
+  itens, etiquetasPorProcesso, podeEditar, onMarcar,
 }: {
-  processos: Parameters<typeof listarCentral>[0];
+  itens: ReturnType<typeof listarCentral>;
   etiquetasPorProcesso: Record<string, EtiquetaDoProcesso[]>;
   podeEditar: boolean;
   onMarcar: (processoId: string) => void;
 }) {
-  const itens = useMemo(() => listarCentral(processos), [processos]);
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
   const [busca, setBusca] = useState("");
