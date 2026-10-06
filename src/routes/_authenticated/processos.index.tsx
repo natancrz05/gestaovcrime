@@ -75,7 +75,8 @@ function Pagina() {
   const sp = Route.useSearch();
   const podeEditar = usePode("editar");
   const { data: etiquetas = [] } = useQuery(etiquetasQuery());
-  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processos.map((p) => p.id)));
+  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const busca = sp.q ?? "", status = sp.status ?? "", classe = sp.classe ?? "", preso = sp.preso ?? "";
   const tipoPrisao = sp.tipoPrisao ?? "", movimentacao = sp.movimentacao ?? "", audienciaStatus = sp.audienciaStatus ?? "", gestaoPrioridade = sp.gestaoPrioridade ?? "", gestaoPendencia = sp.gestaoPendencia ?? "", etiqueta = sp.etiqueta ?? "", contagem100 = sp.contagem100 ?? "", fluxo = sp.fluxo ?? "", ordem = sp.ordem ?? "processo";
   const set = (k: Chave, v: string) =>
@@ -91,6 +92,36 @@ function Pagina() {
     });
   const algumFiltro = CHAVES.some((k) => k !== "ordem" && k !== "pagina" && sp[k]);
   const hoje = hojeISO();
+  const dadosPorProcesso = useMemo(
+    () =>
+      new Map(
+        processos.map((p) => {
+          const ultima = ultimaMovimentacao(p);
+          const dias = diasSemMovimentacao(p, hoje);
+          const estado100 = estadoContagem100Dias(p);
+          const proxima = proximaAudiencia(p, hoje);
+          const pendencias = pendenciasAbertas(p).length;
+          const fluxoAtual = rotuloFluxo(p);
+          const alvoBusca = [
+            p.numero,
+            p.numero.replace(/\D/g, ""),
+            p.classe,
+            p.assunto,
+            p.status,
+            ...p.partes.map((x) => x.nome),
+            ...p.reus.map((x) => x.nome),
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          return [
+            p.id,
+            { ultima, dias, estado100, proxima, pendencias, fluxoAtual, alvoBusca },
+          ] as const;
+        }),
+      ),
+    [processos, hoje],
+  );
   const alertasPorProcesso = useMemo(
     () =>
       Object.fromEntries(
@@ -118,35 +149,34 @@ function Pagina() {
   }, [processos]);
 
   const fluxos = useMemo(
-    () => [...new Set(processos.map(rotuloFluxo).filter((x) => x && x !== "—"))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [processos],
+    () =>
+      [...new Set([...dadosPorProcesso.values()].map((x) => x.fluxoAtual).filter((x) => x && x !== "—"))].sort(
+        (a, b) => a.localeCompare(b, "pt-BR"),
+      ),
+    [dadosPorProcesso],
   );
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
     const lista = processos.filter((p) => {
-      if (t) {
-        const alvo = [p.numero, p.numero.replace(/\D/g, ""), p.classe, p.assunto, p.status, ...p.partes.map((x) => x.nome), ...p.reus.map((x) => x.nome)]
-          .join(" ")
-          .toLowerCase();
-        if (!alvo.includes(t)) return false;
-      }
+      const dados = dadosPorProcesso.get(p.id);
+      if (!dados) return false;
+      if (t && !dados.alvoBusca.includes(t)) return false;
       if (status && p.status !== status) return false;
       if (classe && p.classe !== classe) return false;
-      if (fluxo && rotuloFluxo(p) !== fluxo) return false;
-      const estado100 = estadoContagem100Dias(p);
-      if (contagem100 === "ativa" && estado100.pausada) return false;
-      if (contagem100 === "pausada" && !estado100.pausada) return false;
+      if (fluxo && dados.fluxoAtual !== fluxo) return false;
+      if (contagem100 === "ativa" && dados.estado100.pausada) return false;
+      if (contagem100 === "pausada" && !dados.estado100.pausada) return false;
       if (etiqueta && !(etiquetasPorProcesso[p.id] ?? []).some((e) => e.id === etiqueta)) return false;
       if (preso === "sim" && !p.reus.some((r) => r.preso)) return false;
       if (preso === "nao" && p.reus.some((r) => r.preso)) return false;
       if (tipoPrisao && !p.reus.some((r) => r.tipo_prisao === tipoPrisao)) return false;
       if (gestaoPrioridade === "com" && (alertasPorProcesso[p.id] ?? []).length === 0) return false;
       if (gestaoPrioridade === "sem" && (alertasPorProcesso[p.id] ?? []).length > 0) return false;
-      if (gestaoPendencia === "com" && pendenciasAbertas(p).length === 0) return false;
-      if (gestaoPendencia === "sem" && pendenciasAbertas(p).length > 0) return false;
+      if (gestaoPendencia === "com" && dados.pendencias === 0) return false;
+      if (gestaoPendencia === "sem" && dados.pendencias > 0) return false;
       if (movimentacao) {
-        const d = diasSemMovimentacao(p, hoje);
+        const d = dados.dias;
         if (movimentacao === "sem" && d !== null) return false;
         if (movimentacao === "30+" && (d === null || d <= 30)) return false;
         if (movimentacao === "60+" && (d === null || d <= 60)) return false;
@@ -164,16 +194,19 @@ function Pagina() {
       }
       return true;
     });
-    const dias = (p: (typeof processos)[number]) => diasSemMovimentacao(p, hoje) ?? -1;
+    const dias = (p: (typeof processos)[number]) => dadosPorProcesso.get(p.id)?.dias ?? -1;
     const ORD: Record<string, (a: (typeof processos)[number], b: (typeof processos)[number]) => number> = {
       processo: (a, b) => a.numero.localeCompare(b.numero),
       distribuicao: (a, b) => (b.data_distribuicao ?? "").localeCompare(a.data_distribuicao ?? ""),
-      movimentacao: (a, b) => (ultimaMovimentacao(b)?.data ?? "").localeCompare(ultimaMovimentacao(a)?.data ?? ""),
+      movimentacao: (a, b) =>
+        (dadosPorProcesso.get(b.id)?.ultima?.data ?? "").localeCompare(
+          dadosPorProcesso.get(a.id)?.ultima?.data ?? "",
+        ),
       dias: (a, b) => dias(b) - dias(a),
       prioridade: (a, b) => (alertasPorProcesso[b.id] ?? []).length - (alertasPorProcesso[a.id] ?? []).length || a.numero.localeCompare(b.numero),
     };
     return [...lista].sort(ORD[ordem] ?? ORD["processo"]);
-  }, [processos, sp, hoje, alertasPorProcesso, etiquetasPorProcesso]);
+  }, [processos, sp, alertasPorProcesso, etiquetasPorProcesso, dadosPorProcesso]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PROCESSOS_POR_PAGINA));
   const paginaSolicitada = Math.max(1, Number.parseInt(sp.pagina ?? "1", 10) || 1);
@@ -340,11 +373,12 @@ function Pagina() {
             <tbody className="divide-y divide-border">
               {processosDaPagina.map((p) => {
                 const reu = reuPrincipal(p);
-                const ult = ultimaMovimentacao(p);
-                const dias = diasSemMovimentacao(p, hoje);
-                const estado100 = estadoContagem100Dias(p);
-                const aud = proximaAudiencia(p, hoje);
-                const pend = pendenciasAbertas(p).length;
+                const dados = dadosPorProcesso.get(p.id);
+                const ult = dados?.ultima ?? null;
+                const dias = dados?.dias ?? null;
+                const estado100 = dados?.estado100 ?? { pausada: false, motivo: null };
+                const aud = dados?.proxima ?? null;
+                const pend = dados?.pendencias ?? 0;
                 return (
                   <tr
                     key={p.id}
@@ -390,7 +424,7 @@ function Pagina() {
                     </td>
                     <td className="break-words px-2 py-2 text-muted-foreground">{p.classe}</td>
                     <td className="break-words px-2 py-2">{p.status}</td>
-                    <td className="break-words px-2 py-2 font-medium" title={p.pje_tarefas ?? undefined}>{rotuloFluxo(p)}</td>
+                    <td className="break-words px-2 py-2 font-medium" title={p.pje_tarefas ?? undefined}>{dados?.fluxoAtual ?? rotuloFluxo(p)}</td>
                     <td className="break-words px-2 py-2">
                       <div>{formatarData(ult?.data ?? null)}</div>
                       <div className="text-xs text-muted-foreground">{ult?.descricao}</div>
