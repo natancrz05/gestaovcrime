@@ -109,7 +109,7 @@ function Pagina() {
               <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">Nenhuma etiqueta cadastrada.</td></tr>
             ) : null}
             {etiquetas.map((e) => {
-              const cor = opcaoCorEtiqueta(e.cor);
+              const cor = opcaoCorEtiqueta(e.cor)!;
               return (
                 <tr key={e.id}>
                   <td className="px-4 py-2.5"><Etiqueta severidade={cor.severidade}>{e.nome}</Etiqueta></td>

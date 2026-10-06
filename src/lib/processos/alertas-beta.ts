@@ -150,9 +150,10 @@ export const dadosAuxiliaresAlertasBetaQuery = (reuIds?: string[] | null) => {
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async (): Promise<DadosAuxiliaresAlertasBeta> => {
+      const idsConsulta = ids ?? undefined;
       const [reavaliacoes, encerramentos, importacao] = await Promise.all([
-        consultarReavaliacoesBeta(ids),
-        consultarEncerramentosBeta(ids),
+        consultarReavaliacoesBeta(idsConsulta),
+        consultarEncerramentosBeta(idsConsulta),
         supabase
           .from("importacoes")
           .select("id, criado_em, arquivo, status")
@@ -192,14 +193,24 @@ function normalizarData(v: unknown): string | null {
     if (m) iso = `${m[3]}-${m[2]}-${m[1]}`;
   }
   if (!iso) return null;
-  const [a, m, d] = iso.split("-").map(Number);
+  const partes = iso.split("-").map(Number);
+  const a = partes[0];
+  const m = partes[1];
+  const d = partes[2];
+  if (a === undefined || m === undefined || d === undefined) return null;
   const dt = new Date(Date.UTC(a, m - 1, d));
   if (dt.getUTCFullYear() !== a || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return iso;
 }
 
 function somarDiasISO(iso: string, dias: number): string {
-  const [a, m, d] = iso.split("-").map(Number);
+  const partes = iso.split("-").map(Number);
+  const a = partes[0];
+  const m = partes[1];
+  const d = partes[2];
+  if (a === undefined || m === undefined || d === undefined) {
+    throw new Error("Data ISO inválida.");
+  }
   const dt = new Date(Date.UTC(a, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + dias);
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;

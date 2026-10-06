@@ -179,7 +179,7 @@ function Pagina() {
                       <div>{a.reu}{mostrarSelo(a) ? <span className="ml-2"><SeloReuPreso podeRemover={podeEditar} onRemover={() => removerSelo(a)} /></span> : null}</div>
                       {etiquetasPorProcesso[a.processo_id]?.length ? (
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {etiquetasPorProcesso[a.processo_id].map((e: EtiquetaDoProcesso) => (
+                          {etiquetasPorProcesso[a.processo_id]?.map((e: EtiquetaDoProcesso) => (
                             <EtiquetaProcesso key={e.id} processoId={a.processo_id} etiqueta={e} />
                           ))}
                         </div>

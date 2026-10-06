@@ -87,7 +87,13 @@ function normalizarData(v?: string | null): string | null {
 }
 
 function somarDiasISO(iso: string, dias: number): string {
-  const [a, m, d] = iso.split("-").map(Number);
+  const partes = iso.split("-").map(Number);
+  const a = partes[0];
+  const m = partes[1];
+  const d = partes[2];
+  if (a === undefined || m === undefined || d === undefined) {
+    throw new Error("Data ISO inválida.");
+  }
   const dt = new Date(Date.UTC(a, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + dias);
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
@@ -192,7 +198,8 @@ function Pagina() {
   const ultimaReavaliacaoPorReu = useMemo(() => {
     const mapa: Record<string, string> = {};
     for (const reavaliacao of reavaliacoes) {
-      if (!mapa[reavaliacao.reu_id] || reavaliacao.data_reavaliacao > mapa[reavaliacao.reu_id]) {
+      const atual = mapa[reavaliacao.reu_id];
+      if (!atual || reavaliacao.data_reavaliacao > atual) {
         mapa[reavaliacao.reu_id] = reavaliacao.data_reavaliacao;
       }
     }

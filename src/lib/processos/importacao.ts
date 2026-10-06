@@ -316,7 +316,7 @@ function consolidarDuplicados(validas: LinhaValida[]) {
       continue;
     }
 
-    const base = [...grupo].sort((a, b) => (b.campos.pje_ultima_mov_data ?? "").localeCompare(a.campos.pje_ultima_mov_data ?? ""))[0]!;
+    const base = [...grupo].sort((a, b) => (b.campos["pje_ultima_mov_data"] ?? "").localeCompare(a.campos["pje_ultima_mov_data"] ?? ""))[0]!;
     const estaticos = ["classe", "assunto", "data_distribuicao", "pje_classe_codigo", "pje_sistema"];
     const conflitosEstaticos = estaticos.filter((campo) => {
       const valores = grupo.map((g) => g.campos[campo]).filter(Boolean);
@@ -467,14 +467,14 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
       return;
     }
 
-    const reuOriginal = campos.pje_reu ?? "";
-    const inferencia = inferirReus(campos.classe ?? "", campos.pje_autor ?? "", reuOriginal);
+    const reuOriginal = campos["pje_reu"] ?? "";
+    const inferencia = inferirReus(campos["classe"] ?? "", campos["pje_autor"] ?? "", reuOriginal);
 
     // O campo pje_reu passa a representar pessoas efetivamente identificadas como
     // réus/autores do fato, evitando criar Ministério Público, juízo ou polícia
     // como réu do processo por inversões do relatório do PJe.
-    if (inferencia.nomes.length) campos.pje_reu = inferencia.nomes.join(";");
-    else if (reuOriginal && separarPessoas(reuOriginal).every(ehParteInstitucional)) delete campos.pje_reu;
+    if (inferencia.nomes.length) campos["pje_reu"] = inferencia.nomes.join(";");
+    else if (reuOriginal && separarPessoas(reuOriginal).every(ehParteInstitucional)) delete campos["pje_reu"];
 
     const linhaAvisos = [...inferencia.avisos];
     for (const motivo of linhaAvisos) avisosGerais.push({ linha: nLinha, numero, motivo });

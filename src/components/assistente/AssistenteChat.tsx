@@ -31,8 +31,9 @@ function MarkdownResposta({ texto }: { texto: string }) {
   let listaAtual: { texto: string; numerada: boolean }[] = [];
 
   const descarregarLista = () => {
-    if (!listaAtual.length) return;
-    const numerada = listaAtual[0].numerada;
+    const primeiroItem = listaAtual[0];
+    if (!primeiroItem) return;
+    const numerada = primeiroItem.numerada;
     const Tag = numerada ? "ol" : "ul";
     blocos.push(
       <Tag key={"lista-" + blocos.length} className={cn("my-2 space-y-1.5 pl-5", numerada ? "list-decimal" : "list-disc")}>
@@ -48,8 +49,10 @@ function MarkdownResposta({ texto }: { texto: string }) {
     if (lista || numerada) {
       const item = lista ?? numerada;
       const isNumerada = Boolean(numerada);
-      if (listaAtual.length && listaAtual[0].numerada !== isNumerada) descarregarLista();
-      listaAtual.push({ texto: item![1], numerada: isNumerada });
+      if (listaAtual[0] && listaAtual[0].numerada !== isNumerada) descarregarLista();
+      const textoItem = item?.[1];
+      if (!textoItem) return;
+      listaAtual.push({ texto: textoItem, numerada: isNumerada });
       return;
     }
     descarregarLista();
@@ -59,9 +62,12 @@ function MarkdownResposta({ texto }: { texto: string }) {
     }
     const titulo = linha.match(/^\s*(#{1,3})\s+(.+)$/);
     if (titulo) {
-      const nivel = titulo[1].length;
+      const marcadores = titulo[1];
+      const textoTitulo = titulo[2];
+      if (!marcadores || !textoTitulo) return;
+      const nivel = marcadores.length;
       const classes = nivel === 1 ? "mt-4 text-base font-semibold tracking-tight" : nivel === 2 ? "mt-3 text-[15px] font-semibold tracking-tight" : "mt-2 text-sm font-semibold";
-      blocos.push(<div key={"titulo-" + index} className={classes}>{renderInlineMarkdown(titulo[2])}</div>);
+      blocos.push(<div key={"titulo-" + index} className={classes}>{renderInlineMarkdown(textoTitulo)}</div>);
       return;
     }
     blocos.push(<p key={"paragrafo-" + index} className="leading-6">{renderInlineMarkdown(linha)}</p>);

@@ -30,7 +30,7 @@ export function normalizarCorEtiqueta(cor: string): NivelCorEtiqueta {
 
 export function opcaoCorEtiqueta(cor: string) {
   const normalizada = normalizarCorEtiqueta(cor);
-  return OPCOES_COR_ETIQUETA.find((opcao) => opcao.valor === normalizada) ?? OPCOES_COR_ETIQUETA[4];
+  return OPCOES_COR_ETIQUETA.find((opcao) => opcao.valor === normalizada) ?? OPCOES_COR_ETIQUETA[4]!;
 }
 
 export function severidadeDaCorEtiqueta(cor: string): Severidade {
