@@ -25,6 +25,7 @@ import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
   SITUACOES_COMP,
   comparecimentosQuery,
+  comparecimentoHistoricoQuery,
   preparar,
   registrarComparecimento,
   salvarComparecimento,
@@ -165,6 +166,7 @@ function Pagina() {
   };
 
   const detalhe = lista.find((c) => c.id === busca.id) ?? null;
+  const historicoDetalhe = useQuery(comparecimentoHistoricoQuery(detalhe?.id ?? null));
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
@@ -307,11 +309,17 @@ function Pagina() {
               </dl>
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico</p>
-                {detalhe.historico.length === 0 ? <p className="text-muted-foreground">Nenhum comparecimento registrado.</p> : (
+                {historicoDetalhe.isLoading ? (
+                  <p className="text-muted-foreground">Carregando histórico…</p>
+                ) : historicoDetalhe.isError ? (
+                  <p className="text-urgente">Não foi possível carregar o histórico.</p>
+                ) : (historicoDetalhe.data ?? []).length === 0 ? (
+                  <p className="text-muted-foreground">Nenhum comparecimento registrado.</p>
+                ) : (
                   <table className="w-full text-xs">
                     <thead className="text-left text-muted-foreground"><tr>{["Prevista", "Realizada", "Situação", "Observação"].map((h) => <th key={h} className="py-1 pr-2 font-medium">{h}</th>)}</tr></thead>
                     <tbody className="divide-y divide-border">
-                      {detalhe.historico.map((r) => (
+                      {(historicoDetalhe.data ?? []).map((r) => (
                         <tr key={r.id}><td className="py-1 pr-2">{formatarData(r.data_prevista)}</td><td className="py-1 pr-2">{formatarData(r.data_realizada)}</td><td className="py-1 pr-2">{r.situacao}</td><td className="py-1">{r.observacao || "—"}</td></tr>
                       ))}
                     </tbody>

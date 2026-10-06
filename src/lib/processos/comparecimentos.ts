@@ -64,7 +64,14 @@ async function listar(): Promise<Comparecimento[]> {
   for (let inicio = 0; ; inicio += pagina) {
     const { data, error } = await supabase
       .from("comparecimentos")
-      .select("*, processos(numero), comparecimento_registros(*)")
+      .select(
+        "*, processos(numero), comparecimento_registros(id,data_prevista,data_realizada,situacao,observacao,criado_em)",
+      )
+      // Listas, Dashboard e alertas só precisam do registro mais recente.
+      // O histórico completo é buscado sob demanda ao abrir a ficha.
+      .order("data_realizada", { referencedTable: "comparecimento_registros", ascending: false })
+      .order("criado_em", { referencedTable: "comparecimento_registros", ascending: false })
+      .limit(1, { referencedTable: "comparecimento_registros" })
       .order("proximo")
       .range(inicio, inicio + pagina - 1);
     if (error) throw new Error(error.message);
@@ -78,6 +85,24 @@ async function listar(): Promise<Comparecimento[]> {
 }
 
 export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], staleTime: 30_000, queryFn: listar });
+
+export const comparecimentoHistoricoQuery = (comparecimentoId: string | null) =>
+  queryOptions({
+    queryKey: ["comparecimentos", comparecimentoId, "historico"],
+    enabled: Boolean(comparecimentoId),
+    staleTime: 30_000,
+    queryFn: async (): Promise<RegistroComparecimento[]> => {
+      if (!comparecimentoId) return [];
+      const { data, error } = await supabase
+        .from("comparecimento_registros")
+        .select("id, data_prevista, data_realizada, situacao, observacao, criado_em")
+        .eq("comparecimento_id", comparecimentoId)
+        .order("data_realizada", { ascending: false })
+        .order("criado_em", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as RegistroComparecimento[];
+    },
+  });
 
 /** Último comparecimento: o mais recente entre o histórico e a "Data da última assinatura" importada. */
 function ultimoDe(registro: string | undefined, dados: unknown): string | null {
