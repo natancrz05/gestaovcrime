@@ -304,7 +304,15 @@ export async function salvarPrioridadeManual(e: PrioridadeManualEntrada, id?: st
   const { error } = id
     ? await supabase.from("prioridades").update(e).eq("id", id)
     : await supabase.from("prioridades").insert(e);
-  if (error) throw error;
+  if (error) {
+    const nivelNaoHabilitado =
+      error.code === "23514" && error.message.includes("prioridades_nivel_check");
+    throw new Error(
+      nivelNaoHabilitado
+        ? "O nível escolhido ainda não está habilitado para prioridades manuais. A atualização do sistema precisa ser concluída."
+        : error.message,
+    );
+  }
 }
 
 export async function removerPrioridadeManual(id: string) {
