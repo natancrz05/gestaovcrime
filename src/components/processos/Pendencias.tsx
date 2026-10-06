@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CLASSE_CAMPO, Campo, Opcoes } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
-import { hojeISO, type ProcessoCompleto } from "@/lib/processos/modelo";
+import { hojeISO } from "@/lib/processos/modelo";
 import {
   PRIORIDADES_PENDENCIA, STATUS_PENDENCIA, TIPOS_PENDENCIA, rotuloPrioridade,
   type PendenciaEntrada, type PendenciaListada,
@@ -45,7 +45,7 @@ export function FormPendencia({
   inicial, processos, onSalvar, onCancelar,
 }: {
   inicial: PendenciaEntrada;
-  processos?: ProcessoCompleto[] | undefined;
+  processos?: { id: string; numero: string }[] | undefined;
   onSalvar: (e: PendenciaEntrada) => Promise<void>;
   onCancelar: () => void;
 }) {
@@ -103,7 +103,7 @@ export function DialogosPendencia({
   setDetalhe: (p: PendenciaListada | null) => void;
   edicao: { id?: string; dados: PendenciaEntrada } | null;
   setEdicao: (e: { id?: string; dados: PendenciaEntrada } | null) => void;
-  processos?: ProcessoCompleto[] | undefined;
+  processos?: { id: string; numero: string }[] | undefined;
   onSalvar: (e: PendenciaEntrada, id?: string) => Promise<void>;
   onConcluir: (id: string) => Promise<void>;
 }) {

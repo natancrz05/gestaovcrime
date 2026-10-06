@@ -2,6 +2,7 @@
  * Módulo de pendências (tarefas administrativas da serventia).
  * "Atrasada" é apenas critério de gestão: prazo interno anterior a hoje.
  */
+import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { diasEntre, hojeISO, type PendenciaProcesso, type ProcessoCompleto } from "./modelo";
 
@@ -53,6 +54,44 @@ export function listarPendenciasDe(processos: ProcessoCompleto[]): PendenciaList
     .flatMap((pr) => pr.pendencias.map((x) => classificar(x, pr.numero)))
     .sort((a, b) => Number(a.concluidaFlag) - Number(b.concluidaFlag) || (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
 }
+
+async function listarPendencias(): Promise<PendenciaListada[]> {
+  const pagina = 1000;
+  const todas: PendenciaListada[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("pendencias")
+      .select("*, processos(numero)")
+      .order("criado_em", { ascending: false })
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = data ?? [];
+    todas.push(
+      ...lote.map((pendencia) =>
+        classificar(
+          pendencia as PendenciaProcesso,
+          (pendencia.processos as { numero?: string } | null)?.numero ?? "Não vinculado",
+        ),
+      ),
+    );
+    if (lote.length < pagina) break;
+  }
+
+  return todas.sort(
+    (a, b) =>
+      Number(a.concluidaFlag) - Number(b.concluidaFlag) ||
+      (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"),
+  );
+}
+
+export const pendenciasQuery = () =>
+  queryOptions({
+    queryKey: ["pendencias"],
+    staleTime: 30_000,
+    queryFn: listarPendencias,
+  });
 
 /** Próximas ações: atrasadas → alta prioridade → prazo próximo (ordem fixa, sem pontuação). */
 export function proximasAcoes(lista: PendenciaListada[]) {

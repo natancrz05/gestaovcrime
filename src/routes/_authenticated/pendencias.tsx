@@ -6,10 +6,10 @@ import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes } from "@/components/processos/campos";
 import { BOTAO, BOTAO_SEC, DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
 import { formatarData } from "@/lib/dominio";
-import { etiquetasDosProcessosQuery, processosResumoQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosReferenciaQuery } from "@/lib/processos/repositorio";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
-  PRIORIDADES_PENDENCIA, STATUS_PENDENCIA, concluirPendencia, listarPendenciasDe, rotuloPrioridade, salvarPendencia,
+  PRIORIDADES_PENDENCIA, STATUS_PENDENCIA, concluirPendencia, pendenciasQuery, rotuloPrioridade, salvarPendencia,
   type PendenciaEntrada, type PendenciaListada,
 } from "@/lib/processos/pendencias";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,11 @@ export const Route = createFileRoute("/_authenticated/pendencias")({
       { property: "og:description", content: "Registro e acompanhamento das tarefas da serventia vinculadas aos processos." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(pendenciasQuery()),
+      context.queryClient.ensureQueryData(processosReferenciaQuery()),
+    ]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar pendências" descricao={error.message} />,
   component: Pagina,
 });
@@ -37,11 +41,16 @@ const PERIODOS = [
 ];
 
 function Pagina() {
-  const { data: processos } = useSuspenseQuery(processosResumoQuery());
+  const { data: todas } = useSuspenseQuery(pendenciasQuery());
+  const { data: processos } = useSuspenseQuery(processosReferenciaQuery());
   const qc = useQueryClient();
-  const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
+  const recarregar = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ["pendencias"] }),
+      // Dashboard, prioridades e ficha do processo mantêm pendências embutidas.
+      qc.invalidateQueries({ queryKey: ["processos"] }),
+    ]);
   const podeEditar = usePode("editar");
-  const todas = useMemo(() => listarPendenciasDe(processos), [processos]);
   // Nesta tela só há motivo para carregar etiquetas de processos que possuem
   // ao menos uma pendência materializada.
   const processoIds = useMemo(
