@@ -172,10 +172,18 @@ function Pagina() {
       return (lista ?? []) as PrioridadeResumo[];
     },
   });
-  const prioridadesPorProcesso = useMemo(() => {
-    const mapa: Record<string, PrioridadeResumo[]> = {};
+  const prioridadeDominantePorProcesso = useMemo(() => {
+    const mapa: Record<string, PrioridadeResumo> = {};
     for (const prioridade of prioridades) {
-      (mapa[prioridade.processo_id] ??= []).push(prioridade);
+      if (!(prioridade.nivel in NIVEL_PRIORIDADE)) continue;
+      const atual = mapa[prioridade.processo_id];
+      if (
+        !atual ||
+        NIVEL_PRIORIDADE[prioridade.nivel as keyof typeof NIVEL_PRIORIDADE].ordem <
+          NIVEL_PRIORIDADE[atual.nivel as keyof typeof NIVEL_PRIORIDADE].ordem
+      ) {
+        mapa[prioridade.processo_id] = prioridade;
+      }
     }
     return mapa;
   }, [prioridades]);
@@ -206,6 +214,45 @@ function Pagina() {
     return mapa;
   }, [reavaliacoes]);
 
+  const etiquetasOrdenadasPorProcesso = useMemo(() => {
+    const resultado: Record<string, (typeof etiquetasPorProcesso)[string]> = {};
+    for (const [processoId, lista] of Object.entries(etiquetasPorProcesso)) {
+      resultado[processoId] = [...lista].sort(
+        (a, b) =>
+          ORDEM_ETIQUETA[normalizarCorEtiqueta(a.cor)] -
+            ORDEM_ETIQUETA[normalizarCorEtiqueta(b.cor)] ||
+          a.nome.localeCompare(b.nome, "pt-BR"),
+      );
+    }
+    return resultado;
+  }, [etiquetasPorProcesso]);
+
+  const { indicePresos, contagensTipo } = useMemo(() => {
+    const indice = new Map<string, { tipo: string; alvoTexto: string; alvoDigitos: string }>();
+    const contagens = { temporaria: 0, preventiva: 0, outras: 0 };
+
+    for (const p of data) {
+      const tipoAtual = tipoExibido(p);
+      if (tipoAtual === "Prisão temporária") contagens.temporaria++;
+      else if (tipoAtual === "Prisão preventiva") contagens.preventiva++;
+      else contagens.outras++;
+
+      const campos = [
+        p.nome,
+        p.rji,
+        p.processos?.numero ?? "",
+        ...p.processos_relacionados.map((r) => r.numero),
+      ];
+      indice.set(p.id, {
+        tipo: tipoAtual,
+        alvoTexto: campos.map(semAcento).join(" "),
+        alvoDigitos: campos.map((campo) => campo.replace(/\D/g, "")).join(" "),
+      });
+    }
+
+    return { indicePresos: indice, contagensTipo: contagens };
+  }, [data]);
+
   const [importar, setImportar] = useState(false);
   const [form, setForm] = useState<{ reu: ReuEditavel | null } | null>(null);
   const [soltar, setSoltar] = useState<ReuEditavel | null>(null);
@@ -214,6 +261,19 @@ function Pagina() {
   const [termo, setTermo] = useState("");
   const [tipo, setTipo] = useState("");
   const hoje = hojeISO();
+  const resumoPorReu = useMemo(
+    () =>
+      new Map(
+        data.map(
+          (p) =>
+            [
+              p.id,
+              resumoPrazoPrisao(p, hoje, ultimaReavaliacaoPorReu[p.id] ?? null),
+            ] as const,
+        ),
+      ),
+    [data, hoje, ultimaReavaliacaoPorReu],
+  );
   const atualizar = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["reus-presos"] }),
@@ -248,13 +308,18 @@ function Pagina() {
     const t = semAcento(termo.trim());
     const d = t.replace(/\D/g, "");
     return data.filter((p) => {
-      const tipoAtual = tipoExibido(p);
-      if (tipo === "outras" ? ["Prisão temporária", "Prisão preventiva"].includes(tipoAtual) : tipo && tipoAtual !== tipo) return false;
+      const indice = indicePresos.get(p.id);
+      if (!indice) return false;
+      if (
+        tipo === "outras"
+          ? ["Prisão temporária", "Prisão preventiva"].includes(indice.tipo)
+          : tipo && indice.tipo !== tipo
+      )
+        return false;
       if (!t) return true;
-      const campos = [p.nome, p.rji, p.processos?.numero ?? "", ...p.processos_relacionados.map((r) => r.numero)];
-      return campos.some((c) => semAcento(c).includes(t) || (d.length >= 3 && c.replace(/\D/g, "").includes(d)));
+      return indice.alvoTexto.includes(t) || (d.length >= 3 && indice.alvoDigitos.includes(d));
     });
-  }, [data, termo, tipo]);
+  }, [data, termo, tipo, indicePresos]);
 
   return (
     <div className="space-y-6">
@@ -277,9 +342,9 @@ function Pagina() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {([
           ["", "Presos provisórios", data.length],
-          ["Prisão temporária", "Prisões temporárias", data.filter((p) => tipoExibido(p) === "Prisão temporária").length],
-          ["Prisão preventiva", "Prisões preventivas", data.filter((p) => tipoExibido(p) === "Prisão preventiva").length],
-          ["outras", "Outras prisões", data.filter((p) => !["Prisão temporária", "Prisão preventiva"].includes(tipoExibido(p))).length],
+          ["Prisão temporária", "Prisões temporárias", contagensTipo.temporaria],
+          ["Prisão preventiva", "Prisões preventivas", contagensTipo.preventiva],
+          ["outras", "Outras prisões", contagensTipo.outras],
         ] as const).map(([v, r, n]) => (
           <button key={r} type="button" onClick={() => setTipo(v)} aria-pressed={tipo === v}
             className={`rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/50 ${tipo === v ? "border-primary ring-1 ring-primary" : "border-border"}`}>
@@ -324,23 +389,16 @@ function Pagina() {
                   const semProcessoValido = !temProcessoValido;
                   const processoRelacionado = p.processos_relacionados.find((r) => r.numero?.trim()) ?? null;
                   const numeroProcesso = p.processos?.numero?.trim() || processoRelacionado?.numero || "";
-                  const resumo = resumoPrazoPrisao(p, hoje, ultimaReavaliacaoPorReu[p.id] ?? null);
+                  const resumo =
+                    resumoPorReu.get(p.id) ??
+                    resumoPrazoPrisao(p, hoje, ultimaReavaliacaoPorReu[p.id] ?? null);
 
-                  const prioridadesDoProcesso = p.processo_id ? prioridadesPorProcesso[p.processo_id] ?? [] : [];
-                  const prioridadeDominante = [...prioridadesDoProcesso]
-                    .filter((pr) => pr.nivel in NIVEL_PRIORIDADE)
-                    .sort((a, b) =>
-                      NIVEL_PRIORIDADE[a.nivel as keyof typeof NIVEL_PRIORIDADE].ordem -
-                      NIVEL_PRIORIDADE[b.nivel as keyof typeof NIVEL_PRIORIDADE].ordem
-                    )[0] ?? null;
+                  const prioridadeDominante = p.processo_id
+                    ? prioridadeDominantePorProcesso[p.processo_id] ?? null
+                    : null;
 
                   const etiquetas = p.processo_id
-                    ? [...(etiquetasPorProcesso[p.processo_id] ?? [])].sort(
-                        (a, b) =>
-                          ORDEM_ETIQUETA[normalizarCorEtiqueta(a.cor)] -
-                          ORDEM_ETIQUETA[normalizarCorEtiqueta(b.cor)] ||
-                          a.nome.localeCompare(b.nome, "pt-BR"),
-                      )
+                    ? etiquetasOrdenadasPorProcesso[p.processo_id] ?? []
                     : [];
 
                   const mostrarConferirCadastro = p.conferir && prioridadeDominante?.nivel !== "conferir";
