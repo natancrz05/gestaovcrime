@@ -15,7 +15,7 @@ import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { pode } from "@/lib/permissoes";
-import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosResumoQuery } from "@/lib/processos/repositorio";
 import {
   STATUS_PROCESSO,
   TIPOS_PRISAO,
@@ -50,7 +50,7 @@ export const Route = createFileRoute("/_authenticated/relatorios")({
   beforeLoad: ({ context }) => {
     if (!pode(context.sessao.perfil, "relatorios")) throw redirect({ to: "/" });
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosQuery()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
   head: () => ({
     meta: [
       { title: "Relatórios — Gestão da Vara Criminal" },
@@ -85,7 +85,7 @@ function exportarCSV(nome: string, colunas: Coluna[], linhas: Linha[]) {
 function Pagina() {
   const { tipo } = Route.useSearch();
   const navigate = useNavigate({ from: "/relatorios" });
-  const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const atual = RELATORIOS.find((r) => r.chave === tipo);
 
   return (

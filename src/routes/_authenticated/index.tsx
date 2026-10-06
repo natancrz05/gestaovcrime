@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { formatarData } from "@/lib/dominio";
 import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
-import { etiquetasDosProcessosQuery, processosQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosResumoQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { cn } from "@/lib/utils";
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/")({
       { property: "og:description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
-  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
+  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosResumoQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
@@ -50,7 +50,7 @@ const NIVEIS_DASHBOARD: {
 ];
 
 function Dashboard() {
-  const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const { data: presos } = useSuspenseQuery(presosQuery());
   const { data: compData } = useSuspenseQuery(comparecimentosQuery());
   const hoje = hojeISO();

@@ -6,7 +6,7 @@ import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes } from "@/components/processos/campos";
 import { BOTAO, BOTAO_SEC, DialogosPendencia, EtiquetasPendencia, novaPendencia } from "@/components/processos/Pendencias";
 import { formatarData } from "@/lib/dominio";
-import { etiquetasDosProcessosQuery, processosQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, processosResumoQuery } from "@/lib/processos/repositorio";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
   PRIORIDADES_PENDENCIA, STATUS_PENDENCIA, concluirPendencia, listarPendenciasDe, rotuloPrioridade, salvarPendencia,
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/pendencias")({
       { property: "og:description", content: "Registro e acompanhamento das tarefas da serventia vinculadas aos processos." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosQuery()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar pendências" descricao={error.message} />,
   component: Pagina,
 });
@@ -37,7 +37,7 @@ const PERIODOS = [
 ];
 
 function Pagina() {
-  const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
   const podeEditar = usePode("editar");

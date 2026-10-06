@@ -19,7 +19,7 @@ import {
 } from "@/lib/processos/agrupamento-alertas";
 import {
   etiquetasDosProcessosQuery,
-  processosQuery,
+  processosResumoQuery,
   removerEtiquetaDoProcesso,
   removerPrioridadeManual,
   salvarPrioridadeManual,
@@ -82,7 +82,7 @@ export function PrioridadesAlertas() {
   const ehAdmin = perfil === "administrador";
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
-  const { data: processos } = useSuspenseQuery(processosQuery());
+  const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const presos = useQuery(presosQuery());
   const comparecimentos = useQuery(comparecimentosQuery());
   const reuIds = useMemo(() => (presos.data ?? []).map((p) => p.id), [presos.data]);

@@ -11,6 +11,12 @@ import { tipoAudienciaCanonico } from "./audiencias";
 const SELECAO =
   "*, partes(*), reus(*), movimentacoes(*), observacoes_internas(*), audiencias(*), pendencias(*), prioridades(*)";
 
+// Telas de visão geral não exibem observações internas. Separar essa relação
+// evita transferir textos potencialmente grandes para Dashboard, listagens,
+// audiências, prioridades, pendências e relatórios.
+const SELECAO_RESUMO =
+  "*, partes(*), reus(*), movimentacoes(*), audiencias(*), pendencias(*), prioridades(*)";
+
 export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   const pagina = 1000;
   const todos: ProcessoCompleto[] = [];
@@ -31,6 +37,33 @@ export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   return todos;
 }
 
+export async function listarProcessosResumo(): Promise<ProcessoCompleto[]> {
+  const pagina = 1000;
+  const todos: ProcessoCompleto[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("processos")
+      .select(SELECAO_RESUMO)
+      .order("numero")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = (data ?? []) as unknown as Array<
+      Omit<ProcessoCompleto, "observacoes_internas">
+    >;
+    todos.push(
+      ...lote.map((processo) => ({
+        ...processo,
+        observacoes_internas: [],
+      })),
+    );
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
+}
+
 export async function obterProcesso(id: string): Promise<ProcessoCompleto | null> {
   const { data, error } = await supabase.from("processos").select(SELECAO).eq("id", id).maybeSingle();
   if (error) throw error;
@@ -39,6 +72,13 @@ export async function obterProcesso(id: string): Promise<ProcessoCompleto | null
 
 export const processosQuery = () =>
   queryOptions({ queryKey: ["processos"], staleTime: 30_000, queryFn: listarProcessosCompletos });
+
+export const processosResumoQuery = () =>
+  queryOptions({
+    queryKey: ["processos", "resumo"],
+    staleTime: 30_000,
+    queryFn: listarProcessosResumo,
+  });
 
 export const processoQuery = (id: string) =>
   queryOptions({ queryKey: ["processos", id], staleTime: 30_000, queryFn: () => obterProcesso(id) });
