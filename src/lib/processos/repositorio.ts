@@ -46,6 +46,11 @@ export async function listarProcessosResumo(): Promise<ProcessoCompleto[]> {
       .from("processos")
       .select(SELECAO_RESUMO)
       .order("numero")
+      // As visões gerais só usam ultimaMovimentacao(). O PostgREST ordena e
+      // limita a relação embutida sem afetar a paginação dos processos.
+      .order("data", { referencedTable: "movimentacoes", ascending: false })
+      .order("criado_em", { referencedTable: "movimentacoes", ascending: false })
+      .limit(1, { referencedTable: "movimentacoes" })
       .range(inicio, inicio + pagina - 1);
     if (error) throw error;
 
