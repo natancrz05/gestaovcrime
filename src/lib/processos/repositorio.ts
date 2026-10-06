@@ -85,6 +85,49 @@ export const processosResumoQuery = () =>
     queryFn: listarProcessosResumo,
   });
 
+const SELECAO_AUDIENCIAS =
+  "id,numero,classe,assunto,comarca,unidade,data_distribuicao,status,fase,observacao_geral,responsavel,criado_em,origem,id_externo,sync_status,ultima_sincronizacao,ultima_alteracao_externa,sync_erro,pje_tarefas,pje_ultima_mov_data,pje_reu,pje_concluso,pje_localizacao,pje_situacao,pje_ultima_mov_descricao,reus(id,processo_id,nome,situacao,preso,tipo_prisao,data_prisao,observacoes,ordem,dados_planilha),movimentacoes(id,processo_id,data,descricao,tipo,observacao,criado_em),audiencias(*)";
+
+export async function listarProcessosAudiencias(): Promise<ProcessoCompleto[]> {
+  const pagina = 1000;
+  const todos: ProcessoCompleto[] = [];
+
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase
+      .from("processos")
+      .select(SELECAO_AUDIENCIAS)
+      .order("numero")
+      .order("data", { referencedTable: "movimentacoes", ascending: false })
+      .order("criado_em", { referencedTable: "movimentacoes", ascending: false })
+      .limit(1, { referencedTable: "movimentacoes" })
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+
+    const lote = (data ?? []) as unknown as Array<
+      Omit<ProcessoCompleto, "partes" | "observacoes_internas" | "pendencias" | "prioridades">
+    >;
+    todos.push(
+      ...lote.map((processo) => ({
+        ...processo,
+        partes: [],
+        observacoes_internas: [],
+        pendencias: [],
+        prioridades: [],
+      })),
+    );
+    if (lote.length < pagina) break;
+  }
+
+  return todos;
+}
+
+export const processosAudienciasQuery = () =>
+  queryOptions({
+    queryKey: ["processos", "audiencias"],
+    staleTime: 30_000,
+    queryFn: listarProcessosAudiencias,
+  });
+
 export const processoQuery = (id: string) =>
   queryOptions({ queryKey: ["processos", id], staleTime: 30_000, queryFn: () => obterProcesso(id) });
 

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { confirmarAudiencia, estaPendente, ocultarSeloReuPreso } from "@/lib/processos/audiencias";
-import { criarProcesso, etiquetasDosProcessosQuery, processosResumoQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
+import { criarProcesso, etiquetasDosProcessosQuery, processosAudienciasQuery, removerAudiencia, salvarAudiencia, type AudienciaEntrada, type EtiquetaDoProcesso, type NovoProcessoEntrada } from "@/lib/processos/repositorio";
 import {
   CONFIG_AUDIENCIAS,
   MODALIDADES,
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/audiencias")({
       { property: "og:description", content: "Pauta e calendário de audiências da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(processosAudienciasQuery()),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar audiências" descricao={error.message} />,
   component: Pagina,
 });
@@ -70,7 +70,7 @@ const SeloAguardando = () => (
 );
 
 function Pagina() {
-  const { data: processos } = useSuspenseQuery(processosResumoQuery());
+  const { data: processos } = useSuspenseQuery(processosAudienciasQuery());
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
   const itensCentral = useMemo(() => listarCentral(processos), [processos]);
