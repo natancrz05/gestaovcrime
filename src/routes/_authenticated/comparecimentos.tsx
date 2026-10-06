@@ -59,13 +59,9 @@ function Pagina() {
   const navigate = Route.useNavigate();
   const hoje = hojeISO();
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
-  const ativos = lista.filter((c) => c.situacao !== "Encerrado");
+  const ativos = useMemo(() => lista.filter((c) => c.situacao !== "Encerrado"), [lista]);
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
-  // Consulta as etiquetas pelo acervo completo e resolve também comparecimentos
-  // antigos que têm número do processo, mas ficaram sem processo_id vinculado.
-  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
-  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const processoPorNumero = useMemo(() => {
     const mapa = new Map<string, string[]>();
     for (const p of processos) {
@@ -75,31 +71,74 @@ function Pagina() {
     }
     return mapa;
   }, [processos]);
-  const processoIdParaEtiquetas = (c: ComparecimentoListado) => {
-    if (c.processo_id) return c.processo_id;
-    const candidatos = [
-      c.numero,
-      ...(c.numeros_informados ?? []),
-    ]
-      .map((n) => String(n ?? "").replace(/\D/g, ""))
-      .filter(Boolean);
-    const ids = [...new Set(candidatos.flatMap((n) => processoPorNumero.get(n) ?? []))];
-    return ids.length === 1 ? ids[0] : null;
-  };
-  const porSituacao = filtro ? ativos.filter((c) => c.status === filtro) : lista;
+  const processoIdEtiquetaPorComparecimento = useMemo(() => {
+    const mapa = new Map<string, string | null>();
+    for (const comparecimento of lista) {
+      if (comparecimento.processo_id) {
+        mapa.set(comparecimento.id, comparecimento.processo_id);
+        continue;
+      }
+      const candidatos = [comparecimento.numero, ...(comparecimento.numeros_informados ?? [])]
+        .map((numero) => String(numero ?? "").replace(/\D/g, ""))
+        .filter(Boolean);
+      const ids = [...new Set(candidatos.flatMap((numero) => processoPorNumero.get(numero) ?? []))];
+      mapa.set(comparecimento.id, ids.length === 1 ? ids[0]! : null);
+    }
+    return mapa;
+  }, [lista, processoPorNumero]);
+
+  // Etiquetas são carregadas apenas para processos efetivamente referenciados
+  // pelos comparecimentos; a lista completa continua disponível ao seletor.
+  const processoIds = useMemo(
+    () =>
+      [...new Set([...processoIdEtiquetaPorComparecimento.values()].filter((id): id is string => Boolean(id)))],
+    [processoIdEtiquetaPorComparecimento],
+  );
+  const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
+  const processoIdParaEtiquetas = (comparecimento: ComparecimentoListado) =>
+    processoIdEtiquetaPorComparecimento.get(comparecimento.id) ?? null;
+
+  const porSituacao = useMemo(
+    () => (filtro ? ativos.filter((c) => c.status === filtro) : lista),
+    [filtro, ativos, lista],
+  );
+  const indiceBusca = useMemo(() => {
+    const mapa = new Map<string, { texto: string; digitos: string }>();
+    for (const comparecimento of lista) {
+      const campos = [
+        comparecimento.pessoa,
+        comparecimento.numero,
+        comparecimento.cpf,
+        ...(comparecimento.numeros_informados ?? []),
+        ...Object.values(comparecimento.dados_planilha ?? {}),
+      ].map((valor) => String(valor ?? ""));
+      mapa.set(comparecimento.id, {
+        texto: campos
+          .map((valor) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())
+          .join(" "),
+        digitos: campos.map((valor) => valor.replace(/\D/g, "")).join(" "),
+      });
+    }
+    return mapa;
+  }, [lista]);
   const exibidos = useMemo(() => {
     const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     if (!t) return porSituacao;
     const d = t.replace(/\D/g, "");
-    return porSituacao.filter((c) => {
-      const campos = [c.pessoa, c.numero, c.cpf, ...(c.numeros_informados ?? []), ...Object.values(c.dados_planilha ?? {})];
-      return campos.some((x) => {
-        const s = String(x ?? "");
-        if (s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(t)) return true;
-        return d.length >= 3 && s.replace(/\D/g, "").includes(d);
-      });
+    return porSituacao.filter((comparecimento) => {
+      const indice = indiceBusca.get(comparecimento.id);
+      if (!indice) return false;
+      return indice.texto.includes(t) || (d.length >= 3 && indice.digitos.includes(d));
     });
-  }, [porSituacao, termo]);
+  }, [porSituacao, termo, indiceBusca]);
+
+  const contagensSituacao = useMemo(() => {
+    const contagens = new Map<SituacaoComparecimento, number>();
+    for (const comparecimento of ativos) {
+      contagens.set(comparecimento.status, (contagens.get(comparecimento.status) ?? 0) + 1);
+    }
+    return contagens;
+  }, [ativos]);
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
   const recarregar = () => qc.invalidateQueries({ queryKey: ["comparecimentos"] });
@@ -145,7 +184,7 @@ function Pagina() {
 
       <section aria-label="Situações" className="grid gap-3 sm:grid-cols-3">
         {SITUACOES_COMP.map((s) => {
-          const qtd = ativos.filter((c) => c.status === s.chave).length;
+          const qtd = contagensSituacao.get(s.chave) ?? 0;
           const ativo = filtro === s.chave;
           return (
             <button key={s.chave} aria-pressed={ativo} onClick={() => navigate({ search: (p) => ({ ...p, situacao: ativo ? "" : s.chave }) })}
