@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
-import { ImportarComparecimentos } from "@/components/processos/ImportarComparecimentos";
+const ImportarComparecimentos = lazy(() =>
+  import("@/components/processos/ImportarComparecimentos").then((modulo) => ({
+    default: modulo.ImportarComparecimentos,
+  })),
+);
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -168,7 +172,11 @@ function Pagina() {
 
   return (
     <div className="space-y-6">
-      {podeEditar ? <ImportarComparecimentos aberto={importar} onFechar={() => setImportar(false)} onConcluir={recarregar} /> : null}
+      {podeEditar && importar ? (
+        <Suspense fallback={null}>
+          <ImportarComparecimentos aberto onFechar={() => setImportar(false)} onConcluir={recarregar} />
+        </Suspense>
+      ) : null}
       <Cabecalho
         titulo="Comparecimentos"
         subtitulo={`${ativos.length} cadastros ativos`}

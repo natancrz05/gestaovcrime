@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
-import { ImportarReusPresos } from "@/components/processos/ImportarReusPresos";
+const ImportarReusPresos = lazy(() =>
+  import("@/components/processos/ImportarReusPresos").then((modulo) => ({
+    default: modulo.ImportarReusPresos,
+  })),
+);
 import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, TIPOS_CUSTODIA, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
@@ -324,7 +328,11 @@ function Pagina() {
   return (
     <div className="space-y-6">
       {podeEditar ? <>
-        <ImportarReusPresos aberto={importar} onFechar={() => setImportar(false)} onConcluir={atualizar} />
+        {importar ? (
+          <Suspense fallback={null}>
+            <ImportarReusPresos aberto onFechar={() => setImportar(false)} onConcluir={atualizar} />
+          </Suspense>
+        ) : null}
         <FormReuPreso aberto={!!form} reu={form?.reu ?? null} onFechar={() => setForm(null)} onSalvo={atualizar} />
         <RetirarPrisao reu={soltar} onFechar={() => setSoltar(null)} onSalvo={atualizar} />
         <RegistrarReavaliacao reu={reav} onFechar={() => setReav(null)} onSalvo={atualizar} />

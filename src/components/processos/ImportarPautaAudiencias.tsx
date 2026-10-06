@@ -2,14 +2,11 @@ import { useRef, useState } from "react";
 import { AlertTriangle, FileCheck2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
-import {
-  analisarPautaAudiencias,
-  executarImportacaoPauta,
-  lerPautaAudiencias,
-  type AnalisePautaAudiencias,
-  type LinhaPautaAudiencia,
-  type ProblemaPauta,
-  type ResultadoImportacaoPauta,
+import type {
+  AnalisePautaAudiencias,
+  LinhaPautaAudiencia,
+  ProblemaPauta,
+  ResultadoImportacaoPauta,
 } from "@/lib/processos/importacao-pauta-audiencias";
 import type { ProcessoCompleto } from "@/lib/processos/modelo";
 
@@ -82,6 +79,9 @@ export function ImportarPautaAudiencias({
     setArquivo(arquivoSelecionado.name);
     setLendo(true);
     try {
+      const { lerPautaAudiencias, analisarPautaAudiencias } = await import(
+        "@/lib/processos/importacao-pauta-audiencias"
+      );
       const leitura = await lerPautaAudiencias(arquivoSelecionado);
       setLinhas(leitura.linhas);
       setErrosLeitura(leitura.erros);
@@ -98,6 +98,9 @@ export function ImportarPautaAudiencias({
     setImportando(true);
     setErro("");
     try {
+      const { executarImportacaoPauta } = await import(
+        "@/lib/processos/importacao-pauta-audiencias"
+      );
       const r = await executarImportacaoPauta(linhas, errosLeitura);
       await onConcluido();
       setResultado(r);
