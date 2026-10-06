@@ -90,18 +90,31 @@ function Dashboard() {
 
   const contagensAlertas = useMemo(() => contarGruposAtencaoBeta(alertasVisiveis), [alertasVisiveis]);
 
-  const alertasExibidos = nivelSelecionado
-    ? alertasVisiveis.filter((item) => item.nivel === nivelSelecionado)
-    : alertasVisiveis;
+  const alertasExibidos = useMemo(
+    () =>
+      nivelSelecionado
+        ? alertasVisiveis.filter((item) => item.nivel === nivelSelecionado)
+        : alertasVisiveis,
+    [alertasVisiveis, nivelSelecionado],
+  );
 
-  const pendencias = listarPendenciasDe(processos);
-  const pendAbertas = pendencias.filter((p) => !p.concluidaFlag).length;
-  const acoes = proximasAcoes(pendencias).slice(0, 8);
-  const audFuturas = futuras(listarAudienciasDe(processos));
-  const comps = preparar(compData, hoje).filter((c) => c.situacao !== "Encerrado");
-  const aguardando = listarCentral(processos).length;
-  const aud7 = audFuturas.filter((a) => a.dias <= 7).length;
-  const audExtensas = audFuturas.filter((a) => a.prazoExtenso).length;
+  const { pendAbertas, acoes, audFuturas, aguardando, aud7, audExtensas } = useMemo(() => {
+    const pendencias = listarPendenciasDe(processos);
+    const futurasDaAgenda = futuras(listarAudienciasDe(processos));
+    return {
+      pendAbertas: pendencias.filter((p) => !p.concluidaFlag).length,
+      acoes: proximasAcoes(pendencias).slice(0, 8),
+      audFuturas: futurasDaAgenda,
+      aguardando: listarCentral(processos).length,
+      aud7: futurasDaAgenda.filter((a) => a.dias <= 7).length,
+      audExtensas: futurasDaAgenda.filter((a) => a.prazoExtenso).length,
+    };
+  }, [processos]);
+
+  const comps = useMemo(
+    () => preparar(compData, hoje).filter((c) => c.situacao !== "Encerrado"),
+    [compData, hoje],
+  );
 
   return (
     <div className="space-y-8">
