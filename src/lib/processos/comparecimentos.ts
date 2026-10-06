@@ -57,12 +57,12 @@ export function situacaoPorData(proximo: string, hoje = hojeISO()): SituacaoComp
   return "regular";
 }
 
-async function listar(): Promise<Comparecimento[]> {
+async function listar(apenasAtivos = false): Promise<Comparecimento[]> {
   const pagina = 1000;
   const todos: Comparecimento[] = [];
 
   for (let inicio = 0; ; inicio += pagina) {
-    const { data, error } = await supabase
+    let consulta = supabase
       .from("comparecimentos")
       .select(
         "*, processos(numero), comparecimento_registros(id,data_prevista,data_realizada,situacao,observacao,criado_em)",
@@ -74,6 +74,9 @@ async function listar(): Promise<Comparecimento[]> {
       .limit(1, { referencedTable: "comparecimento_registros" })
       .order("proximo")
       .range(inicio, inicio + pagina - 1);
+
+    if (apenasAtivos) consulta = consulta.neq("situacao", "Encerrado");
+    const { data, error } = await consulta;
     if (error) throw new Error(error.message);
 
     const lote = (data ?? []) as unknown as Comparecimento[];
@@ -84,7 +87,15 @@ async function listar(): Promise<Comparecimento[]> {
   return todos;
 }
 
-export const comparecimentosQuery = () => queryOptions({ queryKey: ["comparecimentos"], staleTime: 30_000, queryFn: listar });
+export const comparecimentosQuery = () =>
+  queryOptions({ queryKey: ["comparecimentos"], staleTime: 30_000, queryFn: () => listar(false) });
+
+export const comparecimentosAtivosQuery = () =>
+  queryOptions({
+    queryKey: ["comparecimentos", "ativos"],
+    staleTime: 30_000,
+    queryFn: () => listar(true),
+  });
 
 export const comparecimentoHistoricoQuery = (comparecimentoId: string | null) =>
   queryOptions({

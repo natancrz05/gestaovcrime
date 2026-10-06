@@ -7,7 +7,7 @@ import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
 import { etiquetasDosProcessosQuery, processosResumoQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { cn } from "@/lib/utils";
-import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
+import { comparecimentosAtivosQuery, preparar } from "@/lib/processos/comparecimentos";
 import { listarCentral } from "@/lib/processos/central";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 import { hojeISO } from "@/lib/processos/modelo";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/")({
       { property: "og:description", content: "Painel de prioridades da serventia da Vara Criminal de Coração de Maria/BA." },
     ],
   }),
-  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosResumoQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosQuery())]),
+  loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosResumoQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosAtivosQuery())]),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
@@ -52,7 +52,7 @@ const NIVEIS_DASHBOARD: {
 function Dashboard() {
   const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const { data: presos } = useSuspenseQuery(presosQuery());
-  const { data: compData } = useSuspenseQuery(comparecimentosQuery());
+  const { data: compData } = useSuspenseQuery(comparecimentosAtivosQuery());
   const hoje = hojeISO();
 
   const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
@@ -112,7 +112,7 @@ function Dashboard() {
   }, [processos]);
 
   const comps = useMemo(
-    () => preparar(compData, hoje).filter((c) => c.situacao !== "Encerrado"),
+    () => preparar(compData, hoje),
     [compData, hoje],
   );
 

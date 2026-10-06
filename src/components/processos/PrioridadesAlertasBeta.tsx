@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { comparecimentosQuery } from "@/lib/processos/comparecimentos";
+import { comparecimentosAtivosQuery } from "@/lib/processos/comparecimentos";
 import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import {
@@ -84,7 +84,7 @@ export function PrioridadesAlertas() {
   const qc = useQueryClient();
   const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const presos = useQuery(presosQuery());
-  const comparecimentos = useQuery(comparecimentosQuery());
+  const comparecimentos = useQuery(comparecimentosAtivosQuery());
   const reuIds = useMemo(() => (presos.data ?? []).map((p) => p.id), [presos.data]);
   const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery(presos.data ? reuIds : null));
   const ocultos = useQuery(alertasOcultosBetaQuery());
