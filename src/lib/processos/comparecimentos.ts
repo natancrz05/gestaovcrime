@@ -75,7 +75,7 @@ async function listar(apenasAtivos = false): Promise<Comparecimento[]> {
       .order("proximo")
       .range(inicio, inicio + pagina - 1);
 
-    if (apenasAtivos) consulta = consulta.neq("situacao", "Encerrado");
+    if (apenasAtivos) consulta = consulta.eq("situacao", "Ativo");
     const { data, error } = await consulta;
     if (error) throw new Error(error.message);
 
