@@ -126,16 +126,26 @@ export async function listarEtiquetasPorProcessos(processoIds: string[]): Promis
   // pode ultrapassar o limite e a consulta de etiquetas falhar silenciosamente
   // na interface. Lotes menores mantêm a mesma fonte de dados para todo o sistema.
   const TAMANHO_LOTE = 100;
-  const vinculos: { processo_id: string; etiqueta_id: string }[] = [];
-
+  const lotesProcessos: string[][] = [];
   for (let i = 0; i < unicos.length; i += TAMANHO_LOTE) {
-    const lote = unicos.slice(i, i + TAMANHO_LOTE);
-    const { data, error } = await supabase
-      .from("processos_etiquetas")
-      .select("processo_id, etiqueta_id")
-      .in("processo_id", lote);
-    if (error) throw error;
-    vinculos.push(...(data ?? []));
+    lotesProcessos.push(unicos.slice(i, i + TAMANHO_LOTE));
+  }
+
+  // Os lotes são independentes. Consultá-los em paralelo preserva o limite de
+  // tamanho da URL e evita multiplicar a latência por cada centena de processos.
+  const respostasVinculos = await Promise.all(
+    lotesProcessos.map((lote) =>
+      supabase
+        .from("processos_etiquetas")
+        .select("processo_id, etiqueta_id")
+        .in("processo_id", lote),
+    ),
+  );
+
+  const vinculos: { processo_id: string; etiqueta_id: string }[] = [];
+  for (const resposta of respostasVinculos) {
+    if (resposta.error) throw resposta.error;
+    vinculos.push(...(resposta.data ?? []));
   }
 
   const ids = [...new Set(vinculos.map((x) => x.etiqueta_id))];
@@ -144,16 +154,25 @@ export async function listarEtiquetasPorProcessos(processoIds: string[]): Promis
   );
   if (!ids.length) return resultado;
 
-  const etiquetas: EtiquetaDoProcesso[] = [];
+  const lotesEtiquetas: string[][] = [];
   for (let i = 0; i < ids.length; i += TAMANHO_LOTE) {
-    const lote = ids.slice(i, i + TAMANHO_LOTE);
-    const { data, error } = await supabase
-      .from("etiquetas")
-      .select("id, nome, cor, favorita")
-      .in("id", lote)
-      .order("nome");
-    if (error) throw error;
-    etiquetas.push(...((data ?? []) as EtiquetaDoProcesso[]));
+    lotesEtiquetas.push(ids.slice(i, i + TAMANHO_LOTE));
+  }
+
+  const respostasEtiquetas = await Promise.all(
+    lotesEtiquetas.map((lote) =>
+      supabase
+        .from("etiquetas")
+        .select("id, nome, cor, favorita")
+        .in("id", lote)
+        .order("nome"),
+    ),
+  );
+
+  const etiquetas: EtiquetaDoProcesso[] = [];
+  for (const resposta of respostasEtiquetas) {
+    if (resposta.error) throw resposta.error;
+    etiquetas.push(...((resposta.data ?? []) as EtiquetaDoProcesso[]));
   }
 
   const porId = new Map(etiquetas.map((e) => [e.id, e]));
