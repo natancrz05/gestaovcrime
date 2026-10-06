@@ -37,10 +37,13 @@ const BOTAO = "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 t
 const BOTAO_SEC = "inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-4 text-sm text-foreground hover:bg-muted disabled:opacity-50";
 const CARTAO = "rounded-lg border border-border bg-card p-4 shadow-card";
 
-interface Importacao {
+interface ImportacaoResumo {
   id: string; numero: number; criado_em: string; usuario_nome: string; arquivo: string;
   analisados: number; novos: number; atualizados: number; sem_alteracao: number; ignorados: number;
   conflitos: number; erros: number; status: string; desfeita_em: string | null; desfeita_por: string | null;
+}
+
+interface Importacao extends ImportacaoResumo {
   detalhes: { erros?: LinhaProblema[]; ignorados?: LinhaProblema[]; conflitos?: ResultadoSimulacao["conflitos"]; desfazer?: Record<string, number> };
 }
 
@@ -56,14 +59,21 @@ function Pagina() {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Importacao | null>(null);
-  const [aberta, setAberta] = useState<Importacao | null>(null);
+  const [aberta, setAberta] = useState<ImportacaoResumo | null>(null);
 
   const historico = useQuery({
     queryKey: ["importacoes"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("importacoes").select("*").order("numero", { ascending: false });
+      // O histórico lista apenas metadados e contadores. O JSON detalhado de cada
+      // importação é carregado sob demanda quando o usuário abre uma linha.
+      const { data, error } = await supabase
+        .from("importacoes")
+        .select(
+          "id, numero, criado_em, usuario_nome, arquivo, analisados, novos, atualizados, sem_alteracao, ignorados, conflitos, erros, status, desfeita_em, desfeita_por",
+        )
+        .order("numero", { ascending: false });
       if (error) throw error;
-      return data as unknown as Importacao[];
+      return data as unknown as ImportacaoResumo[];
     },
   });
 
@@ -351,28 +361,43 @@ function ListaProblemas({ imp }: { imp: Importacao }) {
 
 interface Item { id: string; numero: string; acao: string; antes: Record<string, string | null>; depois: Record<string, string | null>; desfeito: string | null; processo_id: string | null }
 
-function DetalheImportacao({ imp, onFechar, podeDesfazer, onDesfeita }: { imp: Importacao | null; onFechar: () => void; podeDesfazer: boolean; onDesfeita: () => void }) {
+function DetalheImportacao({ imp: resumo, onFechar, podeDesfazer, onDesfeita }: { imp: ImportacaoResumo | null; onFechar: () => void; podeDesfazer: boolean; onDesfeita: () => void }) {
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState("");
-  const itens = useQuery({
-    queryKey: ["importacao-itens", imp?.id],
-    enabled: !!imp,
+  const detalhe = useQuery({
+    queryKey: ["importacao", resumo?.id],
+    enabled: !!resumo,
     queryFn: async () => {
-      const { data, error } = await supabase.from("importacao_itens").select("*").eq("importacao_id", imp!.id).order("numero");
+      const { data, error } = await supabase.from("importacoes").select("*").eq("id", resumo!.id).single();
+      if (error) throw error;
+      return data as unknown as Importacao;
+    },
+  });
+  const imp = detalhe.data ?? null;
+  const itens = useQuery({
+    queryKey: ["importacao-itens", resumo?.id],
+    enabled: !!resumo,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("importacao_itens").select("*").eq("importacao_id", resumo!.id).order("numero");
       if (error) throw error;
       return data as unknown as Item[];
     },
   });
   async function desfazer() {
-    if (!imp) return;
-    const { error } = await supabase.rpc("desfazer_importacao", { p_id: imp.id });
+    if (!resumo) return;
+    const { error } = await supabase.rpc("desfazer_importacao", { p_id: resumo.id });
     setConfirmando(false);
     if (error) { setErro(error.message); return; }
     onDesfeita();
   }
   return (
-    <Dialog open={!!imp} onOpenChange={(o) => { if (!o) { onFechar(); setErro(""); } }}>
+    <Dialog open={!!resumo} onOpenChange={(o) => { if (!o) { onFechar(); setErro(""); } }}>
       <DialogContent className="max-w-4xl">
+        {resumo && !imp ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            {detalhe.error ? "Não foi possível carregar os detalhes desta importação." : "Carregando detalhes da importação…"}
+          </div>
+        ) : null}
         {imp && (
           <>
             <DialogHeader><DialogTitle>Importação #{String(imp.numero).padStart(3, "0")} — {imp.arquivo}</DialogTitle></DialogHeader>
