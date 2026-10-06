@@ -24,7 +24,7 @@ import {
   reuPrincipal,
   ultimaMovimentacao,
 } from "@/lib/processos/modelo";
-import { etiquetasDosProcessosQuery, etiquetasQuery, processosResumoQuery } from "@/lib/processos/repositorio";
+import { etiquetasDosProcessosQuery, etiquetasQuery, processosListaQuery } from "@/lib/processos/repositorio";
 
 export const Route = createFileRoute("/_authenticated/processos/")({
   head: () => ({
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
     for (const k of CHAVES) if (typeof s[k] === "string" && s[k]) r[k] = s[k] as string;
     return r;
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(processosListaQuery()),
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar processos" descricao={error.message} />,
   component: Pagina,
 });
@@ -69,7 +69,7 @@ const TEMPO_SEM_MOVIMENTACAO = [
 const PROCESSOS_POR_PAGINA = 30;
 
 function Pagina() {
-  const { data: processos } = useSuspenseQuery(processosResumoQuery());
+  const { data: processos } = useSuspenseQuery(processosListaQuery());
   const qc = useQueryClient();
   const navigate = useNavigate();
   const sp = Route.useSearch();
