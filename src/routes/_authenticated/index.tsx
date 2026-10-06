@@ -11,6 +11,7 @@ import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos"
 import { listarCentral } from "@/lib/processos/central";
 import { futuras, horaCurta, listarAudienciasDe } from "@/lib/processos/audiencias";
 import { hojeISO } from "@/lib/processos/modelo";
+import { agruparItensAtencaoBeta, contarGruposAtencaoBeta } from "@/lib/processos/agrupamento-alertas";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
   alertasOcultosBetaQuery,
@@ -77,20 +78,17 @@ function Dashboard() {
   const chavesOcultas = useMemo(() => new Set(ocultos.data ?? []), [ocultos.data]);
   const alertasVisiveis = useMemo(
     () =>
-      itensAlertas.filter(
-        (item) =>
-          item.nivel !== "administrativo" &&
-          !chavesOcultas.has(chaveOcultacaoAlertaBeta(item)),
+      agruparItensAtencaoBeta(
+        itensAlertas.filter(
+          (item) =>
+            item.nivel !== "administrativo" &&
+            !chavesOcultas.has(chaveOcultacaoAlertaBeta(item)),
+        ),
       ),
     [itensAlertas, chavesOcultas],
   );
 
-  const contagensAlertas = useMemo(() => {
-    const mapa: Record<string, number> = {};
-    for (const nivel of NIVEIS_DASHBOARD) mapa[nivel.valor] = 0;
-    for (const item of alertasVisiveis) mapa[item.nivel] = (mapa[item.nivel] ?? 0) + 1;
-    return mapa;
-  }, [alertasVisiveis]);
+  const contagensAlertas = useMemo(() => contarGruposAtencaoBeta(alertasVisiveis), [alertasVisiveis]);
 
   const alertasExibidos = nivelSelecionado
     ? alertasVisiveis.filter((item) => item.nivel === nivelSelecionado)
@@ -122,7 +120,9 @@ function Dashboard() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Prioridades e alertas</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Mesmos níveis e regras da Central de Prioridades e Alertas.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cada processo conta uma vez, no nível mais alto, como na Central de Prioridades e Alertas.
+            </p>
           </div>
           <Link to="/prioridades" className="text-xs font-medium text-primary hover:underline">Abrir central</Link>
         </div>
@@ -251,9 +251,18 @@ function Dashboard() {
                             {nivel.rotulo}
                           </span>
                         ) : null}
-                        <span className="text-[11px] text-muted-foreground">{item.origem} · {item.modulo}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {[...new Set(item.motivos.map((m) => m.origem))].join(" · ")} ·{" "}
+                          {[...new Set(item.motivos.map((m) => m.modulo))].join(" · ")}
+                        </span>
                       </div>
                       <p className="mt-1 text-sm font-medium text-foreground">{item.titulo}</p>
+                      {item.motivos.length > 1 ? (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {item.motivos.length} motivos ativos ·{" "}
+                          {item.motivos.slice(1).map((m) => m.titulo).join("; ")}
+                        </p>
+                      ) : null}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {item.processoId && item.processoNumero ? (
                           <Link to="/processos/$id" params={{ id: item.processoId }} className="numero-processo text-primary hover:underline">

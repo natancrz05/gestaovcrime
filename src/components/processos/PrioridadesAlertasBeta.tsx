@@ -12,6 +12,11 @@ import { hojeISO } from "@/lib/processos/modelo";
 import { comparecimentosQuery } from "@/lib/processos/comparecimentos";
 import { usePode, useSessao } from "@/lib/sessao";
 import { presosQuery } from "@/lib/processos/reus-presos";
+import {
+  agruparItensAtencaoBeta,
+  contarGruposAtencaoBeta,
+  filtrarGruposAtencaoBeta,
+} from "@/lib/processos/agrupamento-alertas";
 import { etiquetasDosProcessosQuery, processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from "@/lib/processos/repositorio";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
@@ -47,9 +52,6 @@ const PRAZOS = [
   { valor: "8-15", rotulo: "Próximos 8 a 15 dias" },
   { valor: "sem", rotulo: "Sem data-limite" },
 ];
-
-const normalizarBusca = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 function rotuloNivel(nivel: NivelAtencaoBeta) {
   return NIVEIS.find((n) => n.valor === nivel)?.rotulo ?? nivel;
@@ -124,6 +126,8 @@ export function PrioridadesAlertas() {
     return porPerfil.filter((i) => !chavesOcultas.has(chaveOcultacaoAlertaBeta(i)));
   }, [itens, ehAdmin, chavesOcultas]);
 
+  const gruposVisiveis = useMemo(() => agruparItensAtencaoBeta(itensVisiveis), [itensVisiveis]);
+
   const categorias = useMemo(
     () => [...new Set(itensVisiveis.map((i) => i.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR")),
     [itensVisiveis],
@@ -133,47 +137,12 @@ export function PrioridadesAlertas() {
     [itensVisiveis],
   );
 
-  const exibidos = useMemo(() => {
-    const termo = normalizarBusca(busca.trim());
-    return itensVisiveis.filter((i) => {
-      if (nivel && i.nivel !== nivel) return false;
-      if (origem && i.origem !== origem) return false;
-      if (categoria && i.categoria !== categoria) return false;
-      if (modulo && i.modulo !== modulo) return false;
+  const exibidos = useMemo(
+    () => filtrarGruposAtencaoBeta(gruposVisiveis, { busca, nivel, origem, categoria, modulo, prazo }),
+    [gruposVisiveis, busca, nivel, origem, categoria, modulo, prazo],
+  );
 
-      if (prazo === "vencidos" && !(i.diasRestantes !== null && i.diasRestantes < 0)) return false;
-      if (prazo === "hoje" && i.diasRestantes !== 0) return false;
-      if (prazo === "1-3" && !(i.diasRestantes !== null && i.diasRestantes >= 1 && i.diasRestantes <= 3)) return false;
-      if (prazo === "4-7" && !(i.diasRestantes !== null && i.diasRestantes >= 4 && i.diasRestantes <= 7)) return false;
-      if (prazo === "8-15" && !(i.diasRestantes !== null && i.diasRestantes >= 8 && i.diasRestantes <= 15)) return false;
-      if (prazo === "sem" && i.dataLimite !== null) return false;
-
-      if (termo) {
-        const alvo = normalizarBusca(
-          [
-            i.processoNumero,
-            i.processoNumero?.replace(/\D/g, ""),
-            i.pessoa,
-            i.titulo,
-            i.descricao,
-            i.categoria,
-            i.modulo,
-            i.origem,
-          ]
-            .filter(Boolean)
-            .join(" "),
-        );
-        if (!alvo.includes(termo) && !alvo.includes(termo.replace(/\D/g, ""))) return false;
-      }
-      return true;
-    });
-  }, [itensVisiveis, busca, nivel, origem, categoria, modulo, prazo]);
-
-  const contagens = useMemo(() => {
-    const mapa = Object.fromEntries(NIVEIS.map((n) => [n.valor, 0])) as Record<NivelAtencaoBeta, number>;
-    for (const i of itensVisiveis) mapa[i.nivel]++;
-    return mapa;
-  }, [itensVisiveis]);
+  const contagens = useMemo(() => contarGruposAtencaoBeta(gruposVisiveis), [gruposVisiveis]);
 
   const basePje = statusBasePjeBeta(dadosAux, hoje);
   const basePjeItem = itens.find((i) => i.id === "base-pje") ?? null;
@@ -250,6 +219,35 @@ export function PrioridadesAlertas() {
     }
   }
 
+  function acoesDoAlerta(item: ItemAtencaoBeta) {
+    if (!podeEditar) return null;
+    return (
+      <div className="flex shrink-0 items-center gap-0.5">
+        {item.origem === "Manual" ? (
+          <button
+            type="button"
+            aria-label={`Editar prioridade manual: ${item.titulo}`}
+            title="Editar prioridade manual"
+            onClick={() => editarManual(item)}
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          aria-label={`Remover alerta: ${item.titulo}`}
+          title="Remover alerta"
+          disabled={removendoId === item.id}
+          onClick={() => removerAlerta(item)}
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    );
+  }
+
   if (presos.isLoading || !presos.data || comparecimentos.isLoading || auxiliares.isLoading) {
     return <EstadoVazio titulo="Carregando prioridades e alertas" descricao="Calculando prioridades e alertas a partir dos dados atuais do sistema." />;
   }
@@ -260,6 +258,11 @@ export function PrioridadesAlertas() {
         titulo="Prioridades e Alertas"
         subtitulo="Visão unificada de prioridades manuais, alertas automáticos, etiquetas e conferências operacionais."
       />
+
+      <p className="text-xs text-muted-foreground">
+        Cada processo aparece uma vez, no nível mais alto entre seus motivos ativos. Os motivos podem
+        ser consultados e removidos individualmente.
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {NIVEIS.filter((n) => n.valor !== "administrativo").map((n) => {
@@ -407,7 +410,7 @@ export function PrioridadesAlertas() {
         <div className="mb-3 flex items-center gap-2">
           <Bell className="size-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Checagem</h2>
-          <span className="text-xs text-muted-foreground">{exibidos.length} de {itensVisiveis.length} item(ns)</span>
+          <span className="text-xs text-muted-foreground">{exibidos.length} de {gruposVisiveis.length} item(ns)</span>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -480,7 +483,6 @@ export function PrioridadesAlertas() {
                 {["Nível", "Processo / pessoa", "Prioridade ou alerta", "Origem", "Módulo", "Data-limite", "Situação"].map((h) => (
                   <th key={h} className="px-3 py-2.5 font-medium">{h}</th>
                 ))}
-                <th className="w-10 px-2 py-2.5"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -502,41 +504,42 @@ export function PrioridadesAlertas() {
                     {i.pessoa ? <div className="mt-1 text-xs text-muted-foreground">{i.pessoa}</div> : null}
                   </td>
                   <td className="px-3 py-3">
-                    <p className="font-medium text-foreground">{i.titulo}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{i.categoria}</p>
-                    {i.descricao ? <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">{i.descricao}</p> : null}
+                    <div className="space-y-2">
+                      {i.motivos.map((motivo) => (
+                        <div
+                          key={motivo.id}
+                          className="flex items-start justify-between gap-2 border-border [&:not(:first-child)]:border-t [&:not(:first-child)]:pt-2"
+                        >
+                          <div>
+                            <p className="font-medium text-foreground">{motivo.titulo}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {i.motivos.length > 1 ? `${rotuloNivel(motivo.nivel)} · ` : ""}
+                              {motivo.categoria}
+                            </p>
+                            {motivo.descricao ? (
+                              <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+                                {motivo.descricao}
+                              </p>
+                            ) : null}
+                            {i.motivos.length > 1 && motivo.dataLimite ? (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {formatarData(motivo.dataLimite)} · {textoPrazo(motivo)}
+                              </p>
+                            ) : null}
+                          </div>
+                          {acoesDoAlerta(motivo)}
+                        </div>
+                      ))}
+                    </div>
                   </td>
-                  <td className="px-3 py-3 text-xs">{i.origem}</td>
-                  <td className="px-3 py-3 text-xs">{i.modulo}</td>
+                  <td className="px-3 py-3 text-xs">
+                    {[...new Set(i.motivos.map((m) => m.origem))].join(" · ")}
+                  </td>
+                  <td className="px-3 py-3 text-xs">
+                    {[...new Set(i.motivos.map((m) => m.modulo))].join(" · ")}
+                  </td>
                   <td className="px-3 py-3 text-xs">{i.dataLimite ? formatarData(i.dataLimite) : "—"}</td>
                   <td className="px-3 py-3 text-xs font-medium">{textoPrazo(i)}</td>
-                  <td className="px-2 py-3 text-right">
-                    {podeEditar ? (
-                      <div className="flex items-center justify-end gap-0.5">
-                        {i.origem === "Manual" ? (
-                          <button
-                            type="button"
-                            aria-label={`Editar prioridade manual: ${i.titulo}`}
-                            title="Editar prioridade manual"
-                            onClick={() => editarManual(i)}
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          aria-label={`Remover alerta: ${i.titulo}`}
-                          title="Remover alerta"
-                          disabled={removendoId === i.id}
-                          onClick={() => removerAlerta(i)}
-                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    ) : null}
-                  </td>
                 </tr>
               ))}
             </tbody>
