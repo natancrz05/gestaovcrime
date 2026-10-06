@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClienteSupabase = SupabaseClient<Database>;
+type ContextoAutenticado = { supabase: ClienteSupabase; userId: string };
 
 const perfilSchema = z.enum(["administrador", "servidor", "consulta"]);
 
@@ -28,12 +33,12 @@ export const excluirUsuario = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-async function exigirAdmin(context: { supabase: any; userId: string }) {
+async function exigirAdmin(context: ContextoAutenticado) {
   const { data } = await context.supabase.rpc("eh_admin", { _user_id: context.userId });
   if (!data) throw new Error("Somente o Administrador pode gerenciar usuários.");
 }
 
-async function auditarUsuario(admin: any, autorId: string, registroId: string, acao: string, descricao: string) {
+async function auditarUsuario(admin: ClienteSupabase, autorId: string, registroId: string, acao: string, descricao: string) {
   const { data: u } = await admin.from("usuarios").select("nome").eq("id", autorId).maybeSingle();
   await admin.from("auditoria").insert({
     usuario_id: autorId,
@@ -54,13 +59,13 @@ export const listarUsuarios = createServerFn({ method: "GET" })
       context.supabase.from("user_roles").select("user_id, role"),
     ]);
     if (error) throw new Error(error.message);
-    return (us ?? []).map((u: any) => ({
+    return (us ?? []).map((u) => ({
       id: u.id as string,
       nome: u.nome as string,
       email: u.email as string,
       ativo: u.ativo as boolean,
       criado_em: u.criado_em as string,
-      perfil: ((roles ?? []).find((r: any) => r.user_id === u.id)?.role ?? null) as z.infer<typeof perfilSchema> | null,
+      perfil: ((roles ?? []).find((r) => r.user_id === u.id)?.role ?? null) as z.infer<typeof perfilSchema> | null,
     }));
   });
 
@@ -123,9 +128,9 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     const perfilAntes = papelAtual?.role ?? null;
 
     // Troca o perfil sem abrir uma janela em que o usuário fique sem papel.
-    const papelDesejado = papeisAtuais.find((r: any) => r.role === data.perfil);
+    const papelDesejado = papeisAtuais.find((r) => r.role === data.perfil);
     if (papelDesejado) {
-      const extras = papeisAtuais.filter((r: any) => r.id !== papelDesejado.id).map((r: any) => r.id);
+      const extras = papeisAtuais.filter((r) => r.id !== papelDesejado.id).map((r) => r.id);
       if (extras.length) {
         const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
         if (limpeza.error) throw new Error(limpeza.error.message);
@@ -133,7 +138,7 @@ export const atualizarUsuario = createServerFn({ method: "POST" })
     } else if (papelAtual) {
       const troca = await supabaseAdmin.from("user_roles").update({ role: data.perfil }).eq("id", papelAtual.id);
       if (troca.error) throw new Error(troca.error.message);
-      const extras = papeisAtuais.slice(1).map((r: any) => r.id);
+      const extras = papeisAtuais.slice(1).map((r) => r.id);
       if (extras.length) {
         const limpeza = await supabaseAdmin.from("user_roles").delete().in("id", extras);
         if (limpeza.error) throw new Error(limpeza.error.message);

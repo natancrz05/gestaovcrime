@@ -5,7 +5,7 @@ import { perguntarAoAssistente, type MensagemAssistente } from "@/lib/assistente
 import { cn } from "@/lib/utils";
 
 function renderInlineMarkdown(texto: string): ReactNode[] {
-  const partes = texto.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^\)]+\))/g).filter(Boolean);
+  const partes = texto.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
 
   return partes.map((parte, index) => {
     if ((parte.startsWith("**") && parte.endsWith("**")) || (parte.startsWith("__") && parte.endsWith("__"))) {
@@ -17,7 +17,7 @@ function renderInlineMarkdown(texto: string): ReactNode[] {
     if (parte.startsWith("`") && parte.endsWith("`")) {
       return <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground">{parte.slice(1, -1)}</code>;
     }
-    const link = parte.match(/^\[([^\]]+)\]\(([^\)]+)\)$/);
+    const link = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link) {
       return <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">{link[1]}</a>;
     }

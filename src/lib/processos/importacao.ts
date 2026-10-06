@@ -78,13 +78,15 @@ const normCab = (s: string) =>
   s.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
-    .replace(/[_.:;()\-]+/g, " ")
+    .replace(/[-_.:;()]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
 const limparTexto = (v: unknown) =>
   String(v ?? "")
     .replace(/\u00a0/g, " ")
+    // Mantém TAB/LF/CR para que a normalização de espaços abaixo não una palavras.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -143,7 +145,7 @@ export function paraData(v: unknown): string | null | undefined {
   }
 
   const s = limparTexto(v);
-  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})(?:\s|$)/);
+  let m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})(?:\s|$)/);
   let y: number, mo: number, d: number;
   if (m) {
     d = +m[1]!;

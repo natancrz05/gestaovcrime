@@ -190,7 +190,7 @@ function chaveAudiencia(numero: string, data: string, horario: string, tipo: str
 }
 
 function cpfDeReu(r: Reu): string {
-  const obs = r.observacoes?.match(/\bCPF\s*:\s*([0-9.\-]+)/i)?.[1];
+  const obs = r.observacoes?.match(/\bCPF\s*:\s*([0-9.-]+)/i)?.[1];
   if (obs) return obs.replace(/\D/g, "");
   const dados = (r as Reu & { dados_planilha?: Record<string, unknown> }).dados_planilha;
   const cpf = dados && typeof dados["cpf"] === "string" ? dados["cpf"] : "";
