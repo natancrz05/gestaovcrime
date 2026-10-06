@@ -15,7 +15,7 @@ const SELECAO =
 // evita transferir textos potencialmente grandes para Dashboard, listagens,
 // audiências, prioridades, pendências e relatórios.
 const SELECAO_RESUMO =
-  "*, partes(*), reus(*), movimentacoes(*), audiencias(*), pendencias(*), prioridades(*)";
+  "*, partes(*), reus(id,processo_id,nome,situacao,preso,tipo_prisao,data_prisao,observacoes,ordem), movimentacoes(*), audiencias(*), pendencias(*), prioridades(*)";
 
 export async function listarProcessosCompletos(): Promise<ProcessoCompleto[]> {
   const pagina = 1000;
