@@ -14,7 +14,13 @@
 import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto, Reu } from "./modelo";
-import { listarProcessosCompletos, criarProcesso, salvarAudiencia, type NovoProcessoEntrada } from "./repositorio";
+import {
+  listarProcessosCompletos,
+  criarProcesso,
+  obterProcesso,
+  salvarAudiencia,
+  type NovoProcessoEntrada,
+} from "./repositorio";
 import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
@@ -399,6 +405,15 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
   return { linhas, erros };
 }
 
+function indexarProcessosPorNumero(processos: ProcessoCompleto[]) {
+  const mapa = new Map<string, ProcessoCompleto[]>();
+  for (const processo of processos) {
+    const numero = normalizarNumeroProcesso(processo.numero);
+    mapa.set(numero, [...(mapa.get(numero) ?? []), processo]);
+  }
+  return mapa;
+}
+
 export function analisarPautaAudiencias(
   linhas: LinhaPautaAudiencia[],
   processos: ProcessoCompleto[],
@@ -407,11 +422,7 @@ export function analisarPautaAudiencias(
   const erros = [...errosLeitura];
   const duplicadasArquivo: ProblemaPauta[] = [];
 
-  const processosPorNumero = new Map<string, ProcessoCompleto[]>();
-  for (const p of processos) {
-    const k = normalizarNumeroProcesso(p.numero);
-    processosPorNumero.set(k, [...(processosPorNumero.get(k) ?? []), p]);
-  }
+  const processosPorNumero = indexarProcessosPorNumero(processos);
 
   const primeiraPorChave = new Set<string>();
   const linhasUnicas: LinhaPautaAudiencia[] = [];
@@ -634,6 +645,7 @@ export async function executarImportacaoPauta(
   errosLeitura: ProblemaPauta[] = [],
 ): Promise<ResultadoImportacaoPauta> {
   let processos = await listarProcessosCompletos();
+  let processosPorNumero = indexarProcessosPorNumero(processos);
   let analise = analisarPautaAudiencias(linhas, processos, errosLeitura);
   if (analise.erros.length || analise.conflitos) {
     throw new Error("A pauta possui erros ou conflitos. Nenhuma nova audiência foi importada.");
@@ -650,7 +662,7 @@ export async function executarImportacaoPauta(
 
   // Cria somente processos inexistentes, uma vez por número CNJ.
   for (const [numeroNormalizado, grupo] of porNumero) {
-    let existentes = processos.filter((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
+    let existentes = processosPorNumero.get(numeroNormalizado) ?? [];
     if (existentes.length > 1) throw new Error(`O processo ${grupo[0]!.numero} já está duplicado no acervo.`);
     if (!existentes.length) {
       const reus = grupo.flatMap((l) => l.reus).filter((r, i, arr) =>
@@ -678,24 +690,31 @@ export async function executarImportacaoPauta(
         observacao_interna: "",
       };
       try {
-        await criarProcesso(entrada);
+        const processoId = await criarProcesso(entrada);
+        const criado = await obterProcesso(processoId);
+        if (!criado) {
+          throw new Error(`O processo ${grupo[0]!.numero} foi criado, mas não pôde ser recarregado.`);
+        }
+        processos.push(criado);
+        processosPorNumero.set(numeroNormalizado, [criado]);
         processosCriados++;
         reusCriados += reus.length;
       } catch (e) {
         // Em concorrência, outro usuário pode ter criado o processo após a prévia.
-        // Recarrega e só prossegue se agora houver exatamente um registro correspondente.
+        // Nesse caso raro, recarrega o acervo e só prossegue se houver exatamente
+        // um registro correspondente. Criações normais não recarregam o acervo inteiro.
         if (!(e instanceof Error) || !/já existe um processo/i.test(e.message)) throw e;
+        processos = await listarProcessosCompletos();
+        processosPorNumero = indexarProcessosPorNumero(processos);
       }
-      processos = await listarProcessosCompletos();
-      existentes = processos.filter((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
+      existentes = processosPorNumero.get(numeroNormalizado) ?? [];
       if (existentes.length !== 1) throw new Error(`Não foi possível vincular com segurança o processo ${grupo[0]!.numero}.`);
     }
   }
 
   // Completa réus em processos que já existiam (ou foram criados por concorrência).
-  processos = await listarProcessosCompletos();
   for (const [numeroNormalizado, grupo] of porNumero) {
-    const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === numeroNormalizado);
+    const processo = (processosPorNumero.get(numeroNormalizado) ?? [])[0];
     if (!processo) throw new Error(`Processo ${grupo[0]!.numero} não encontrado após o cadastro.`);
 
     if (!processo.classe.trim() && grupo[0]!.classe) {
@@ -714,7 +733,10 @@ export async function executarImportacaoPauta(
   }
 
   // Reanalisa imediatamente antes das audiências para capturar qualquer alteração concorrente.
+  // Esta recarga integral é intencional: é a barreira final contra mudanças ocorridas
+  // desde a prévia. As recargas intermediárias foram eliminadas acima.
   processos = await listarProcessosCompletos();
+  processosPorNumero = indexarProcessosPorNumero(processos);
   analise = analisarPautaAudiencias(linhas, processos);
   if (analise.erros.length || analise.conflitos) {
     throw new Error("O acervo mudou durante a importação e surgiu um conflito. As audiências não foram duplicadas; revise a prévia e tente novamente.");
@@ -724,7 +746,7 @@ export async function executarImportacaoPauta(
   let audienciasAtualizadas = 0;
   let audienciasJaExistentes = analise.audienciasExistentes;
   for (const item of analise.itens) {
-    const processo = processos.find((p) => normalizarNumeroProcesso(p.numero) === normalizarNumeroProcesso(item.numero));
+    const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
     if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
 
     if (item.estado === "ja-cadastrada") continue;
