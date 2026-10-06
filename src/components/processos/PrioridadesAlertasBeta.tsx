@@ -17,7 +17,13 @@ import {
   contarGruposAtencaoBeta,
   filtrarGruposAtencaoBeta,
 } from "@/lib/processos/agrupamento-alertas";
-import { etiquetasDosProcessosQuery, processosQuery, removerPrioridadeManual, salvarPrioridadeManual } from "@/lib/processos/repositorio";
+import {
+  etiquetasDosProcessosQuery,
+  processosQuery,
+  removerEtiquetaDoProcesso,
+  removerPrioridadeManual,
+  salvarPrioridadeManual,
+} from "@/lib/processos/repositorio";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
   alertasOcultosBetaQuery,
@@ -202,16 +208,35 @@ export function PrioridadesAlertas() {
   async function removerAlerta(item: ItemAtencaoBeta) {
     setRemovendoId(item.id);
     try {
+      let mensagem = "Alerta removido.";
+
       if (item.origem === "Manual") {
         const prioridadeId = item.id.split(":").pop();
         if (!prioridadeId) throw new Error("Não foi possível identificar a prioridade manual.");
         await removerPrioridadeManual(prioridadeId);
         await qc.invalidateQueries({ queryKey: ["processos"] });
+      } else if (item.origem === "Etiqueta") {
+        if (!item.processoId) throw new Error("Não foi possível identificar o processo da etiqueta.");
+
+        const prefixo = `etiqueta:${item.processoId}:`;
+        const etiquetaId = item.id.startsWith(prefixo) ? item.id.slice(prefixo.length) : "";
+        if (!etiquetaId) throw new Error("Não foi possível identificar a etiqueta vinculada à prioridade.");
+
+        // A prioridade de origem Etiqueta não é um alerta independente: ela existe
+        // exatamente enquanto a etiqueta estiver vinculada ao processo.
+        await removerEtiquetaDoProcesso(item.processoId, etiquetaId);
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ["processos", "etiquetas"] }),
+          qc.invalidateQueries({ queryKey: ["processos", item.processoId, "etiquetas"] }),
+          qc.invalidateQueries({ queryKey: ["alertas-beta", "ocultos"] }),
+        ]);
+        mensagem = "Etiqueta e prioridade removidas.";
       } else {
         await ocultarAlertaBeta(chaveOcultacaoAlertaBeta(item));
         await qc.invalidateQueries({ queryKey: ["alertas-beta", "ocultos"] });
       }
-      toast.success("Alerta removido.");
+
+      toast.success(mensagem);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao remover alerta.");
     } finally {

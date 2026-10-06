@@ -184,8 +184,27 @@ export async function removerEtiqueta(id: string) {
   if (error) throw error;
 }
 
+function chaveAlertaDaEtiqueta(processoId: string, etiquetaId: string) {
+  return `etiqueta:${processoId}:${etiquetaId}`;
+}
+
+async function limparOcultacaoDaEtiqueta(processoId: string, etiquetaId: string) {
+  // Prioridades de origem "Etiqueta" refletem diretamente o vínculo da etiqueta.
+  // Remove ocultações antigas para que os dois lados nunca fiquem dessincronizados.
+  const { error } = await supabase
+    .from("alertas_ocultos")
+    .delete()
+    .eq("alerta_chave", chaveAlertaDaEtiqueta(processoId, etiquetaId));
+  if (error) throw error;
+}
+
 export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId: string) {
   const { data: userData } = await supabase.auth.getUser();
+
+  // Se essa etiqueta já foi tratada como alerta ocultável em uma versão anterior,
+  // reativá-la deve fazer a prioridade reaparecer normalmente.
+  await limparOcultacaoDaEtiqueta(processoId, etiquetaId);
+
   const { error } = await supabase.from("processos_etiquetas").insert({
     processo_id: processoId,
     etiqueta_id: etiquetaId,
@@ -195,6 +214,10 @@ export async function adicionarEtiquetaAoProcesso(processoId: string, etiquetaId
 }
 
 export async function removerEtiquetaDoProcesso(processoId: string, etiquetaId: string) {
+  // Limpa qualquer ocultação legada antes de desfazer o vínculo. Assim, uma futura
+  // reaplicação da etiqueta não nasce com a prioridade indevidamente escondida.
+  await limparOcultacaoDaEtiqueta(processoId, etiquetaId);
+
   const { error } = await supabase
     .from("processos_etiquetas")
     .delete()
