@@ -42,9 +42,12 @@ function Pagina() {
   const recarregar = () => qc.invalidateQueries({ queryKey: ["processos"] });
   const podeEditar = usePode("editar");
   const todas = useMemo(() => listarPendenciasDe(processos), [processos]);
-  // Mantém um único mapa de etiquetas para todo o acervo visível nesta aba.
-  // Isso evita depender apenas do subconjunto de pendências já materializado.
-  const processoIds = useMemo(() => processos.map((p) => p.id), [processos]);
+  // Nesta tela só há motivo para carregar etiquetas de processos que possuem
+  // ao menos uma pendência materializada.
+  const processoIds = useMemo(
+    () => [...new Set(todas.map((p) => p.processo_id))],
+    [todas],
+  );
   const { data: etiquetasPorProcesso = {} } = useQuery(etiquetasDosProcessosQuery(processoIds));
   const [status, setStatus] = useState("");
   const [prioridade, setPrioridade] = useState("");
@@ -53,17 +56,35 @@ function Pagina() {
   const [detalhe, setDetalhe] = useState<PendenciaListada | null>(null);
   const [edicao, setEdicao] = useState<{ id?: string; dados: PendenciaEntrada } | null>(null);
 
-  const responsaveis = [...new Set(todas.map((p) => p.responsavel).filter(Boolean))].sort();
-  const lista = todas.filter((p) => {
-    if (status && p.status !== status) return false;
-    if (prioridade && p.prioridade !== prioridade) return false;
-    if (responsavel && p.responsavel !== responsavel) return false;
-    if (periodo === "atrasadas" && !p.atrasada) return false;
-    if ((periodo === "7" || periodo === "30") && (p.dias === null || p.dias < 0 || p.dias > Number(periodo))) return false;
-    if (periodo === "sem" && p.prazo) return false;
-    return true;
-  });
-  const abertas = todas.filter((p) => !p.concluidaFlag);
+  const responsaveis = useMemo(
+    () => [...new Set(todas.map((p) => p.responsavel).filter(Boolean))].sort(),
+    [todas],
+  );
+  const lista = useMemo(
+    () =>
+      todas.filter((p) => {
+        if (status && p.status !== status) return false;
+        if (prioridade && p.prioridade !== prioridade) return false;
+        if (responsavel && p.responsavel !== responsavel) return false;
+        if (periodo === "atrasadas" && !p.atrasada) return false;
+        if (
+          (periodo === "7" || periodo === "30") &&
+          (p.dias === null || p.dias < 0 || p.dias > Number(periodo))
+        )
+          return false;
+        if (periodo === "sem" && p.prazo) return false;
+        return true;
+      }),
+    [todas, status, prioridade, responsavel, periodo],
+  );
+  const resumoAbertas = useMemo(() => {
+    const abertas = todas.filter((p) => !p.concluidaFlag);
+    return {
+      total: abertas.length,
+      atrasadas: abertas.filter((p) => p.atrasada).length,
+      alta: abertas.filter((p) => p.prioridade === "alta").length,
+    };
+  }, [todas]);
 
   return (
     <div className="space-y-6">
@@ -73,8 +94,8 @@ function Pagina() {
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {abertas.length} em aberto · <span className="text-urgente">{abertas.filter((p) => p.atrasada).length} atrasadas</span> ·{" "}
-          <span className="text-atencao">{abertas.filter((p) => p.prioridade === "alta").length} de alta prioridade</span>
+          {resumoAbertas.total} em aberto · <span className="text-urgente">{resumoAbertas.atrasadas} atrasadas</span> ·{" "}
+          <span className="text-atencao">{resumoAbertas.alta} de alta prioridade</span>
         </p>
         {podeEditar ? <button className={BOTAO} onClick={() => setEdicao({ dados: novaPendencia() })}>Nova pendência</button> : null}
       </div>
