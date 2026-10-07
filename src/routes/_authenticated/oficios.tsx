@@ -1,15 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
   FileText,
   Pencil,
   Plus,
   Search,
   Send,
   Trash2,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
@@ -73,7 +71,9 @@ function Pagina() {
   const { data: oficios } = useSuspenseQuery(controleOficiosQuery());
   const qc = useQueryClient();
   const podeEditar = usePode("editar");
-  const anoAtual = Number(hojeISO().slice(0, 4));
+  const [anoAtual, setAnoAtual] = useState(() =>
+    Number(hojeISO().slice(0, 4)),
+  );
 
   const anos = useMemo(
     () =>
@@ -91,9 +91,24 @@ function Pagina() {
     sequencial: number;
   } | null>(null);
 
-  const { data: proximoNumero } = useQuery(
-    proximoNumeroControleOficioQuery(ano),
-  );
+  useEffect(() => {
+    const conferirViradaDoAno = () => {
+      const novoAno = Number(hojeISO().slice(0, 4));
+
+      setAnoAtual((anoAnterior) => {
+        if (novoAno === anoAnterior) return anoAnterior;
+
+        setAno((anoSelecionado) =>
+          anoSelecionado === anoAnterior ? novoAno : anoSelecionado,
+        );
+        setUltimoGerado(null);
+        return novoAno;
+      });
+    };
+
+    const intervalo = window.setInterval(conferirViradaDoAno, 60_000);
+    return () => window.clearInterval(intervalo);
+  }, []);
 
   const doAno = useMemo(
     () => oficios.filter((o) => o.ano === ano),
@@ -115,15 +130,6 @@ function Pagina() {
       ).includes(termo),
     );
   }, [doAno, busca]);
-
-  const mesAtual = hojeISO().slice(0, 7);
-  const nesteMes =
-    ano === anoAtual
-      ? doAno.filter((o) => o.data_expedicao?.startsWith(mesAtual)).length
-      : 0;
-  const destinatarios = new Set(
-    doAno.map((o) => normalizar(o.destinatario.trim())).filter(Boolean),
-  ).size;
 
   async function recarregar() {
     await Promise.all([
@@ -208,38 +214,40 @@ function Pagina() {
         cada ano e números excluídos não são reutilizados.
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador
-          icone={FileText}
-          rotulo="Próximo ofício"
-          valor={
-            proximoNumero
-              ? formatarNumeroOficio(proximoNumero, ano)
-              : "Carregando…"
-          }
-          sub="Próxima numeração disponível"
-        />
+      <section className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-card p-4 shadow-card">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Próximo ofício
+            </p>
+            <FileText className="size-4 text-primary" />
+          </div>
+
+          {podeEditar ? (
+            <button
+              type="button"
+              className={`${BOTAO} mt-3 h-10`}
+              onClick={() => setEdicao("novo")}
+            >
+              <Plus className="size-4" />
+              Gerar ofício
+            </button>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Disponível para servidores com permissão de edição.
+            </p>
+          )}
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            A numeração é exibida e confirmada durante o cadastro.
+          </p>
+        </div>
+
         <Indicador
           icone={Send}
           rotulo="Registros no ano"
           valor={String(doAno.length)}
           sub={`Controle de ${ano}`}
-        />
-        <Indicador
-          icone={CalendarDays}
-          rotulo={ano === anoAtual ? "Neste mês" : "Ano selecionado"}
-          valor={String(ano === anoAtual ? nesteMes : doAno.length)}
-          sub={
-            ano === anoAtual
-              ? "Expedições no mês atual"
-              : `Expedições registradas em ${ano}`
-          }
-        />
-        <Indicador
-          icone={Users}
-          rotulo="Destinatários"
-          valor={String(destinatarios)}
-          sub="Destinatários distintos no ano"
         />
       </section>
 
