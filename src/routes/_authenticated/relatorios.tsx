@@ -136,7 +136,7 @@ type Linha = {
   chave: string;
   processoId?: string | null;
   celulas: (string | number)[];
-  destaque?: "urgente" | "atencao" | "sucesso";
+  destaque?: "urgente" | "atencao" | "sucesso" | undefined;
 };
 
 function exportarCSV(nome: string, colunas: Coluna[], linhas: Linha[]) {
