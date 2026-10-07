@@ -152,6 +152,8 @@ export async function atualizarControleOficio(
 }
 
 export async function removerControleOficio(id: string) {
-  const { error } = await supabase.from("controle_oficios").delete().eq("id", id);
+  const { error } = await supabase.rpc("excluir_controle_oficio", {
+    p_id: id,
+  });
   if (error) throw new Error(error.message);
 }

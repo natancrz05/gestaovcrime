@@ -142,7 +142,7 @@ function Pagina() {
     const numero = numeroDoControleOficio(oficio);
     if (
       !window.confirm(
-        `Excluir o ofício ${numero}? A sequência não será retrocedida e esse número não será reutilizado.`,
+        `Excluir o ofício ${numero}? Esse número ficará disponível para reutilização em um próximo ofício do mesmo ano.`,
       )
     )
       return;
@@ -150,7 +150,7 @@ function Pagina() {
     try {
       await removerControleOficio(oficio.id);
       await recarregar();
-      toast.success("Ofício excluído. A numeração permanece reservada.");
+      toast.success("Ofício excluído. O número ficou disponível para reutilização.");
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Não foi possível excluir o ofício.",
@@ -196,11 +196,6 @@ function Pagina() {
           </div>
         </div>
       ) : null}
-
-      <div className="rounded-lg border border-info/25 bg-info-suave px-4 py-3 text-sm text-info">
-        O número é confirmado automaticamente ao salvar. A sequência reinicia a
-        cada ano e números excluídos não são reutilizados.
-      </div>
 
       <section className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-4 shadow-card">

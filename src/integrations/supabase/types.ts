@@ -568,6 +568,24 @@ export type Database = {
         }
         Relationships: []
       }
+      controle_oficios_numeros_disponiveis: {
+        Row: {
+          ano: number
+          liberado_em: string
+          sequencial: number
+        }
+        Insert: {
+          ano: number
+          liberado_em?: string
+          sequencial: number
+        }
+        Update: {
+          ano?: number
+          liberado_em?: string
+          sequencial?: number
+        }
+        Relationships: []
+      }
       partes: {
         Row: {
           id: string
@@ -1090,6 +1108,10 @@ export type Database = {
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
       encerrar_prisao: {
         Args: { p_data: string; p_motivo: string; p_reu: string }
+        Returns: undefined
+      }
+      excluir_controle_oficio: {
+        Args: { p_id: string }
         Returns: undefined
       }
       has_role: {
