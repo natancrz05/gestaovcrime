@@ -1124,6 +1124,10 @@ export type Database = {
         Returns: Json
       }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
+      proximo_numero_controle_oficio: {
+        Args: { p_ano: number }
+        Returns: number
+      }
       registrar_comparecimento: {
         Args: { p_data: string; p_id: string; p_obs: string }
         Returns: string

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -29,6 +29,7 @@ import {
   dataDoControleOficio,
   formatarNumeroOficio,
   numeroDoControleOficio,
+  proximoNumeroControleOficioQuery,
   removerControleOficio,
   type ControleOficio,
   type ControleOficioEntrada,
@@ -85,6 +86,14 @@ function Pagina() {
   const [ano, setAno] = useState(anoAtual);
   const [busca, setBusca] = useState("");
   const [edicao, setEdicao] = useState<ControleOficio | "novo" | null>(null);
+  const [ultimoGerado, setUltimoGerado] = useState<{
+    ano: number;
+    sequencial: number;
+  } | null>(null);
+
+  const { data: proximoNumero } = useQuery(
+    proximoNumeroControleOficioQuery(ano),
+  );
 
   const doAno = useMemo(
     () => oficios.filter((o) => o.ano === ano),
@@ -107,11 +116,6 @@ function Pagina() {
     );
   }, [doAno, busca]);
 
-  const maiorSequencial = doAno.reduce(
-    (maior, oficio) =>
-      oficio.sequencial !== null ? Math.max(maior, oficio.sequencial) : maior,
-    0,
-  );
   const mesAtual = hojeISO().slice(0, 7);
   const nesteMes =
     ano === anoAtual
@@ -122,7 +126,10 @@ function Pagina() {
   ).size;
 
   async function recarregar() {
-    await qc.invalidateQueries({ queryKey: ["controle-oficios"] });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["controle-oficios"] }),
+      qc.invalidateQueries({ queryKey: ["controle-oficios-proximo"] }),
+    ]);
   }
 
   async function excluir(oficio: ControleOficio) {
@@ -164,21 +171,53 @@ function Pagina() {
         }
       />
 
+      {ultimoGerado ? (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-950">
+          <p className="text-xs font-semibold uppercase tracking-wide">
+            Ofício gerado com sucesso
+          </p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-2xl font-bold tabular-nums">
+                Ofício nº {formatarNumeroOficio(ultimoGerado.sequencial, ultimoGerado.ano)}
+              </p>
+              <p className="mt-1 text-sm">
+                Use esta numeração na expedição. Não é necessário pesquisar na lista.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={BOTAO_SEC}
+              onClick={async () => {
+                const numero = formatarNumeroOficio(
+                  ultimoGerado.sequencial,
+                  ultimoGerado.ano,
+                );
+                await navigator.clipboard.writeText(numero);
+                toast.success("Número do ofício copiado.");
+              }}
+            >
+              Copiar número
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-info/25 bg-info-suave px-4 py-3 text-sm text-info">
-        O número é reservado automaticamente ao salvar. A sequência reinicia a
+        O número é confirmado automaticamente ao salvar. A sequência reinicia a
         cada ano e números excluídos não são reutilizados.
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Indicador
           icone={FileText}
-          rotulo="Maior número do ano"
+          rotulo="Próximo ofício"
           valor={
-            maiorSequencial
-              ? formatarNumeroOficio(maiorSequencial, ano)
-              : "Nenhum"
+            proximoNumero
+              ? formatarNumeroOficio(proximoNumero, ano)
+              : "Carregando…"
           }
-          sub={String(ano)}
+          sub="Próxima numeração disponível"
         />
         <Indicador
           icone={Send}
@@ -363,6 +402,10 @@ function Pagina() {
               onSalvar={async (entrada) => {
                 if (edicao === "novo") {
                   const criado = await criarControleOficio(entrada);
+                  setUltimoGerado({
+                    ano: criado.ano,
+                    sequencial: criado.sequencial,
+                  });
                   toast.success(
                     `Ofício ${formatarNumeroOficio(criado.sequencial, criado.ano)} cadastrado.`,
                   );
@@ -425,6 +468,21 @@ function FormOficio({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
+  const anoDaData = Number(valor.data_expedicao.slice(0, 4));
+  const podeConsultarProximo =
+    !oficio &&
+    Number.isInteger(anoDaData) &&
+    anoDaData >= 2000 &&
+    anoDaData <= 2200;
+  const { data: proximoNumero } = useQuery({
+    ...proximoNumeroControleOficioQuery(anoDaData),
+    enabled: podeConsultarProximo,
+  });
+  const numeroPrevisto =
+    podeConsultarProximo && proximoNumero
+      ? formatarNumeroOficio(proximoNumero, anoDaData)
+      : null;
+
   return (
     <form
       className="space-y-4"
@@ -463,10 +521,18 @@ function FormOficio({
             . A edição não altera a numeração.
           </>
         ) : (
-          <>
-            O número será reservado automaticamente ao salvar, usando o ano da
-            data de expedição.
-          </>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide">
+              Você está gerando o
+            </p>
+            <p className="mt-1 text-2xl font-bold tabular-nums">
+              Ofício nº {numeroPrevisto ?? "…"}
+            </p>
+            <p className="mt-1 text-xs">
+              Esta é a próxima numeração disponível no contador. O número é
+              confirmado definitivamente no momento do salvamento.
+            </p>
+          </div>
         )}
       </div>
 
@@ -523,7 +589,9 @@ function FormOficio({
             ? "Salvando…"
             : oficio
               ? "Salvar alterações"
-              : "Gerar e cadastrar ofício"}
+              : numeroPrevisto
+                ? `Gerar Ofício nº ${numeroPrevisto}`
+                : "Gerar e cadastrar ofício"}
         </button>
       </div>
     </form>

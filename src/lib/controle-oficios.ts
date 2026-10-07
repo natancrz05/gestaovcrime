@@ -83,6 +83,26 @@ export const controleOficiosQuery = () =>
     queryFn: listarControleOficios,
   });
 
+async function consultarProximoNumeroControleOficio(ano: number): Promise<number> {
+  const { data, error } = await supabase.rpc("proximo_numero_controle_oficio", {
+    p_ano: ano,
+  });
+
+  if (error) throw new Error(error.message);
+  if (typeof data !== "number") {
+    throw new Error("Não foi possível identificar a próxima numeração de ofício.");
+  }
+
+  return data;
+}
+
+export const proximoNumeroControleOficioQuery = (ano: number) =>
+  queryOptions({
+    queryKey: ["controle-oficios-proximo", ano],
+    staleTime: 5_000,
+    queryFn: () => consultarProximoNumeroControleOficio(ano),
+  });
+
 export async function criarControleOficio(entrada: ControleOficioEntrada) {
   const { data, error } = await supabase.rpc("criar_controle_oficio", {
     p_data_expedicao: entrada.data_expedicao,
