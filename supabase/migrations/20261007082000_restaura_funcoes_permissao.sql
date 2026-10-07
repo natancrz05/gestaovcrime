@@ -1,12 +1,12 @@
--- Consolida verificações de perfil/atividade usadas por RLS e RPCs.
--- Mantém exatamente a mesma semântica de autorização.
+-- Reversão corretiva da otimização de funções de permissão.
+-- Restaura as definições estáveis anteriores, preservando a matriz de acesso.
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1
@@ -21,7 +21,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1
@@ -36,17 +36,10 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.usuarios AS u
-    JOIN public.user_roles AS r
-      ON r.user_id = u.id
-    WHERE u.id = _user_id
-      AND u.ativo
-      AND r.role = 'administrador'::public.app_role
-  )
+  SELECT public.usuario_ativo(_user_id)
+    AND public.has_role(_user_id, 'administrador')
 $$;
 
 CREATE OR REPLACE FUNCTION public.pode_editar(_user_id uuid)
@@ -54,23 +47,15 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.usuarios AS u
-    JOIN public.user_roles AS r
-      ON r.user_id = u.id
-    WHERE u.id = _user_id
-      AND u.ativo
-      AND r.role IN (
-        'administrador'::public.app_role,
-        'servidor'::public.app_role
-      )
-  )
+  SELECT public.usuario_ativo(_user_id)
+    AND (
+      public.has_role(_user_id, 'administrador')
+      OR public.has_role(_user_id, 'servidor')
+    )
 $$;
 
--- Reafirma explicitamente a superfície pública dessas funções SECURITY DEFINER.
 REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.usuario_ativo(uuid) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.eh_admin(uuid) FROM PUBLIC, anon;
