@@ -1,5 +1,6 @@
 import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
+import { AudienciasProcesso } from "@/components/processos/AudienciasProcesso";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { AdicionarRelacionado, FormReuPreso, RegistrarReavaliacao, RetirarPrisao, situacaoRevisao, type ReuEditavel } from "@/components/processos/GerenciarReuPreso";
@@ -218,8 +219,21 @@ function Pagina() {
       )}
 
       {aba === "Audiências" && (
-        <Secao titulo="Audiências" acao={<Link to="/audiencias" className="text-sm text-primary hover:underline">Abrir módulo de audiências</Link>}>
-          <Lista vazio="Nenhuma audiência registrada." itens={[...p.audiencias].sort((a, b) => a.data.localeCompare(b.data)).map((a) => ({ id: a.id, titulo: `${formatarData(a.data)} ${horaCurta(a.horario)} — ${a.tipo}`, sub: [a.modalidade, a.local, a.situacao, a.observacao].filter(Boolean).join(" · ") }))} />
+        <Secao
+          titulo="Audiências"
+          acao={
+            <Link to="/audiencias" className="text-sm text-primary hover:underline">
+              Abrir pauta completa
+            </Link>
+          }
+        >
+          <AudienciasProcesso
+            processoId={p.id}
+            numero={p.numero}
+            audiencias={p.audiencias}
+            podeEditar={podeEditar}
+            onAtualizar={recarregar}
+          />
         </Secao>
       )}
       {aba === "Prisão" && <AbaPrisao presos={presos as unknown as PresoFicha[]} podeEditar={podeEditar} recarregar={() => qc.invalidateQueries()} />}
