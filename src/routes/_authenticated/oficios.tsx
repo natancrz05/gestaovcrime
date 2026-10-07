@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
@@ -27,7 +27,6 @@ import {
   dataDoControleOficio,
   formatarNumeroOficio,
   numeroDoControleOficio,
-  proximoNumeroControleOficioQuery,
   removerControleOficio,
   type ControleOficio,
   type ControleOficioEntrada,
@@ -132,10 +131,7 @@ function Pagina() {
   }, [doAno, busca]);
 
   async function recarregar() {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["controle-oficios"] }),
-      qc.invalidateQueries({ queryKey: ["controle-oficios-proximo"] }),
-    ]);
+    await qc.invalidateQueries({ queryKey: ["controle-oficios"] });
   }
 
   async function excluir(oficio: ControleOficio) {
@@ -231,7 +227,7 @@ function Pagina() {
           )}
 
           <p className="mt-2 text-xs text-muted-foreground">
-            A numeração é exibida e confirmada durante o cadastro.
+            A numeração oficial é atribuída somente ao confirmar o cadastro.
           </p>
         </div>
 
@@ -468,21 +464,6 @@ function FormOficio({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const anoDaData = Number(valor.data_expedicao.slice(0, 4));
-  const podeConsultarProximo =
-    !oficio &&
-    Number.isInteger(anoDaData) &&
-    anoDaData >= 2000 &&
-    anoDaData <= 2200;
-  const { data: proximoNumero } = useQuery({
-    ...proximoNumeroControleOficioQuery(anoDaData),
-    enabled: podeConsultarProximo,
-  });
-  const numeroPrevisto =
-    podeConsultarProximo && proximoNumero
-      ? formatarNumeroOficio(proximoNumero, anoDaData)
-      : null;
-
   return (
     <form
       className="space-y-4"
@@ -522,15 +503,12 @@ function FormOficio({
           </>
         ) : (
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide">
-              Você está gerando o
-            </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">
-              Ofício nº {numeroPrevisto ?? "…"}
+            <p className="font-semibold">Número do ofício</p>
+            <p className="mt-1 text-sm">
+              Será atribuído automaticamente ao confirmar o cadastro.
             </p>
             <p className="mt-1 text-xs">
-              Esta é a próxima numeração disponível no contador. O número é
-              confirmado definitivamente no momento do salvamento.
+              Abrir ou abandonar este formulário não consome nenhum número da sequência.
             </p>
           </div>
         )}
@@ -586,12 +564,10 @@ function FormOficio({
       <div className="flex justify-end">
         <button className={BOTAO} disabled={salvando}>
           {salvando
-            ? "Salvando…"
+            ? "Gerando número e cadastrando…"
             : oficio
               ? "Salvar alterações"
-              : numeroPrevisto
-                ? `Gerar Ofício nº ${numeroPrevisto}`
-                : "Gerar e cadastrar ofício"}
+              : "Gerar número e cadastrar ofício"}
         </button>
       </div>
     </form>
