@@ -492,38 +492,56 @@ export type Database = {
         Row: {
           ano: number
           atualizado_em: string
+          chave_importacao: string | null
           criado_em: string
           criado_por: string | null
-          data_expedicao: string
+          data_expedicao: string | null
+          data_original: string | null
           destinatario: string
           finalidade: string
+          fonte_importacao: string | null
+          historico_importado: boolean
           id: string
+          numero_original: string | null
           processo_id: string | null
-          sequencial: number
+          processo_original: string | null
+          sequencial: number | null
         }
         Insert: {
           ano: number
           atualizado_em?: string
+          chave_importacao?: string | null
           criado_em?: string
           criado_por?: string | null
-          data_expedicao: string
+          data_expedicao?: string | null
+          data_original?: string | null
           destinatario: string
           finalidade: string
+          fonte_importacao?: string | null
+          historico_importado?: boolean
           id?: string
+          numero_original?: string | null
           processo_id?: string | null
-          sequencial: number
+          processo_original?: string | null
+          sequencial?: number | null
         }
         Update: {
           ano?: number
           atualizado_em?: string
+          chave_importacao?: string | null
           criado_em?: string
           criado_por?: string | null
-          data_expedicao?: string
+          data_expedicao?: string | null
+          data_original?: string | null
           destinatario?: string
           finalidade?: string
+          fonte_importacao?: string | null
+          historico_importado?: boolean
           id?: string
+          numero_original?: string | null
           processo_id?: string | null
-          sequencial?: number
+          processo_original?: string | null
+          sequencial?: number | null
         }
         Relationships: [
           {

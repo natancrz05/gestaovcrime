@@ -26,7 +26,9 @@ import {
   atualizarControleOficio,
   controleOficiosQuery,
   criarControleOficio,
+  dataDoControleOficio,
   formatarNumeroOficio,
+  numeroDoControleOficio,
   removerControleOficio,
   type ControleOficio,
   type ControleOficioEntrada,
@@ -59,8 +61,6 @@ const BOTAO =
   "inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 const BOTAO_SEC =
   "inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-60";
-
-const formatarData = (iso: string) => iso.split("-").reverse().join("/");
 
 const normalizar = (valor: string) =>
   valor
@@ -98,8 +98,8 @@ function Pagina() {
     return doAno.filter((o) =>
       normalizar(
         [
-          formatarNumeroOficio(o.sequencial, o.ano),
-          o.processos?.numero ?? "",
+          numeroDoControleOficio(o),
+          o.processos?.numero ?? o.processo_original ?? "",
           o.destinatario,
           o.finalidade,
         ].join(" "),
@@ -108,13 +108,14 @@ function Pagina() {
   }, [doAno, busca]);
 
   const maiorSequencial = doAno.reduce(
-    (maior, oficio) => Math.max(maior, oficio.sequencial),
+    (maior, oficio) =>
+      oficio.sequencial !== null ? Math.max(maior, oficio.sequencial) : maior,
     0,
   );
   const mesAtual = hojeISO().slice(0, 7);
   const nesteMes =
     ano === anoAtual
-      ? doAno.filter((o) => o.data_expedicao.startsWith(mesAtual)).length
+      ? doAno.filter((o) => o.data_expedicao?.startsWith(mesAtual)).length
       : 0;
   const destinatarios = new Set(
     doAno.map((o) => normalizar(o.destinatario.trim())).filter(Boolean),
@@ -125,7 +126,11 @@ function Pagina() {
   }
 
   async function excluir(oficio: ControleOficio) {
-    const numero = formatarNumeroOficio(oficio.sequencial, oficio.ano);
+    if (oficio.historico_importado) {
+      toast.error("O histórico importado é preservado como consta na planilha original.");
+      return;
+    }
+    const numero = numeroDoControleOficio(oficio);
     if (
       !window.confirm(
         `Excluir o ofício ${numero}? A sequência não será retrocedida e esse número não será reutilizado.`,
@@ -255,11 +260,20 @@ function Pagina() {
             <tbody>
               {filtrados.map((o) => (
                 <tr key={o.id} className="border-t border-border align-top">
-                  <td className="whitespace-nowrap px-3 py-3 font-semibold tabular-nums text-primary">
-                    {formatarNumeroOficio(o.sequencial, o.ano)}
+                  <td className="whitespace-nowrap px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold tabular-nums text-primary">
+                        {numeroDoControleOficio(o)}
+                      </span>
+                      {o.historico_importado ? (
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Histórico
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
-                    {formatarData(o.data_expedicao)}
+                    {dataDoControleOficio(o)}
                   </td>
                   <td className="px-3 py-3">
                     {o.processo_id && o.processos?.numero ? (
@@ -270,6 +284,10 @@ function Pagina() {
                       >
                         {o.processos.numero}
                       </Link>
+                    ) : o.processo_original ? (
+                      <span className="numero-processo text-muted-foreground">
+                        {o.processo_original}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -282,22 +300,28 @@ function Pagina() {
                   </td>
                   {podeEditar ? (
                     <td className="px-3 py-3">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          className={BOTAO_SEC}
-                          onClick={() => setEdicao(o)}
-                        >
-                          <Pencil className="size-3.5" />
-                          Editar
-                        </button>
-                        <button
-                          className={cn(BOTAO_SEC, "text-urgente")}
-                          onClick={() => excluir(o)}
-                        >
-                          <Trash2 className="size-3.5" />
-                          Excluir
-                        </button>
-                      </div>
+                      {o.historico_importado ? (
+                        <p className="text-right text-xs text-muted-foreground">
+                          Preservado da planilha
+                        </p>
+                      ) : (
+                        <div className="flex justify-end gap-1">
+                          <button
+                            className={BOTAO_SEC}
+                            onClick={() => setEdicao(o)}
+                          >
+                            <Pencil className="size-3.5" />
+                            Editar
+                          </button>
+                          <button
+                            className={cn(BOTAO_SEC, "text-urgente")}
+                            onClick={() => excluir(o)}
+                          >
+                            <Trash2 className="size-3.5" />
+                            Excluir
+                          </button>
+                        </div>
+                      )}
                     </td>
                   ) : null}
                 </tr>
@@ -327,7 +351,7 @@ function Pagina() {
             <DialogTitle>
               {edicao === "novo"
                 ? "Novo ofício"
-                : `Editar ofício ${formatarNumeroOficio(edicao?.sequencial ?? 0, edicao?.ano ?? ano)}`}
+                : `Editar ofício ${edicao && edicao !== "novo" ? numeroDoControleOficio(edicao) : "—"}`}
             </DialogTitle>
           </DialogHeader>
 
@@ -432,7 +456,7 @@ function FormOficio({
           <>
             Número reservado:{" "}
             <strong>
-              {formatarNumeroOficio(oficio.sequencial, oficio.ano)}
+              {numeroDoControleOficio(oficio)}
             </strong>
             . A edição não altera a numeração.
           </>
