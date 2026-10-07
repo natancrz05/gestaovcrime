@@ -6,7 +6,7 @@
  * - nenhuma gravação durante a leitura/prévia;
  * - processo é identificado pelo número CNJ normalizado;
  * - audiência já existente, inclusive manual, nunca é recriada;
- * - colisões de horário/finalidade são bloqueadas antes da importação;
+ * - duplicidades de horário dentro do mesmo processo são bloqueadas antes da importação;
  * - réus são extraídos das Partes apenas quando o papel é inequivocamente passivo.
  * - a importação é idempotente: se for interrompida, o mesmo arquivo pode ser
  *   processado novamente sem recriar o que já tiver sido salvo.
@@ -89,6 +89,28 @@ export interface ResultadoImportacaoPauta {
   audienciasCriadas: number;
   audienciasAtualizadas: number;
   audienciasJaExistentes: number;
+}
+
+export type ResultadoColisaoHorarioPauta = "livre" | "ja-existente" | "conflito-mesmo-processo";
+
+export function avaliarColisaoHorarioPauta(
+  ocupadas: Array<{ processo_id: string; tipo: string }>,
+  processoId: string,
+  tipo: string,
+): ResultadoColisaoHorarioPauta {
+  const mesmoProcesso = ocupadas.filter((a) => a.processo_id === processoId);
+  if (!mesmoProcesso.length) return "livre";
+
+  const finalidade = norm(tipoAudienciaCanonico(tipo));
+  if (
+    mesmoProcesso.some(
+      (a) => norm(tipoAudienciaCanonico(a.tipo)) === finalidade,
+    )
+  ) {
+    return "ja-existente";
+  }
+
+  return "conflito-mesmo-processo";
 }
 
 const norm = (s: string) =>
@@ -790,18 +812,19 @@ export async function executarImportacaoPauta(
       .eq("horario", item.horario);
     if (ocupadasError) throw ocupadasError;
 
-    const mesmaFinalidade = (ocupadas ?? []).filter((a) =>
-      norm(tipoAudienciaCanonico(a.tipo)) === norm(tipoAudienciaCanonico(item.tipo)),
+    const colisao = avaliarColisaoHorarioPauta(
+      (ocupadas ?? []).map((a) => ({ processo_id: a.processo_id, tipo: a.tipo })),
+      processo.id,
+      item.tipo,
     );
-    if (mesmaFinalidade.some((a) => a.processo_id === processo.id)) {
+    if (colisao === "ja-existente") {
       audienciasJaExistentes++;
       continue;
     }
-    if (mesmaFinalidade.length) {
-      throw new Error(`Surgiu outra audiência com a mesma finalidade em ${item.data} às ${item.horario}. A linha ${item.numero} não foi duplicada.`);
-    }
-    if ((ocupadas ?? []).some((a) => a.processo_id === processo.id)) {
-      throw new Error(`O processo ${item.numero} passou a possuir outra audiência em ${item.data} às ${item.horario}. Revise a pauta.`);
+    if (colisao === "conflito-mesmo-processo") {
+      throw new Error(
+        `O processo ${item.numero} passou a possuir outra audiência em ${item.data} às ${item.horario}. Revise a pauta.`,
+      );
     }
 
     await salvarAudiencia({
