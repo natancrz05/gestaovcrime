@@ -496,7 +496,7 @@ function FormAudienciaProcesso({
               ...v,
               situacao: e.target.value,
               aguardando_nova_data:
-                e.target.value === "Redesignada" ? v.aguardando_nova_data : false,
+                e.target.value === "Redesignada" ? !!v.aguardando_nova_data : false,
             })
           }
         >
