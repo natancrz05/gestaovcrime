@@ -351,7 +351,9 @@ function Pagina() {
             <DialogTitle>
               {edicao === "novo"
                 ? "Novo ofício"
-                : `Editar ofício ${numeroDoControleOficio(edicao)}`}
+                : edicao
+                  ? `Editar ofício ${numeroDoControleOficio(edicao)}`
+                  : "Ofício"}
             </DialogTitle>
           </DialogHeader>
 
