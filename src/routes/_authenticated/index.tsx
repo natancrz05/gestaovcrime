@@ -133,9 +133,6 @@ function Dashboard() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="indicadores" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Prioridades e alertas</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Cada processo conta uma vez, no nível mais alto, como na Central de Prioridades e Alertas.
-            </p>
           </div>
           <Link to="/prioridades" className="text-xs font-medium text-primary hover:underline">Abrir central</Link>
         </div>
