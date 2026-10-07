@@ -174,6 +174,7 @@ export interface FileRoutesByTo {
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
+  '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
   '/prioridades': typeof AuthenticatedPrioridadesRoute
   '/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
@@ -243,6 +244,7 @@ export interface FileRouteTypes {
     | '/assistente'
     | '/audiencias'
     | '/comparecimentos'
+    | '/oficios'
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
