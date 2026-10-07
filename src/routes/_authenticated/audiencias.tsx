@@ -150,6 +150,16 @@ function Pagina() {
   };
   const podeEditar = usePode("editar");
 
+  const abrirAudienciaDaCentral = (processoId: string, audienciaId?: string) => {
+    const doProcesso = todas.filter((a) => a.processo_id === processoId);
+    const alvo =
+      (audienciaId ? doProcesso.find((a) => a.id === audienciaId) : undefined) ??
+      doProcesso.find(estaPendente) ??
+      doProcesso.at(-1);
+
+    if (alvo) setDetalhe(alvo);
+  };
+
   const novo = (): AudienciaEntrada => ({ processo_id: "", tipo: "Audiência de instrução e julgamento", data: hoje, horario: "09:00", modalidade: "Presencial", local: "", situacao: "Agendada", observacao: "" });
   const editar = (a: AudienciaListada) => {
     setDetalhe(null);
@@ -180,6 +190,7 @@ function Pagina() {
         etiquetasPorProcesso={etiquetasPorProcesso}
         podeEditar={podeEditar}
         onMarcar={(id) => setEdicao({ valores: { ...novo(), processo_id: id } })}
+        onGerenciarAudiencia={abrirAudienciaDaCentral}
       />
 
       <section aria-label="Próximas audiências" className="grid gap-3 md:grid-cols-3">
@@ -284,7 +295,7 @@ function Pagina() {
                 <div className="flex gap-2">
                   {podeEditar ? <>
                   {estaPendente(detalhe) ? <button className={BOTAO_SEC} onClick={() => setConfirmar({ a: detalhe, data: hoje, obs: "" })}><CheckCircle2 className="size-3.5" /> Confirmar realização</button> : null}
-                  <button className={BOTAO_SEC} onClick={() => editar(detalhe)}><Pencil className="size-3.5" /> Editar</button>
+                  <button className={BOTAO_SEC} onClick={() => editar(detalhe)}><Pencil className="size-3.5" /> Editar / alterar situação</button>
                   <button className={BOTAO_SEC} onClick={() => excluir(detalhe)}><Trash2 className="size-3.5" /> Excluir</button>
                   </> : null}
                 </div>
@@ -630,12 +641,13 @@ function Calendario({
 /* ---------------- Central: processos aguardando marcação ---------------- */
 
 function CentralAudiencias({
-  itens, etiquetasPorProcesso, podeEditar, onMarcar,
+  itens, etiquetasPorProcesso, podeEditar, onMarcar, onGerenciarAudiencia,
 }: {
   itens: ReturnType<typeof listarCentral>;
   etiquetasPorProcesso: Record<string, EtiquetaDoProcesso[]>;
   podeEditar: boolean;
   onMarcar: (processoId: string) => void;
+  onGerenciarAudiencia: (processoId: string, audienciaId?: string) => void;
 }) {
   const [nivel, setNivel] = useState<NivelAudiencia | null>(null);
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "termo" | "demais">("todas");
@@ -719,9 +731,23 @@ function CentralAudiencias({
                   Últ. mov.: {formatarData(i.ultimaMov)} · <span className="font-semibold text-foreground">{i.dias ?? "—"} dias</span>
                 </div>
                 {i.proxima ? (
-                  <span className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info">Audiência cadastrada · {formatarData(i.proxima.data)} {horaCurta(i.proxima.horario)}</span>
+                  <button
+                    type="button"
+                    title="Abrir audiência e gerenciar"
+                    onClick={() => onGerenciarAudiencia(i.processo.id, i.proxima?.id)}
+                    className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info hover:border-info/50 hover:bg-info/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40"
+                  >
+                    Audiência cadastrada · {formatarData(i.proxima.data)} {horaCurta(i.proxima.horario)}
+                  </button>
                 ) : i.processo.audiencias.length ? (
-                  <span className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info">Audiência cadastrada</span>
+                  <button
+                    type="button"
+                    title="Abrir audiência e gerenciar"
+                    onClick={() => onGerenciarAudiencia(i.processo.id)}
+                    className="rounded-full border border-info/25 bg-info-suave px-2 py-0.5 text-[11px] font-medium text-info hover:border-info/50 hover:bg-info/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40"
+                  >
+                    Audiência cadastrada
+                  </button>
                 ) : null}
                 {podeEditar ? <button className={BOTAO_SEC} onClick={() => onMarcar(i.processo.id)}><Plus className="size-3.5" /> Marcar audiência</button> : null}
               </li>
