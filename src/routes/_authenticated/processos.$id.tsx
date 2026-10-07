@@ -19,6 +19,7 @@ import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho, EstadoVazio, AvisoEtapa } from "@/components/ui-serventia/Cabecalho";
+import { CarregandoProcesso } from "@/components/ui-serventia/CarregandoPagina";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { formatarData } from "@/lib/dominio";
@@ -58,6 +59,9 @@ export const Route = createFileRoute("/_authenticated/processos/$id")({
     const p = await context.queryClient.ensureQueryData(processoQuery(params.id));
     if (!p) throw notFound();
   },
+  pendingComponent: CarregandoProcesso,
+  pendingMs: 80,
+  pendingMinMs: 300,
   notFoundComponent: () => <EstadoVazio titulo="Processo não encontrado" descricao="Verifique o endereço ou volte à lista de processos." />,
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o processo" descricao={error.message} />,
   component: Pagina,
