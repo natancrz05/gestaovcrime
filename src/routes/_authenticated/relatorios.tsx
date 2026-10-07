@@ -563,7 +563,7 @@ function Relatorio({
         processoId: c.processo_id,
         destaque:
           c.situacao !== "Encerrado" && c.status === "vencido"
-            ? ("urgente" as const)
+            ? ("urgente" as Linha["destaque"])
             : undefined,
         celulas: [
           c.pessoa,
@@ -622,9 +622,9 @@ function Relatorio({
         chave: p.id,
         processoId: p.processo_id,
         destaque: p.atrasada
-          ? ("urgente" as const)
+          ? ("urgente" as Linha["destaque"])
           : p.concluidaFlag
-            ? ("sucesso" as const)
+            ? ("sucesso" as Linha["destaque"])
             : undefined,
         celulas: [
           p.titulo || p.descricao,
@@ -665,7 +665,10 @@ function Relatorio({
     linhas = filtrados.map((grupo) => ({
       chave: grupo.id,
       processoId: grupo.processoId,
-      destaque: grupo.nivel === "critico" ? ("urgente" as const) : undefined,
+      destaque:
+        grupo.nivel === "critico"
+          ? ("urgente" as Linha["destaque"])
+          : undefined,
       celulas: [
         grupo.processoNumero ?? "Não vinculado",
         grupo.processoId ? etiquetasDo(grupo.processoId) : "—",
