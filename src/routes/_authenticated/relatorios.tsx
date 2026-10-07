@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   ClipboardList,
   Download,
-  FileText,
   FolderOpen,
   Lock,
   PauseCircle,
@@ -59,7 +58,6 @@ import {
   agruparItensAtencaoBeta,
   filtrarGruposAtencaoBeta,
 } from "@/lib/processos/agrupamento-alertas";
-import { oficiosQuery, type Oficio } from "@/lib/oficios";
 import { cn } from "@/lib/utils";
 
 type Tipo =
@@ -69,7 +67,6 @@ type Tipo =
   | "audiencias"
   | "comparecimentos"
   | "pendencias"
-  | "oficios"
   | "prioridades";
 
 const RELATORIOS: { chave: Tipo; titulo: string; descricao: string; icone: typeof FolderOpen }[] = [
@@ -84,7 +81,6 @@ const RELATORIOS: { chave: Tipo; titulo: string; descricao: string; icone: typeo
   { chave: "audiencias", titulo: "Audiências", descricao: "Pauta, situação, tipo e modalidade", icone: CalendarDays },
   { chave: "comparecimentos", titulo: "Comparecimentos", descricao: "Vencidos, próximos e regulares", icone: ClipboardCheck },
   { chave: "pendencias", titulo: "Pendências", descricao: "Abertas, atrasadas e concluídas", icone: ClipboardList },
-  { chave: "oficios", titulo: "Ofícios", descricao: "Expedições por ano, período e destinatário", icone: FileText },
   {
     chave: "prioridades",
     titulo: "Prioridades e Alertas",
@@ -117,7 +113,6 @@ export const Route = createFileRoute("/_authenticated/relatorios")({
       context.queryClient.ensureQueryData(processosResumoQuery()),
       context.queryClient.ensureQueryData(presosQuery()),
       context.queryClient.ensureQueryData(comparecimentosQuery()),
-      context.queryClient.ensureQueryData(oficiosQuery()),
     ]),
   head: () => ({
     meta: [
@@ -168,7 +163,6 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosResumoQuery());
   const { data: presos } = useSuspenseQuery(presosQuery());
   const { data: comparecimentos } = useSuspenseQuery(comparecimentosQuery());
-  const { data: oficios } = useSuspenseQuery(oficiosQuery());
   const atual = RELATORIOS.find((r) => r.chave === tipo);
 
   return (
@@ -205,7 +199,6 @@ function Pagina() {
           processos={processos}
           presos={presos as unknown as ReuPresoBeta[]}
           comparecimentos={comparecimentos as Comparecimento[]}
-          oficios={oficios}
         />
       ) : (
         <p className="text-sm text-muted-foreground">Selecione um relatório acima.</p>
@@ -270,31 +263,6 @@ function Data({
   );
 }
 
-function Texto({
-  rotulo,
-  valor,
-  set,
-  placeholder,
-}: {
-  rotulo: string;
-  valor: string;
-  set: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="flex min-w-56 flex-col gap-1 text-xs text-muted-foreground">
-      {rotulo}
-      <input
-        className={CLASSE_CAMPO}
-        value={valor}
-        onChange={(e) => set(e.target.value)}
-        placeholder={placeholder}
-        aria-label={rotulo}
-      />
-    </label>
-  );
-}
-
 const noPeriodo = (d: string | null, de: string, ate: string) =>
   (!de || (d !== null && d >= de)) && (!ate || (d !== null && d <= ate));
 
@@ -307,14 +275,12 @@ function Relatorio({
   processos,
   presos,
   comparecimentos,
-  oficios,
 }: {
   tipo: Tipo;
   titulo: string;
   processos: ProcessoCompleto[];
   presos: ReuPresoBeta[];
   comparecimentos: Comparecimento[];
-  oficios: Oficio[];
 }) {
   const [f, setF] = useState<Record<string, string>>({});
   const v = (k: string) => f[k] ?? "";
@@ -333,10 +299,6 @@ function Relatorio({
     [processos],
   );
   const reuIds = useMemo(() => presos.map((p) => p.id), [presos]);
-  const anosOficios = useMemo(
-    () => [...new Set(oficios.map((o) => String(o.ano)))].sort((a, b) => Number(b) - Number(a)),
-    [oficios],
-  );
 
   const etiquetas = useQuery(etiquetasDosProcessosQuery(processoIds));
   const auxiliares = useQuery(dadosAuxiliaresAlertasBetaQuery(reuIds));
@@ -672,62 +634,6 @@ function Relatorio({
           rotuloPrioridade(p.prioridade),
           fmt(p.prazo),
           p.atrasada ? `${p.status} (atrasada)` : p.status,
-        ],
-      }));
-  } else if (tipo === "oficios") {
-    filtros = (
-      <>
-        <Sel
-          rotulo="Ano"
-          valor={v("anoOficio")}
-          set={s("anoOficio")}
-          opcoes={anosOficios}
-        />
-        <Data rotulo="Expedição de" valor={v("oficioDe")} set={s("oficioDe")} />
-        <Data rotulo="Expedição até" valor={v("oficioAte")} set={s("oficioAte")} />
-        <Texto
-          rotulo="Destinatário"
-          valor={v("destinatarioOficio")}
-          set={s("destinatarioOficio")}
-          placeholder="Pesquisar destinatário..."
-        />
-      </>
-    );
-    colunas = [
-      "Ofício",
-      "Data",
-      "Processo",
-      "Destinatário",
-      "Finalidade / observação",
-    ];
-    const termoDestinatario = v("destinatarioOficio")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
-
-    linhas = oficios
-      .filter((o) => !v("anoOficio") || String(o.ano) === v("anoOficio"))
-      .filter((o) => noPeriodo(o.data_expedicao, v("oficioDe"), v("oficioAte")))
-      .filter(
-        (o) =>
-          !termoDestinatario ||
-          o.destinatario
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase()
-            .includes(termoDestinatario),
-      )
-      .sort((a, b) => b.ano - a.ano || b.sequencial - a.sequencial)
-      .map((o) => ({
-        chave: o.id,
-        processoId: o.processo_id,
-        celulas: [
-          o.numero,
-          fmt(o.data_expedicao),
-          o.processos?.numero ?? "—",
-          o.destinatario,
-          o.finalidade,
         ],
       }));
   } else {

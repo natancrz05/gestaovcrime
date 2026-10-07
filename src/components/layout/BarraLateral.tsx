@@ -22,7 +22,6 @@ import {
   UserCheck,
   MessageSquareWarning,
   Sparkles,
-  FileText,
 } from "lucide-react";
 
 export const ITENS_NAV = [
@@ -32,7 +31,6 @@ export const ITENS_NAV = [
   { para: "/reus-presos", rotulo: "Presos Provisórios", icone: Lock, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
-  { para: "/oficios", rotulo: "Ofícios", icone: FileText, exato: false },
   { para: "/prioridades", rotulo: "Prioridades e Alertas", icone: Bell, exato: false },
   { para: "/sugestoes", rotulo: "Problemas e Sugestões", icone: MessageSquareWarning, exato: false },
   { para: "/relatorios", rotulo: "Relatórios", icone: FileBarChart2, exato: false },
@@ -41,7 +39,7 @@ export const ITENS_NAV = [
 
 const GRUPOS: { titulo: string; rotas: string[] }[] = [
   { titulo: "Visão geral", rotas: ["/", "/processos", "/assistente"] },
-  { titulo: "Acompanhamento", rotas: ["/reus-presos", "/audiencias", "/comparecimentos", "/oficios", "/prioridades"] },
+  { titulo: "Acompanhamento", rotas: ["/reus-presos", "/audiencias", "/comparecimentos", "/prioridades"] },
   { titulo: "Administração", rotas: ["/relatorios", "/sugestoes", "/configuracoes"] },
 ];
 
