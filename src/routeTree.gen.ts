@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 import { Route as AuthenticatedComparecimentosRouteImport } from './routes/_authenticated/comparecimentos'
+import { Route as AuthenticatedOficiosRouteImport } from './routes/_authenticated/oficios'
 import { Route as AuthenticatedPendenciasRouteImport } from './routes/_authenticated/pendencias'
 import { Route as AuthenticatedPrioridadesRouteImport } from './routes/_authenticated/prioridades'
 import { Route as AuthenticatedPrisoesTemporariasRouteImport } from './routes/_authenticated/prisoes-temporarias'
@@ -60,6 +61,11 @@ const AuthenticatedComparecimentosRoute =
     path: '/comparecimentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOficiosRoute = AuthenticatedOficiosRouteImport.update({
+  id: '/oficios',
+  path: '/oficios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPendenciasRoute = AuthenticatedPendenciasRouteImport.update({
   id: '/pendencias',
   path: '/pendencias',
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
+  '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
   '/prioridades': typeof AuthenticatedPrioridadesRoute
   '/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
@@ -190,6 +197,7 @@ export interface FileRoutesById {
   '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/comparecimentos': typeof AuthenticatedComparecimentosRoute
+  '/_authenticated/oficios': typeof AuthenticatedOficiosRoute
   '/_authenticated/pendencias': typeof AuthenticatedPendenciasRoute
   '/_authenticated/prioridades': typeof AuthenticatedPrioridadesRoute
   '/_authenticated/prisoes-temporarias': typeof AuthenticatedPrisoesTemporariasRoute
@@ -214,6 +222,7 @@ export interface FileRouteTypes {
     | '/assistente'
     | '/audiencias'
     | '/comparecimentos'
+    | '/oficios'
     | '/pendencias'
     | '/prioridades'
     | '/prisoes-temporarias'
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/assistente'
     | '/_authenticated/audiencias'
     | '/_authenticated/comparecimentos'
+    | '/_authenticated/oficios'
     | '/_authenticated/pendencias'
     | '/_authenticated/prioridades'
     | '/_authenticated/prisoes-temporarias'
@@ -320,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/comparecimentos'
       fullPath: '/comparecimentos'
       preLoaderRoute: typeof AuthenticatedComparecimentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/oficios': {
+      id: '/_authenticated/oficios'
+      path: '/oficios'
+      fullPath: '/oficios'
+      preLoaderRoute: typeof AuthenticatedOficiosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/pendencias': {
@@ -427,6 +444,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedComparecimentosRoute: typeof AuthenticatedComparecimentosRoute
+  AuthenticatedOficiosRoute: typeof AuthenticatedOficiosRoute
   AuthenticatedPendenciasRoute: typeof AuthenticatedPendenciasRoute
   AuthenticatedPrioridadesRoute: typeof AuthenticatedPrioridadesRoute
   AuthenticatedPrisoesTemporariasRoute: typeof AuthenticatedPrisoesTemporariasRoute
@@ -448,6 +466,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedComparecimentosRoute: AuthenticatedComparecimentosRoute,
+  AuthenticatedOficiosRoute: AuthenticatedOficiosRoute,
   AuthenticatedPendenciasRoute: AuthenticatedPendenciasRoute,
   AuthenticatedPrioridadesRoute: AuthenticatedPrioridadesRoute,
   AuthenticatedPrisoesTemporariasRoute: AuthenticatedPrisoesTemporariasRoute,

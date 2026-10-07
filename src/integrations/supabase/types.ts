@@ -488,6 +488,68 @@ export type Database = {
           },
         ]
       }
+      controle_oficios: {
+        Row: {
+          ano: number
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          data_expedicao: string
+          destinatario: string
+          finalidade: string
+          id: string
+          processo_id: string | null
+          sequencial: number
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          data_expedicao: string
+          destinatario: string
+          finalidade: string
+          id?: string
+          processo_id?: string | null
+          sequencial: number
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          data_expedicao?: string
+          destinatario?: string
+          finalidade?: string
+          id?: string
+          processo_id?: string | null
+          sequencial?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controle_oficios_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      controle_oficios_contadores: {
+        Row: {
+          ano: number
+          ultimo_numero: number
+        }
+        Insert: {
+          ano: number
+          ultimo_numero?: number
+        }
+        Update: {
+          ano?: number
+          ultimo_numero?: number
+        }
+        Relationships: []
+      }
       partes: {
         Row: {
           id: string
@@ -992,6 +1054,19 @@ export type Database = {
       confirmar_audiencia: {
         Args: { p_data: string; p_id: string; p_obs: string }
         Returns: undefined
+      }
+      criar_controle_oficio: {
+        Args: {
+          p_data_expedicao: string
+          p_destinatario: string
+          p_finalidade: string
+          p_processo_id?: string | null
+        }
+        Returns: {
+          ano: number
+          id: string
+          sequencial: number
+        }[]
       }
       desfazer_importacao: { Args: { p_id: string }; Returns: Json }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
