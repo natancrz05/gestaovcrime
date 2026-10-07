@@ -22,6 +22,7 @@ import {
   type NovoProcessoEntrada,
 } from "./repositorio";
 import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
+import { avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -89,28 +90,6 @@ export interface ResultadoImportacaoPauta {
   audienciasCriadas: number;
   audienciasAtualizadas: number;
   audienciasJaExistentes: number;
-}
-
-export type ResultadoColisaoHorarioPauta = "livre" | "ja-existente" | "conflito-mesmo-processo";
-
-export function avaliarColisaoHorarioPauta(
-  ocupadas: Array<{ processo_id: string; tipo: string }>,
-  processoId: string,
-  tipo: string,
-): ResultadoColisaoHorarioPauta {
-  const mesmoProcesso = ocupadas.filter((a) => a.processo_id === processoId);
-  if (!mesmoProcesso.length) return "livre";
-
-  const finalidade = norm(tipoAudienciaCanonico(tipo));
-  if (
-    mesmoProcesso.some(
-      (a) => norm(tipoAudienciaCanonico(a.tipo)) === finalidade,
-    )
-  ) {
-    return "ja-existente";
-  }
-
-  return "conflito-mesmo-processo";
 }
 
 const norm = (s: string) =>
@@ -813,9 +792,12 @@ export async function executarImportacaoPauta(
     if (ocupadasError) throw ocupadasError;
 
     const colisao = avaliarColisaoHorarioPauta(
-      (ocupadas ?? []).map((a) => ({ processo_id: a.processo_id, tipo: a.tipo })),
+      (ocupadas ?? []).map((a) => ({
+        processo_id: a.processo_id,
+        tipo: tipoAudienciaCanonico(a.tipo),
+      })),
       processo.id,
-      item.tipo,
+      tipoAudienciaCanonico(item.tipo),
     );
     if (colisao === "ja-existente") {
       audienciasJaExistentes++;
