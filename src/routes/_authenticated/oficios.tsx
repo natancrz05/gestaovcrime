@@ -167,14 +167,6 @@ function Pagina() {
       <Cabecalho
         titulo="Controle de Ofícios"
         subtitulo="Expedições da serventia com numeração anual automática"
-        acao={
-          podeEditar ? (
-            <button className={BOTAO} onClick={() => setEdicao("novo")}>
-              <Plus className="size-4" />
-              Novo ofício
-            </button>
-          ) : undefined
-        }
       />
 
       {ultimoGerado ? (
