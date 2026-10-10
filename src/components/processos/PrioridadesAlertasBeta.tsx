@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Bell, Database, FileSpreadsheet, Pencil, Plus, Search, X } from "lucide-react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { Bell, CalendarDays, Database, FileSpreadsheet, List, Pencil, Plus, Search, X } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
@@ -16,6 +16,7 @@ import {
   agruparItensAtencaoBeta,
   contarGruposAtencaoBeta,
   filtrarGruposAtencaoBeta,
+  filtrarItensAtencaoBeta,
 } from "@/lib/processos/agrupamento-alertas";
 import {
   etiquetasDosProcessosQuery,
@@ -37,6 +38,8 @@ import {
   type OrigemAtencaoBeta,
   type ReuPresoBeta,
 } from "@/lib/processos/alertas-beta";
+
+const CalendarioAlertas = lazy(() => import("./CalendarioAlertas"));
 
 const NIVEIS: { valor: NivelAtencaoBeta; rotulo: string; classe: string }[] = [
   { valor: "critico", rotulo: "Crítico", classe: "border-urgente/30 bg-urgente-suave text-urgente" },
@@ -97,6 +100,7 @@ export function PrioridadesAlertas() {
   const [categoria, setCategoria] = useState("");
   const [modulo, setModulo] = useState("");
   const [prazo, setPrazo] = useState("");
+  const [visao, setVisao] = useState<"central" | "calendario">("central");
   const [mostrarManual, setMostrarManual] = useState(false);
   const [manual, setManual] = useState({
     processo_id: "",
@@ -146,6 +150,28 @@ export function PrioridadesAlertas() {
   const exibidos = useMemo(
     () => filtrarGruposAtencaoBeta(gruposVisiveis, { busca, nivel, origem, categoria, modulo, prazo }),
     [gruposVisiveis, busca, nivel, origem, categoria, modulo, prazo],
+  );
+
+  // O calendário reutiliza exatamente os alertas já calculados pela Central.
+  // O filtro individual só é executado quando a visão Calendário estiver ativa.
+  const itensCalendario = useMemo(
+    () =>
+      visao === "calendario"
+        ? filtrarItensAtencaoBeta(itensVisiveis, {
+            busca,
+            nivel,
+            origem,
+            categoria,
+            modulo,
+            prazo,
+          }).filter((item) => Boolean(item.dataLimite))
+        : [],
+    [visao, itensVisiveis, busca, nivel, origem, categoria, modulo, prazo],
+  );
+
+  const totalCalendario = useMemo(
+    () => itensVisiveis.filter((item) => Boolean(item.dataLimite)).length,
+    [itensVisiveis],
   );
 
   const contagens = useMemo(() => contarGruposAtencaoBeta(gruposVisiveis), [gruposVisiveis]);
@@ -432,10 +458,41 @@ export function PrioridadesAlertas() {
       </section> : null}
 
       <section className="rounded-lg border border-border bg-card p-4 shadow-card">
-        <div className="mb-3 flex items-center gap-2">
-          <Bell className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Checagem</h2>
-          <span className="text-xs text-muted-foreground">{exibidos.length} de {gruposVisiveis.length} item(ns)</span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Bell className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Checagem</h2>
+            <span className="text-xs text-muted-foreground">
+              {visao === "central"
+                ? `${exibidos.length} de ${gruposVisiveis.length} item(ns)`
+                : `${itensCalendario.length} de ${totalCalendario} prazo(s) com data`}
+            </span>
+          </div>
+
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setVisao("central")}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded px-3 text-xs font-medium",
+                visao === "central" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <List className="size-3.5" />
+              Central
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisao("calendario")}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded px-3 text-xs font-medium",
+                visao === "calendario" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <CalendarDays className="size-3.5" />
+              Calendário
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -498,7 +555,18 @@ export function PrioridadesAlertas() {
         </div>
       </section>
 
-      {exibidos.length === 0 ? (
+      {visao === "calendario" ? (
+        <Suspense
+          fallback={
+            <EstadoVazio
+              titulo="Carregando calendário"
+              descricao="Preparando a visualização temporal sem realizar novas consultas."
+            />
+          }
+        >
+          <CalendarioAlertas itens={itensCalendario} hoje={hoje} />
+        </Suspense>
+      ) : exibidos.length === 0 ? (
         <EstadoVazio titulo="Nenhum item encontrado" descricao="Não há prioridades ou alertas para os filtros selecionados." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">

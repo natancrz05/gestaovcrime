@@ -76,7 +76,7 @@ export function contarGruposAtencaoBeta(grupos: GrupoAtencaoBeta[]) {
   return contagens;
 }
 
-interface FiltrosAtencaoBeta {
+export interface FiltrosAtencaoBeta {
   busca?: string;
   nivel?: string;
   origem?: string;
@@ -101,6 +101,40 @@ const normalizarBusca = (texto: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+
+export function filtrarItensAtencaoBeta(
+  itens: ItemAtencaoBeta[],
+  filtros: FiltrosAtencaoBeta,
+): ItemAtencaoBeta[] {
+  const termo = normalizarBusca((filtros.busca ?? "").trim());
+  const digitos = /^[\d\s./-]+$/.test(termo) ? termo.replace(/\D/g, "") : "";
+
+  return itens.filter((item) => {
+    if (filtros.nivel && item.nivel !== filtros.nivel) return false;
+    if (filtros.origem && item.origem !== filtros.origem) return false;
+    if (filtros.categoria && item.categoria !== filtros.categoria) return false;
+    if (filtros.modulo && item.modulo !== filtros.modulo) return false;
+    if (!correspondePrazo(item, filtros.prazo ?? "")) return false;
+    if (!termo) return true;
+
+    const alvo = normalizarBusca(
+      [
+        item.processoNumero,
+        numeroNormalizado(item.processoNumero),
+        item.pessoa,
+        item.titulo,
+        item.descricao,
+        item.categoria,
+        item.modulo,
+        item.origem,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+
+    return alvo.includes(termo) || Boolean(digitos && alvo.includes(digitos));
+  });
+}
 
 export function filtrarGruposAtencaoBeta(
   grupos: GrupoAtencaoBeta[],
