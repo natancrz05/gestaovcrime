@@ -63,14 +63,24 @@ function rotuloNivel(nivel: NivelAtencaoBeta) {
   return mapa[nivel];
 }
 
+function partesDoMes(mes: string) {
+  const partes = mes.split("-");
+  const ano = Number(partes[0]);
+  const numero = Number(partes[1]);
+  return {
+    ano: Number.isFinite(ano) && ano > 0 ? ano : 2000,
+    numero: Number.isFinite(numero) && numero >= 1 && numero <= 12 ? numero : 1,
+  };
+}
+
 function mesAnterior(mes: string) {
-  const [ano, numero] = mes.split("-").map(Number);
+  const { ano, numero } = partesDoMes(mes);
   const data = new Date(ano, numero - 2, 1);
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function mesSeguinte(mes: string) {
-  const [ano, numero] = mes.split("-").map(Number);
+  const { ano, numero } = partesDoMes(mes);
   const data = new Date(ano, numero, 1);
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -111,7 +121,7 @@ export default function CalendarioAlertas({
     [itens],
   );
 
-  const [ano, numeroMes] = mes.split("-").map(Number);
+  const { ano, numero: numeroMes } = partesDoMes(mes);
   const diasNoMes = new Date(ano, numeroMes, 0).getDate();
   const primeiroDia = new Date(ano, numeroMes - 1, 1).getDay();
   const deslocamento = (primeiroDia + 6) % 7;
