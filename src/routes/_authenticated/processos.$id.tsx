@@ -1,4 +1,4 @@
-import { comparecimentosQuery, preparar } from "@/lib/processos/comparecimentos";
+import { comparecimentosDoProcessoQuery, preparar } from "@/lib/processos/comparecimentos";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { AudienciasProcesso } from "@/components/processos/AudienciasProcesso";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
@@ -455,11 +455,19 @@ function Resumo({ rotulo, valor, sub, tom, onClick }: { rotulo: string; valor: s
 }
 
 function ComparecimentosProcesso({ processoId }: { processoId: string }) {
-  const { data, isLoading } = useQuery(comparecimentosQuery());
-  const lista = preparar((data ?? []).filter((c) => c.processo_id === processoId));
+  const { data, isLoading, isError } = useQuery(
+    comparecimentosDoProcessoQuery(processoId),
+  );
+  const lista = preparar(data ?? []);
   return (
     <Secao titulo="Comparecimentos">
-      {isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento cadastrado.</p> : (
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando histórico completo…</p>
+      ) : isError ? (
+        <p className="text-sm text-urgente">Não foi possível carregar o histórico de comparecimentos.</p>
+      ) : lista.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum comparecimento cadastrado.</p>
+      ) : (
         <ul className="space-y-3">
           {lista.map((c) => (
             <li key={c.id} className="rounded-md border border-border p-3 text-sm">

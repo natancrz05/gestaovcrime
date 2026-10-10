@@ -97,6 +97,31 @@ export const comparecimentosAtivosQuery = () =>
     queryFn: () => listar(true),
   });
 
+export const comparecimentosDoProcessoQuery = (processoId: string) =>
+  queryOptions({
+    queryKey: ["comparecimentos", "processo", processoId, "historico-completo"],
+    staleTime: 30_000,
+    queryFn: async (): Promise<Comparecimento[]> => {
+      const { data, error } = await supabase
+        .from("comparecimentos")
+        .select(
+          "*, processos(numero), comparecimento_registros(id,data_prevista,data_realizada,situacao,observacao,criado_em)",
+        )
+        .eq("processo_id", processoId)
+        .order("data_realizada", {
+          referencedTable: "comparecimento_registros",
+          ascending: false,
+        })
+        .order("criado_em", {
+          referencedTable: "comparecimento_registros",
+          ascending: false,
+        })
+        .order("proximo");
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as Comparecimento[];
+    },
+  });
+
 export const comparecimentoHistoricoQuery = (comparecimentoId: string | null) =>
   queryOptions({
     queryKey: ["comparecimentos", comparecimentoId, "historico"],
