@@ -17,7 +17,17 @@ function paraOpcao(p: ProcessoParaSelecao): Opcao {
   return { id: p.id, numero: p.numero, digitos: p.numero.replace(/\D/g, ""), nome, classe: p.classe, texto: sem(`${p.numero} ${nomes}`) };
 }
 
-export function SeletorProcesso({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+export function SeletorProcesso({
+  value,
+  onChange,
+  numeroManual = "",
+  onNumeroManualChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  numeroManual?: string;
+  onNumeroManualChange?: (numero: string) => void;
+}) {
   const { data: processos = [] } = useQuery(processosSeletorQuery());
   const opcoes = useMemo(() => processos.map(paraOpcao), [processos]);
   const [termo, setTermo] = useState("");
@@ -34,13 +44,54 @@ export function SeletorProcesso({ value, onChange }: { value: string; onChange: 
     return opcoes.filter((o) => o.texto.includes(t) || (soNumero && dig.length > 0 && o.digitos.includes(dig))).slice(0, LIMITE);
   }, [termo, opcoes]);
 
-  const escolher = (o: Opcao) => { onChange(o.id); setTermo(""); setAberto(false); };
+  const escolher = (o: Opcao) => {
+    onNumeroManualChange?.("");
+    onChange(o.id);
+    setTermo("");
+    setAberto(false);
+  };
+
+  const podeUsarNumeroManual =
+    Boolean(onNumeroManualChange) &&
+    termo.trim().replace(/\D/g, "").length >= 6;
+
+  const usarNumeroManual = () => {
+    const numero = termo.trim();
+    if (!numero || !onNumeroManualChange) return;
+    onChange("");
+    onNumeroManualChange(numero);
+    setTermo("");
+    setAberto(false);
+  };
 
   if (selecionado && !aberto) {
     return (
       <div className={cn(CLASSE_CAMPO, "flex items-center justify-between gap-2")}>
         <span className="min-w-0 truncate"><span className="numero-processo font-medium">{selecionado.numero}</span>{selecionado.nome ? ` · ${selecionado.nome}` : ""}</span>
         <button type="button" aria-label="Trocar processo" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={() => { onChange(""); setAberto(true); setTimeout(() => ref.current?.focus(), 0); }}><X className="size-4" /></button>
+      </div>
+    );
+  }
+
+  if (numeroManual && !aberto) {
+    return (
+      <div className={cn(CLASSE_CAMPO, "flex items-center justify-between gap-2")}>
+        <span className="min-w-0 truncate">
+          <span className="numero-processo font-medium">{numeroManual}</span>
+          <span className="ml-2 text-xs text-muted-foreground">Não vinculado ao acervo</span>
+        </span>
+        <button
+          type="button"
+          aria-label="Trocar número do processo"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            onNumeroManualChange?.("");
+            setAberto(true);
+            setTimeout(() => ref.current?.focus(), 0);
+          }}
+        >
+          <X className="size-4" />
+        </button>
       </div>
     );
   }
@@ -61,22 +112,43 @@ export function SeletorProcesso({ value, onChange }: { value: string; onChange: 
           if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((a) => Math.min(a + 1, resultados.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((a) => Math.max(a - 1, 0)); }
           else if (e.key === "Enter" && resultados[ativo]) { e.preventDefault(); escolher(resultados[ativo]); }
+          else if (e.key === "Enter" && podeUsarNumeroManual) { e.preventDefault(); usarNumeroManual(); }
           else if (e.key === "Escape") setAberto(false);
         }}
       />
       {aberto ? (
         <ul role="listbox" className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover text-sm shadow-md">
-          {!termo.trim() ? <li className="px-3 py-2 text-muted-foreground">Digite o número ou nome para pesquisar.</li>
-            : resultados.length === 0 ? <li className="px-3 py-2 text-muted-foreground">Nenhum processo encontrado.</li>
-            : resultados.map((o, i) => (
-              <li key={o.id} role="option" aria-selected={i === ativo}>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); escolher(o); }} onMouseEnter={() => setAtivo(i)}
-                  className={cn("block w-full px-3 py-1.5 text-left", i === ativo && "bg-muted")}>
-                  <span className="numero-processo font-medium">{o.numero}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{[o.nome, o.classe].filter(Boolean).join(" · ") || "—"}</span>
-                </button>
-              </li>
-            ))}
+          {!termo.trim() ? (
+            <li className="px-3 py-2 text-muted-foreground">Digite o número ou nome para pesquisar.</li>
+          ) : resultados.length === 0 ? (
+            <li className="px-3 py-2 text-muted-foreground">Nenhum processo encontrado no acervo.</li>
+          ) : resultados.map((o, i) => (
+            <li key={o.id} role="option" aria-selected={i === ativo}>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); escolher(o); }}
+                onMouseEnter={() => setAtivo(i)}
+                className={cn("block w-full px-3 py-1.5 text-left", i === ativo && "bg-muted")}
+              >
+                <span className="numero-processo font-medium">{o.numero}</span>
+                <span className="block truncate text-xs text-muted-foreground">{[o.nome, o.classe].filter(Boolean).join(" · ") || "—"}</span>
+              </button>
+            </li>
+          ))}
+          {podeUsarNumeroManual ? (
+            <li className="border-t border-border p-1.5">
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); usarNumeroManual(); }}
+                className="block w-full rounded px-2 py-2 text-left text-sm font-medium text-primary hover:bg-muted"
+              >
+                Usar número informado: <span className="numero-processo">{termo.trim()}</span>
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                  O ofício será salvo sem vínculo interno com um processo do acervo.
+                </span>
+              </button>
+            </li>
+          ) : null}
           {resultados.length === LIMITE ? <li className="px-3 py-1.5 text-xs text-muted-foreground">Mostrando os primeiros {LIMITE}. Refine a pesquisa.</li> : null}
         </ul>
       ) : null}

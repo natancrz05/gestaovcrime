@@ -23,6 +23,7 @@ export interface ControleOficio {
 
 export interface ControleOficioEntrada {
   processo_id: string | null;
+  processo_original: string | null;
   data_expedicao: string;
   destinatario: string;
   finalidade: string;
@@ -104,11 +105,14 @@ export const proximoNumeroControleOficioQuery = (ano: number) =>
   });
 
 export async function criarControleOficio(entrada: ControleOficioEntrada) {
-  const { data, error } = await supabase.rpc("criar_controle_oficio", {
+  const { data, error } = await supabase.rpc("criar_controle_oficio_v2", {
     p_data_expedicao: entrada.data_expedicao,
     p_destinatario: entrada.destinatario.trim(),
     p_finalidade: entrada.finalidade.trim(),
     p_processo_id: entrada.processo_id || null,
+    p_processo_original: entrada.processo_id
+      ? null
+      : entrada.processo_original?.trim() || null,
   });
 
   if (error) throw new Error(error.message);
@@ -141,6 +145,9 @@ export async function atualizarControleOficio(
     .from("controle_oficios")
     .update({
       processo_id: entrada.processo_id || null,
+      processo_original: entrada.processo_id
+        ? null
+        : entrada.processo_original?.trim() || null,
       data_expedicao: entrada.data_expedicao,
       destinatario,
       finalidade,

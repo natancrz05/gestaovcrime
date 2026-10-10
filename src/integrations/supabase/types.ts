@@ -1104,6 +1104,20 @@ export type Database = {
           sequencial: number
         }[]
       }
+      criar_controle_oficio_v2: {
+        Args: {
+          p_data_expedicao: string
+          p_destinatario: string
+          p_finalidade: string
+          p_processo_id?: string | null
+          p_processo_original?: string | null
+        }
+        Returns: {
+          ano: number
+          id: string
+          sequencial: number
+        }[]
+      }
       desfazer_importacao: { Args: { p_id: string }; Returns: Json }
       eh_admin: { Args: { _user_id: string }; Returns: boolean }
       encerrar_prisao: {

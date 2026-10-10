@@ -452,6 +452,7 @@ function FormOficio({
 }) {
   const [valor, setValor] = useState<ControleOficioEntrada>({
     processo_id: oficio?.processo_id ?? null,
+    processo_original: oficio?.processo_id ? null : oficio?.processo_original ?? null,
     data_expedicao: oficio?.data_expedicao ?? hojeISO(),
     destinatario: oficio?.destinatario ?? "",
     finalidade: oficio?.finalidade ?? "",
@@ -512,10 +513,25 @@ function FormOficio({
       <Campo rotulo="Processo (opcional)">
         <SeletorProcesso
           value={valor.processo_id ?? ""}
+          numeroManual={valor.processo_original ?? ""}
           onChange={(processo_id) =>
-            setValor({ ...valor, processo_id: processo_id || null })
+            setValor({
+              ...valor,
+              processo_id: processo_id || null,
+              processo_original: processo_id ? null : valor.processo_original,
+            })
+          }
+          onNumeroManualChange={(processo_original) =>
+            setValor({
+              ...valor,
+              processo_id: null,
+              processo_original: processo_original || null,
+            })
           }
         />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Pesquise no acervo. Se não encontrar o processo, digite o número e escolha “Usar número informado”.
+        </p>
       </Campo>
 
       <div className="grid gap-3 md:grid-cols-2">
