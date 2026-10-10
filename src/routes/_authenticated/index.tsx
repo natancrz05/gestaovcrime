@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { formatarData } from "@/lib/dominio";
-import { listarPendenciasDe, proximasAcoes } from "@/lib/processos/pendencias";
+import { listarPendenciasDe } from "@/lib/processos/pendencias";
 import { etiquetasDosProcessosQuery, processosResumoQuery, type EtiquetaDoProcesso } from "@/lib/processos/repositorio";
 import { presosQuery } from "@/lib/processos/reus-presos";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,8 @@ export const Route = createFileRoute("/_authenticated/")({
   errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
   component: Dashboard,
 });
+
+const CalendarioAlertasDashboard = lazy(() => import("@/components/processos/CalendarioAlertasDashboard"));
 
 const NIVEIS_DASHBOARD: {
   valor: Exclude<NivelAtencaoBeta, "administrativo">;
@@ -98,12 +100,23 @@ function Dashboard() {
     [alertasVisiveis, nivelSelecionado],
   );
 
-  const { pendAbertas, acoes, audFuturas, aguardando, aud7, audExtensas } = useMemo(() => {
+  const alertasCalendario = useMemo(
+    () =>
+      itensAlertas.filter(
+        (item) =>
+          item.nivel !== "administrativo" &&
+          Boolean(item.dataLimite) &&
+          !chavesOcultas.has(chaveOcultacaoAlertaBeta(item)) &&
+          (!nivelSelecionado || item.nivel === nivelSelecionado),
+      ),
+    [itensAlertas, chavesOcultas, nivelSelecionado],
+  );
+
+  const { pendAbertas, audFuturas, aguardando, aud7, audExtensas } = useMemo(() => {
     const pendencias = listarPendenciasDe(processos);
     const futurasDaAgenda = futuras(listarAudienciasDe(processos));
     return {
       pendAbertas: pendencias.filter((p) => !p.concluidaFlag).length,
-      acoes: proximasAcoes(pendencias).slice(0, 8),
       audFuturas: futurasDaAgenda,
       aguardando: listarCentral(processos).length,
       aud7: futurasDaAgenda.filter((a) => a.dias <= 7).length,
@@ -306,25 +319,33 @@ function Dashboard() {
           )}
         </section>
 
-        <section aria-labelledby="proximas-acoes" className="space-y-3">
-          <div>
-            <h2 id="proximas-acoes" className="text-lg font-semibold text-foreground">Próximas ações</h2>
-            <p className="text-sm text-muted-foreground">Atrasadas, alta prioridade e prazo próximo</p>
-          </div>
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-card">
-            {acoes.map((a) => (
-              <li key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.atrasada ? "bg-urgente" : a.prioridade === "alta" ? "bg-atencao" : "bg-info")} />
-                <div className="min-w-0 flex-1">
-                  <Link to="/processos/$id" params={{ id: a.processo_id }} className="text-sm font-medium text-foreground hover:underline">{a.titulo || a.descricao}</Link>
-                  <p className="mt-0.5 text-xs text-muted-foreground"><Link to="/processos/$id" params={{ id: a.processo_id }} className="numero-processo hover:underline">{a.numero}</Link>{a.responsavel ? ` · ${a.responsavel}` : ""}</p>
+        {alertasCarregando ? (
+          <section aria-label="Calendário de alertas" className="space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Calendário de alertas</h2>
+              <p className="text-sm text-muted-foreground">Prazos e ocorrências com data definida</p>
+            </div>
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Atualizando calendário…
+            </div>
+          </section>
+        ) : (
+          <Suspense
+            fallback={
+              <section aria-label="Calendário de alertas" className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Calendário de alertas</h2>
+                  <p className="text-sm text-muted-foreground">Prazos e ocorrências com data definida</p>
                 </div>
-                <span className={cn("shrink-0 text-xs tabular-nums", a.atrasada ? "font-medium text-urgente" : "text-muted-foreground")}>{a.atrasada ? "Atrasada · " : ""}{formatarData(a.prazo)}</span>
-              </li>
-            ))}
-            {acoes.length === 0 ? <li className="px-4 py-3 text-sm text-muted-foreground">Nenhuma ação pendente.</li> : null}
-          </ul>
-        </section>
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  Preparando calendário…
+                </div>
+              </section>
+            }
+          >
+            <CalendarioAlertasDashboard itens={alertasCalendario} hoje={hoje} />
+          </Suspense>
+        )}
       </div>
     </div>
   );
