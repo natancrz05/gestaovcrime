@@ -223,6 +223,26 @@ export async function lerPautaSincronizacaoBeta(
       continue;
     }
 
+    // Checagem estrutural independente: cada ocorrência também deve começar
+    // por um bloco CNJ. Na BETA, divergência não bloqueia o restante do arquivo;
+    // apenas sinaliza a página para conferência.
+    const iniciosProcesso = itens.filter(
+      (i) =>
+        colunaDe(i.x, limites) === "processo" &&
+        /^\d{7}-?$/.test(i.str.replace(/\s/g, "")),
+    );
+    if (iniciosProcesso.length !== inicios.length) {
+      erros.push({
+        pagina,
+        motivo:
+          "Estrutura da página requer conferência: " +
+          inicios.length +
+          " horário(s) e " +
+          iniciosProcesso.length +
+          " início(s) de processo reconhecido(s).",
+      });
+    }
+
     for (let n = 0; n < inicios.length; n++) {
       const inicio = inicios[n]!;
       const proximo = inicios[n + 1];
