@@ -39,6 +39,118 @@ describe("Sincronização de pautas BETA", () => {
     expect(situacaoPautaBeta("realizada")).toBe("Realizada");
   });
 
+  test("status não-realizada já salvo no sistema não é confundido com realizada", () => {
+    const analise = analisarSincronizacaoPautaBeta(
+      [
+        linha({
+          situacao: "NaoRealizada",
+          situacaoOriginal: "não-realizada",
+        }),
+      ],
+      [
+        processo([
+          {
+            id: "aud-1",
+            data: "2026-06-03",
+            horario: "10:20",
+            tipo: "Audiência de instrução e julgamento",
+            situacao: "não-realizada",
+          },
+        ]),
+      ],
+    );
+
+    expect(analise.contagens.conferir).toBe(1);
+    expect(analise.itens[0]?.motivo).toContain("preserva");
+    expect(analise.itens[0]?.situacaoSistema).toBe("não-realizada");
+  });
+
+  test("duplicata exata da pauta é ignorada sem criar conflito artificial", () => {
+    const original = linha();
+    const analise = analisarSincronizacaoPautaBeta(
+      [original, { ...original, pagina: 2 }],
+      [processo()],
+    );
+
+    expect(analise.duplicadasExatasIgnoradas).toBe(1);
+    expect(analise.totalAnalisado).toBe(1);
+    expect(analise.contagens["nova-candidata"]).toBe(1);
+  });
+
+  test("designada no PJe e agendada no sistema são tratadas como equivalentes", () => {
+    const analise = analisarSincronizacaoPautaBeta(
+      [
+        linha({
+          situacao: "Designada",
+          situacaoOriginal: "designada",
+        }),
+      ],
+      [
+        processo([
+          {
+            id: "aud-1",
+            data: "2026-06-03",
+            horario: "10:20",
+            tipo: "Audiência de instrução e julgamento",
+            situacao: "Agendada",
+          },
+        ]),
+      ],
+    );
+
+    expect(analise.contagens["sem-alteracao"]).toBe(1);
+  });
+
+  test("cancelada correspondente a audiência agendada é atualização segura", () => {
+    const analise = analisarSincronizacaoPautaBeta(
+      [
+        linha({
+          situacao: "Cancelada",
+          situacaoOriginal: "cancelada",
+        }),
+      ],
+      [
+        processo([
+          {
+            id: "aud-1",
+            data: "2026-06-03",
+            horario: "10:20",
+            tipo: "Audiência de instrução e julgamento",
+            situacao: "Agendada",
+          },
+        ]),
+      ],
+    );
+
+    expect(analise.contagens["atualizacao-segura"]).toBe(1);
+    expect(analise.itens[0]?.sugestao).toContain("cancelada");
+  });
+
+  test("redesignada correspondente a audiência agendada preserva a ocorrência", () => {
+    const analise = analisarSincronizacaoPautaBeta(
+      [
+        linha({
+          situacao: "Redesignada",
+          situacaoOriginal: "redesignada",
+        }),
+      ],
+      [
+        processo([
+          {
+            id: "aud-1",
+            data: "2026-06-03",
+            horario: "10:20",
+            tipo: "Audiência de instrução e julgamento",
+            situacao: "Agendada",
+          },
+        ]),
+      ],
+    );
+
+    expect(analise.contagens["atualizacao-segura"]).toBe(1);
+    expect(analise.itens[0]?.motivo).toContain("não tenta adivinhar a nova data");
+  });
+
   test("duas linhas diferentes do mesmo processo/data/horário vão para conferência", () => {
     const analise = analisarSincronizacaoPautaBeta(
       [
