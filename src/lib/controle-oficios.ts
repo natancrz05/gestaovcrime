@@ -1,8 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-
-type ArgsCriarOficio = Database["public"]["Functions"]["criar_controle_oficio_v2"]["Args"];
 
 export interface ControleOficio {
   id: string;
@@ -108,20 +105,15 @@ export const proximoNumeroControleOficioQuery = (ano: number) =>
   });
 
 export async function criarControleOficio(entrada: ControleOficioEntrada) {
-  const parametros: ArgsCriarOficio = {
+  const { data, error } = await supabase.rpc("criar_controle_oficio_v2", {
     p_data_expedicao: entrada.data_expedicao,
     p_destinatario: entrada.destinatario.trim(),
     p_finalidade: entrada.finalidade.trim(),
-  };
-  // Os dois campos são opcionais na função do banco (padrão NULL): só são
-  // enviados quando existe valor, preservando o comportamento anterior.
-  if (entrada.processo_id) {
-    parametros.p_processo_id = entrada.processo_id;
-  } else if (entrada.processo_original?.trim()) {
-    parametros.p_processo_original = entrada.processo_original.trim();
-  }
-
-  const { data, error } = await supabase.rpc("criar_controle_oficio_v2", parametros);
+    p_processo_id: entrada.processo_id || null,
+    p_processo_original: entrada.processo_id
+      ? null
+      : entrada.processo_original?.trim() || null,
+  });
 
   if (error) throw new Error(error.message);
   const criado = data?.[0];
