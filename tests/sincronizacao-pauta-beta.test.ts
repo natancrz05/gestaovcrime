@@ -169,6 +169,26 @@ describe("Sincronização de pautas BETA", () => {
     expect(analise.contagens["atualizacao-segura"]).toBe(0);
   });
 
+  test("mesma finalidade e mesmo horário com situações incompatíveis também vão para conferência", () => {
+    const analise = analisarSincronizacaoPautaBeta(
+      [
+        linha({
+          situacao: "Realizada",
+          situacaoOriginal: "realizada",
+        }),
+        linha({
+          situacao: "Redesignada",
+          situacaoOriginal: "redesignada",
+        }),
+      ],
+      [processo()],
+    );
+
+    expect(analise.contagens.conferir).toBe(2);
+    expect(analise.contagens["atualizacao-segura"]).toBe(0);
+    expect(analise.contagens["nova-candidata"]).toBe(0);
+  });
+
   test("realizada correspondente a audiência agendada é atualização segura", () => {
     const analise = analisarSincronizacaoPautaBeta(
       [linha()],
