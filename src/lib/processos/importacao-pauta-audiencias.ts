@@ -6,7 +6,8 @@
  * - nenhuma gravação durante a leitura/prévia;
  * - processo é identificado pelo número CNJ normalizado;
  * - audiência já existente, inclusive manual, nunca é recriada;
- * - duplicidades de horário dentro do mesmo processo são bloqueadas antes da importação;
+ * - quando a mesma audiência reaparece em pauta posterior, os dados atuais do PJe substituem os anteriores;
+ * - conflitos reais continuam bloqueados antes da importação;
  * - réus são extraídos das Partes apenas quando o papel é inequivocamente passivo.
  * - a importação é idempotente: se for interrompida, o mesmo arquivo pode ser
  *   processado novamente sem recriar o que já tiver sido salvo.
@@ -45,7 +46,7 @@ export interface LinhaPautaAudiencia {
   salaOriginal: string;
   local: "Sala de Audiências" | "Sala do Júri" | "Videoconferência" | "Outro";
   modalidade: "Presencial" | "Virtual" | "Híbrida";
-  situacao: "Agendada" | "Redesignada" | "Realizada" | "Cancelada";
+  situacao: "Agendada" | "Redesignada" | "Realizada" | "Cancelada" | "Não realizada" | "Convertida em diligência";
   situacaoOriginal: string;
   pessoas: PessoaPauta[];
   reus: PessoaPauta[];
@@ -140,9 +141,13 @@ function limparClasse(s: string): string {
 
 function situacaoCanonica(s: string): LinhaPautaAudiencia["situacao"] | null {
   const t = norm(s);
+  // O PJe usa situações além das quatro opções históricas do sistema.
+  // "não realizada" precisa vir antes de "realizada", pois contém o mesmo radical.
+  if (/NAO[ -]?REALIZAD/.test(t)) return "Não realizada";
+  if (/CONVERTID.*DILIG/.test(t)) return "Convertida em diligência";
   if (/CANCELAD/.test(t)) return "Cancelada";
-  if (/REALIZAD/.test(t)) return "Realizada";
   if (/REDESIGNAD/.test(t)) return "Redesignada";
+  if (/REALIZAD/.test(t)) return "Realizada";
   if (/DESIGNAD|AGENDAD|MARCADA/.test(t)) return "Agendada";
   return null;
 }
@@ -519,12 +524,6 @@ export function analisarPautaAudiencias(
       );
       if (exata) {
         const situacaoExistente = situacaoCanonica(exata.situacao) ?? exata.situacao;
-        if ((situacaoExistente === "Realizada" || situacaoExistente === "Cancelada") && situacaoExistente !== l.situacao) {
-          return {
-            ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "conflito",
-            motivo: `A audiência já está "${exata.situacao}" no sistema, mas a pauta informa "${l.situacaoOriginal}".`,
-          };
-        }
         if (
           situacaoExistente !== l.situacao ||
           exata.local !== l.local ||
@@ -532,7 +531,7 @@ export function analisarPautaAudiencias(
         ) {
           return {
             ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "sincronizar",
-            motivo: "Audiência já cadastrada manualmente; os dados serão atualizados com a pauta do PJe.",
+            motivo: "Audiência já cadastrada; os dados atuais da pauta do PJe substituirão os anteriores.",
           };
         }
         return { ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
@@ -540,16 +539,9 @@ export function analisarPautaAudiencias(
 
       const mesmoMomento = processo.audiencias.find((a) => a.data === l.data && (a.horario ?? "").slice(0, 5) === l.horario);
       if (mesmoMomento) {
-        const situacaoExistente = situacaoCanonica(mesmoMomento.situacao) ?? mesmoMomento.situacao;
-        if ((situacaoExistente === "Realizada" || situacaoExistente === "Cancelada") && situacaoExistente !== l.situacao) {
-          return {
-            ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "conflito",
-            motivo: `Já existe audiência "${mesmoMomento.situacao}" neste horário; a pauta informa "${l.situacaoOriginal}".`,
-          };
-        }
         return {
           ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "sincronizar",
-          motivo: `Audiência manual localizada no mesmo processo, data e horário (${mesmoMomento.tipo}); será reutilizada e sincronizada com o PJe.`,
+          motivo: `Audiência já localizada no mesmo processo, data e horário (${mesmoMomento.tipo}); o cadastro será atualizado com os dados atuais do PJe.`,
         };
       }
     }
@@ -637,8 +629,13 @@ async function inserirReusAusentes(processo: ProcessoCompleto, pessoas: PessoaPa
 function mesclarObservacaoPauta(atual: string, pauta: string) {
   const a = atual.trim();
   if (!a) return pauta;
-  if (a.includes("Importada da pauta de audiências do PJe.")) return a;
-  return `${a}\n${pauta}`;
+  if (!a.includes("Importada da pauta de audiências do PJe.")) return `${a}\n${pauta}`;
+
+  // Mantém observações manuais, mas substitui o bloco antigo gerado pelo importador
+  // para que sala/situação do PJe não fiquem desatualizadas após nova importação.
+  const inicio = a.indexOf("Importada da pauta de audiências do PJe.");
+  const antes = a.slice(0, inicio).trimEnd();
+  return antes ? `${antes}\n${pauta}` : pauta;
 }
 
 export async function executarImportacaoPauta(
