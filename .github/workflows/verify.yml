@@ -2,7 +2,8 @@ name: Verificação de lançamento
 
 on:
   push:
-    branches: [main]
+    # BETA temporária: permite validar esta branch sem levá-la à main.
+    branches: [main, beta/sincronizacao-pautas]
   pull_request:
     branches: [main]
 
