@@ -5,7 +5,7 @@ import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import { usePode } from "@/lib/sessao";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo, Opcoes, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -179,6 +179,13 @@ function Pagina() {
         subtitulo={`${prox.length} audiências futuras · ${todas.length} registradas`}
         acao={podeEditar ? (
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/audiencias-sincronizacao-beta"
+              className={BOTAO_SEC}
+              title="Abrir simulador isolado de reconciliação de pautas"
+            >
+              <FlaskConical className="size-3.5" /> Sincronização BETA
+            </Link>
             <ImportarPautaAudiencias onConcluido={recarregarAcervo} processos={processos} />
             <button className={BOTAO} onClick={() => setEdicao({ valores: novo() })}><Plus className="size-4" /> Nova audiência</button>
           </div>
