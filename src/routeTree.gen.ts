@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
+import { Route as AuthenticatedAudienciasSincronizacaoBetaRouteImport } from './routes/_authenticated/audiencias-sincronizacao-beta'
 import { Route as AuthenticatedComparecimentosRouteImport } from './routes/_authenticated/comparecimentos'
 import { Route as AuthenticatedOficiosRouteImport } from './routes/_authenticated/oficios'
 import { Route as AuthenticatedPendenciasRouteImport } from './routes/_authenticated/pendencias'
@@ -55,6 +56,12 @@ const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
   path: '/audiencias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAudienciasSincronizacaoBetaRoute =
+  AuthenticatedAudienciasSincronizacaoBetaRouteImport.update({
+    id: '/audiencias-sincronizacao-beta',
+    path: '/audiencias-sincronizacao-beta',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComparecimentosRoute =
   AuthenticatedComparecimentosRouteImport.update({
     id: '/comparecimentos',
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/audiencias-sincronizacao-beta': typeof AuthenticatedAudienciasSincronizacaoBetaRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/audiencias-sincronizacao-beta': typeof AuthenticatedAudienciasSincronizacaoBetaRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -197,6 +206,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
+  '/_authenticated/audiencias-sincronizacao-beta': typeof AuthenticatedAudienciasSincronizacaoBetaRoute
   '/_authenticated/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/_authenticated/oficios': typeof AuthenticatedOficiosRoute
   '/_authenticated/pendencias': typeof AuthenticatedPendenciasRoute
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/assistente'
     | '/audiencias'
+    | '/audiencias-sincronizacao-beta'
     | '/comparecimentos'
     | '/oficios'
     | '/pendencias'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/assistente'
     | '/audiencias'
+    | '/audiencias-sincronizacao-beta'
     | '/comparecimentos'
     | '/oficios'
     | '/pendencias'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/assistente'
     | '/_authenticated/audiencias'
+    | '/_authenticated/audiencias-sincronizacao-beta'
     | '/_authenticated/comparecimentos'
     | '/_authenticated/oficios'
     | '/_authenticated/pendencias'
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       path: '/audiencias'
       fullPath: '/audiencias'
       preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/audiencias-sincronizacao-beta': {
+      id: '/_authenticated/audiencias-sincronizacao-beta'
+      path: '/audiencias-sincronizacao-beta'
+      fullPath: '/audiencias-sincronizacao-beta'
+      preLoaderRoute: typeof AuthenticatedAudienciasSincronizacaoBetaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comparecimentos': {
@@ -445,6 +465,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
+  AuthenticatedAudienciasSincronizacaoBetaRoute: typeof AuthenticatedAudienciasSincronizacaoBetaRoute
   AuthenticatedComparecimentosRoute: typeof AuthenticatedComparecimentosRoute
   AuthenticatedOficiosRoute: typeof AuthenticatedOficiosRoute
   AuthenticatedPendenciasRoute: typeof AuthenticatedPendenciasRoute
@@ -467,6 +488,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
+  AuthenticatedAudienciasSincronizacaoBetaRoute: AuthenticatedAudienciasSincronizacaoBetaRoute,
   AuthenticatedComparecimentosRoute: AuthenticatedComparecimentosRoute,
   AuthenticatedOficiosRoute: AuthenticatedOficiosRoute,
   AuthenticatedPendenciasRoute: AuthenticatedPendenciasRoute,
