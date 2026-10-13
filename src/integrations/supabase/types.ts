@@ -10,10 +10,28 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
+      alertas_ocultos: {
+        Row: {
+          alerta_chave: string
+          criado_em: string
+          criado_por: string | null
+        }
+        Insert: {
+          alerta_chave: string
+          criado_em?: string
+          criado_por?: string | null
+        }
+        Update: {
+          alerta_chave?: string
+          criado_em?: string
+          criado_por?: string | null
+        }
+        Relationships: []
+      }
       audiencias: {
         Row: {
           aguardando_nova_data: boolean
@@ -72,27 +90,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      alertas_ocultos: {
-        Row: {
-          alerta_chave: string
-          criado_em: string
-          criado_por: string | null
-          id: string
-        }
-        Insert: {
-          alerta_chave: string
-          criado_em?: string
-          criado_por?: string | null
-          id?: string
-        }
-        Update: {
-          alerta_chave?: string
-          criado_em?: string
-          criado_por?: string | null
-          id?: string
-        }
-        Relationships: []
       }
       auditoria: {
         Row: {
@@ -242,6 +239,104 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      controle_oficios: {
+        Row: {
+          ano: number
+          atualizado_em: string
+          chave_importacao: string | null
+          criado_em: string
+          criado_por: string | null
+          data_expedicao: string | null
+          data_original: string | null
+          destinatario: string
+          finalidade: string
+          fonte_importacao: string | null
+          historico_importado: boolean
+          id: string
+          numero_original: string | null
+          processo_id: string | null
+          processo_original: string | null
+          sequencial: number | null
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string
+          chave_importacao?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_expedicao?: string | null
+          data_original?: string | null
+          destinatario: string
+          finalidade: string
+          fonte_importacao?: string | null
+          historico_importado?: boolean
+          id?: string
+          numero_original?: string | null
+          processo_id?: string | null
+          processo_original?: string | null
+          sequencial?: number | null
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string
+          chave_importacao?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_expedicao?: string | null
+          data_original?: string | null
+          destinatario?: string
+          finalidade?: string
+          fonte_importacao?: string | null
+          historico_importado?: boolean
+          id?: string
+          numero_original?: string | null
+          processo_id?: string | null
+          processo_original?: string | null
+          sequencial?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controle_oficios_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      controle_oficios_contadores: {
+        Row: {
+          ano: number
+          ultimo_numero: number
+        }
+        Insert: {
+          ano: number
+          ultimo_numero?: number
+        }
+        Update: {
+          ano?: number
+          ultimo_numero?: number
+        }
+        Relationships: []
+      }
+      controle_oficios_numeros_disponiveis: {
+        Row: {
+          ano: number
+          liberado_em: string
+          sequencial: number
+        }
+        Insert: {
+          ano: number
+          liberado_em?: string
+          sequencial: number
+        }
+        Update: {
+          ano?: number
+          liberado_em?: string
+          sequencial?: number
+        }
+        Relationships: []
       }
       etiquetas: {
         Row: {
@@ -487,104 +582,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      controle_oficios: {
-        Row: {
-          ano: number
-          atualizado_em: string
-          chave_importacao: string | null
-          criado_em: string
-          criado_por: string | null
-          data_expedicao: string | null
-          data_original: string | null
-          destinatario: string
-          finalidade: string
-          fonte_importacao: string | null
-          historico_importado: boolean
-          id: string
-          numero_original: string | null
-          processo_id: string | null
-          processo_original: string | null
-          sequencial: number | null
-        }
-        Insert: {
-          ano: number
-          atualizado_em?: string
-          chave_importacao?: string | null
-          criado_em?: string
-          criado_por?: string | null
-          data_expedicao?: string | null
-          data_original?: string | null
-          destinatario: string
-          finalidade: string
-          fonte_importacao?: string | null
-          historico_importado?: boolean
-          id?: string
-          numero_original?: string | null
-          processo_id?: string | null
-          processo_original?: string | null
-          sequencial?: number | null
-        }
-        Update: {
-          ano?: number
-          atualizado_em?: string
-          chave_importacao?: string | null
-          criado_em?: string
-          criado_por?: string | null
-          data_expedicao?: string | null
-          data_original?: string | null
-          destinatario?: string
-          finalidade?: string
-          fonte_importacao?: string | null
-          historico_importado?: boolean
-          id?: string
-          numero_original?: string | null
-          processo_id?: string | null
-          processo_original?: string | null
-          sequencial?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "controle_oficios_processo_id_fkey"
-            columns: ["processo_id"]
-            isOneToOne: false
-            referencedRelation: "processos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      controle_oficios_contadores: {
-        Row: {
-          ano: number
-          ultimo_numero: number
-        }
-        Insert: {
-          ano: number
-          ultimo_numero?: number
-        }
-        Update: {
-          ano?: number
-          ultimo_numero?: number
-        }
-        Relationships: []
-      }
-      controle_oficios_numeros_disponiveis: {
-        Row: {
-          ano: number
-          liberado_em: string
-          sequencial: number
-        }
-        Insert: {
-          ano: number
-          liberado_em?: string
-          sequencial: number
-        }
-        Update: {
-          ano?: number
-          liberado_em?: string
-          sequencial?: number
-        }
-        Relationships: []
       }
       partes: {
         Row: {
@@ -1096,7 +1093,7 @@ export type Database = {
           p_data_expedicao: string
           p_destinatario: string
           p_finalidade: string
-          p_processo_id?: string | null
+          p_processo_id?: string
         }
         Returns: {
           ano: number
@@ -1109,8 +1106,8 @@ export type Database = {
           p_data_expedicao: string
           p_destinatario: string
           p_finalidade: string
-          p_processo_id?: string | null
-          p_processo_original?: string | null
+          p_processo_id?: string
+          p_processo_original?: string
         }
         Returns: {
           ano: number
@@ -1124,10 +1121,7 @@ export type Database = {
         Args: { p_data: string; p_motivo: string; p_reu: string }
         Returns: undefined
       }
-      excluir_controle_oficio: {
-        Args: { p_id: string }
-        Returns: undefined
-      }
+      excluir_controle_oficio: { Args: { p_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
