@@ -97,6 +97,10 @@ export function situacaoPautaBeta(valor: string): SituacaoPautaBeta {
 
 function situacaoSistemaCanonica(valor: string) {
   const t = norm(valor);
+  // Assim como no PJe, "não-realizada" precisa ser testada antes de
+  // "realizada", pois contém o mesmo radical.
+  if (/NAO[ -]?REALIZAD/.test(t)) return "NaoRealizada";
+  if (/CONVERTID.*DILIG/.test(t)) return "ConvertidaDiligencia";
   if (/CANCELAD/.test(t)) return "Cancelada";
   if (/REDESIGNAD/.test(t)) return "Redesignada";
   if (/REALIZAD/.test(t)) return "Realizada";
