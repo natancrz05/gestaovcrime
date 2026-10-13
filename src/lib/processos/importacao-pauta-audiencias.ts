@@ -169,9 +169,9 @@ function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidad
 
 function papelEhReu(papel: string) {
   const t = norm(papel).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-  // Para fins operacionais da plataforma, APELADO integra o mesmo grupo
-  // utilizado para identificar o réu/polo passivo nas pautas do PJe.
-  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELADO)/.test(t);
+  // Regra operacional da Vara: APELADO/APELADA é tratado como réu para fins
+  // de identificação do polo passivo na importação de pautas do PJe.
+  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD)/.test(t);
 }
 
 function extrairPessoas(texto: string): PessoaPauta[] {
