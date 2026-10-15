@@ -264,8 +264,9 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
   const [numero, setNumero] = useState("");
   const [tipo, setTipo] = useState<string>("acao_penal");
   const [editando, setEditando] = useState<number | null>(null);
+  const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  useEffect(() => { if (reu) { setModo("existente"); setProc(""); setNumero(""); setTipo("acao_penal"); setEditando(null); } }, [reu]);
+  useEffect(() => { if (reu) { setModo("existente"); setProc(""); setNumero(""); setTipo("acao_penal"); setEditando(null); setErro(""); } }, [reu]);
 
   const novoVinculo = () => {
     setEditando(null);
@@ -273,6 +274,7 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
     setProc("");
     setNumero("");
     setTipo("acao_penal");
+    setErro("");
   };
 
   const editarVinculo = (indice: number) => {
@@ -280,6 +282,7 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
     const atual = (reu.processos_relacionados ?? [])[indice];
     if (!atual) return;
     setEditando(indice);
+    setErro("");
     setTipo(atual.tipo || "acao_penal");
     if (atual.processo_id) {
       setModo("existente");
@@ -333,8 +336,15 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
           pid = novo.id;
         }
       }
-      if (pid === reu.processo_id) throw new Error("Este já é o processo principal do preso");
       const atuais = reu.processos_relacionados ?? [];
+      const vinculoAtual = editando === null ? null : atuais[editando];
+      const editandoMesmoVinculoPrincipal =
+        editando !== null &&
+        vinculoAtual?.processo_id === pid &&
+        pid === reu.processo_id;
+      if (pid === reu.processo_id && !editandoMesmoVinculoPrincipal) {
+        throw new Error("Este já é o processo principal do preso");
+      }
       if (atuais.some((r, i) => i !== editando && (r.processo_id === pid || soDig(r.numero) === soDig(num)))) {
         toast.info("Processo já relacionado — vínculo existente mantido");
         return;
@@ -347,7 +357,11 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
       const { error } = await supabase.from("reus").update({ processos_relacionados: lista }).eq("id", reu.id);
       if (error) throw new Error(error.message);
       toast.success(editando === null ? "Processo relacionado adicionado" : "Processo relacionado atualizado"); onSalvo(); onFechar();
-    } catch (e) { toast.error((e as Error).message); } finally { setSalvando(false); }
+    } catch (e) {
+      const mensagem = (e as Error).message;
+      setErro(mensagem);
+      toast.error(mensagem);
+    } finally { setSalvando(false); }
   };
   return (
     <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
@@ -381,6 +395,7 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
 
           <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
             <p className="text-sm font-medium">{editando === null ? "Adicionar processo relacionado" : "Editar processo relacionado"}</p>
+            {erro ? <p className="rounded-md border border-urgente/30 bg-urgente-suave px-3 py-2 text-xs text-urgente">{erro}</p> : null}
           <Campo rotulo="Tipo de relação"><select className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>{TIPOS_REL.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select></Campo>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-1.5"><input type="radio" checked={modo === "existente"} onChange={() => setModo("existente")} /> Processo do acervo</label>
