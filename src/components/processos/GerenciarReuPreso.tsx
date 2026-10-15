@@ -263,8 +263,55 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
   const [proc, setProc] = useState("");
   const [numero, setNumero] = useState("");
   const [tipo, setTipo] = useState<string>("acao_penal");
+  const [editando, setEditando] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
-  useEffect(() => { if (reu) { setModo("existente"); setProc(""); setNumero(""); setTipo("acao_penal"); } }, [reu]);
+  useEffect(() => { if (reu) { setModo("existente"); setProc(""); setNumero(""); setTipo("acao_penal"); setEditando(null); } }, [reu]);
+
+  const novoVinculo = () => {
+    setEditando(null);
+    setModo("existente");
+    setProc("");
+    setNumero("");
+    setTipo("acao_penal");
+  };
+
+  const editarVinculo = (indice: number) => {
+    if (!reu) return;
+    const atual = (reu.processos_relacionados ?? [])[indice];
+    if (!atual) return;
+    setEditando(indice);
+    setTipo(atual.tipo || "acao_penal");
+    if (atual.processo_id) {
+      setModo("existente");
+      setProc(atual.processo_id);
+      setNumero("");
+    } else {
+      setModo("novo");
+      setProc("");
+      setNumero(atual.numero);
+    }
+  };
+
+  const excluirVinculo = async (indice: number) => {
+    if (!reu) return;
+    const atuais = reu.processos_relacionados ?? [];
+    const atual = atuais[indice];
+    if (!atual) return;
+    if (!window.confirm(`Remover o vínculo com o processo ${atual.numero}? O processo continuará no acervo.`)) return;
+    setSalvando(true);
+    try {
+      const lista = atuais.filter((_, i) => i !== indice);
+      const { error } = await supabase.from("reus").update({ processos_relacionados: lista }).eq("id", reu.id);
+      if (error) throw new Error(error.message);
+      toast.success("Vínculo com processo relacionado removido");
+      onSalvo();
+      onFechar();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSalvando(false);
+    }
+  };
   const salvar = async () => {
     if (!reu) return;
     setSalvando(true);
@@ -288,18 +335,52 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
       }
       if (pid === reu.processo_id) throw new Error("Este já é o processo principal do preso");
       const atuais = reu.processos_relacionados ?? [];
-      if (atuais.some((r) => r.processo_id === pid || soDig(r.numero) === soDig(num))) { toast.info("Processo já relacionado — vínculo existente mantido"); onFechar(); return; }
-      const lista = [...atuais, { tipo, numero: num, processo_id: pid, situacao: "manual" }];
+      if (atuais.some((r, i) => i !== editando && (r.processo_id === pid || soDig(r.numero) === soDig(num)))) {
+        toast.info("Processo já relacionado — vínculo existente mantido");
+        return;
+      }
+      const anterior = editando === null ? null : atuais[editando];
+      const vinculo = { tipo, numero: num, processo_id: pid, situacao: anterior?.situacao ?? "manual" };
+      const lista = editando === null
+        ? [...atuais, vinculo]
+        : atuais.map((r, i) => i === editando ? vinculo : r);
       const { error } = await supabase.from("reus").update({ processos_relacionados: lista }).eq("id", reu.id);
       if (error) throw new Error(error.message);
-      toast.success("Processo relacionado adicionado"); onSalvo(); onFechar();
+      toast.success(editando === null ? "Processo relacionado adicionado" : "Processo relacionado atualizado"); onSalvo(); onFechar();
     } catch (e) { toast.error((e as Error).message); } finally { setSalvando(false); }
   };
   return (
     <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Adicionar processo relacionado — {reu?.nome}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+        <DialogHeader><DialogTitle>Gerenciar processos relacionados — {reu?.nome}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Vínculos atuais</p>
+              <button className={`${BTN} border border-border`} disabled={salvando} onClick={novoVinculo}>Novo vínculo</button>
+            </div>
+            {(reu?.processos_relacionados ?? []).length === 0 ? (
+              <p className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">Nenhum processo relacionado cadastrado.</p>
+            ) : (
+              <div className="divide-y divide-border rounded-md border border-border">
+                {(reu?.processos_relacionados ?? []).map((item, indice) => (
+                  <div key={`${item.processo_id ?? item.numero}-${indice}`} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                    <div>
+                      <p className="numero-processo text-sm font-medium">{item.numero}</p>
+                      <p className="text-xs text-muted-foreground">{TIPOS_REL.find(([v]) => v === item.tipo)?.[1] ?? item.tipo}</p>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <button className="font-medium text-primary hover:underline" disabled={salvando} onClick={() => editarVinculo(indice)}>Editar</button>
+                      <button className="font-medium text-urgente hover:underline" disabled={salvando} onClick={() => void excluirVinculo(indice)}>Excluir</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+            <p className="text-sm font-medium">{editando === null ? "Adicionar processo relacionado" : "Editar processo relacionado"}</p>
           <Campo rotulo="Tipo de relação"><select className={CLASSE_CAMPO} value={tipo} onChange={(e) => setTipo(e.target.value)}>{TIPOS_REL.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select></Campo>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-1.5"><input type="radio" checked={modo === "existente"} onChange={() => setModo("existente")} /> Processo do acervo</label>
@@ -309,8 +390,10 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
             : <Campo rotulo="Número do processo (cadastro mínimo, sinalizado para conferência)"><input className={CLASSE_CAMPO} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="0000000-00.0000.0.00.0000" /></Campo>}
           <div className="flex justify-end gap-2">
             <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
-            <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={salvar}>Salvar</button>
+            <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={salvar}>{salvando ? "Salvando..." : editando === null ? "Adicionar" : "Salvar alterações"}</button>
           </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Excluir remove somente o vínculo com o preso. O processo relacionado permanece no acervo.</p>
         </div>
       </DialogContent>
     </Dialog>
