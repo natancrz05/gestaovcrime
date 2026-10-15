@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
-import { AlertTriangle, FileCheck2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, LoaderCircle, Upload, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import type {
   AnalisePautaAudiencias,
   LinhaPautaAudiencia,
   ProblemaPauta,
+  ProgressoImportacaoPauta,
   ResultadoImportacaoPauta,
 } from "@/lib/processos/importacao-pauta-audiencias";
 import type { ProcessoCompleto } from "@/lib/processos/modelo";
@@ -57,6 +58,8 @@ export function ImportarPautaAudiencias({
   const [errosLeitura, setErrosLeitura] = useState<ProblemaPauta[]>([]);
   const [analise, setAnalise] = useState<AnalisePautaAudiencias | null>(null);
   const [resultado, setResultado] = useState<ResultadoImportacaoPauta | null>(null);
+  const [progresso, setProgresso] = useState<ProgressoImportacaoPauta | null>(null);
+  const [falhaImportacao, setFalhaImportacao] = useState(false);
   const [erro, setErro] = useState("");
   const [lendo, setLendo] = useState(false);
   const [importando, setImportando] = useState(false);
@@ -67,6 +70,8 @@ export function ImportarPautaAudiencias({
     setErrosLeitura([]);
     setAnalise(null);
     setResultado(null);
+    setProgresso(null);
+    setFalhaImportacao(false);
     setErro("");
     setLendo(false);
     setImportando(false);
@@ -96,25 +101,60 @@ export function ImportarPautaAudiencias({
   async function importar() {
     if (!analise || analise.erros.length || analise.conflitos || !linhas.length) return;
     setImportando(true);
+    setFalhaImportacao(false);
+    setResultado(null);
     setErro("");
+    setProgresso({ concluidas: 0, total: 0, etapa: "Iniciando importação..." });
+
+    let totalReal = 0;
     try {
       const { executarImportacaoPauta } = await import(
         "@/lib/processos/importacao-pauta-audiencias"
       );
-      const r = await executarImportacaoPauta(linhas, errosLeitura);
+      const r = await executarImportacaoPauta(linhas, errosLeitura, (p) => {
+        totalReal = p.total;
+        // Reserva uma unidade real adicional para a atualização final da interface.
+        setProgresso({
+          concluidas: p.concluidas,
+          total: p.total > 0 ? p.total + 1 : 0,
+          etapa: p.etapa,
+        });
+      });
+
+      if (totalReal > 0) {
+        setProgresso({
+          concluidas: totalReal,
+          total: totalReal + 1,
+          etapa: "Atualizando os módulos com os dados importados...",
+        });
+      }
       await onConcluido();
+      setProgresso({
+        concluidas: totalReal + 1,
+        total: totalReal + 1,
+        etapa: "Importação concluída.",
+      });
       setResultado(r);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível importar a pauta.");
+      setFalhaImportacao(true);
     } finally {
       setImportando(false);
     }
+  }
+
+  function fecharImportador() {
+    setAberto(false);
+    limpar();
   }
 
   const bloqueada = !analise || analise.erros.length > 0 || analise.conflitos > 0 || !linhas.length;
   const conflitos = analise?.itens
     .filter((i) => i.estado === "conflito")
     .map((i) => ({ pagina: i.pagina, numero: i.numero, motivo: i.motivo ?? "Conflito não identificado." })) ?? [];
+  const percentual = progresso?.total
+    ? Math.min(100, Math.round((progresso.concluidas / progresso.total) * 100))
+    : 0;
 
   return (
     <Dialog
@@ -135,6 +175,94 @@ export function ImportarPautaAudiencias({
           <DialogTitle>Leitor da pauta de audiências do PJe</DialogTitle>
         </DialogHeader>
 
+        {importando ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center gap-6 py-10 text-center">
+            <LoaderCircle className="size-10 animate-spin text-primary" />
+            <div className="w-full max-w-2xl space-y-3">
+              <div className="flex items-end justify-between gap-3">
+                <div className="text-left">
+                  <p className="text-lg font-semibold">Atualizando o sistema</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{progresso?.etapa ?? "Preparando importação..."}</p>
+                </div>
+                <span className="text-3xl font-semibold tabular-nums text-primary">{percentual}%</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-200"
+                  style={{ width: `${percentual}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{arquivo ? `Arquivo: ${arquivo}` : "Pauta do PJe"}</span>
+                {progresso?.total ? <span>{progresso.concluidas} de {progresso.total} etapas concluídas</span> : <span>Carregando acervo…</span>}
+              </div>
+            </div>
+            <p className="max-w-xl text-xs text-muted-foreground">
+              Não feche esta janela enquanto a importação estiver em andamento.
+            </p>
+          </div>
+        ) : resultado ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center gap-5 py-10 text-center">
+            <CheckCircle2 className="size-12 text-concluido" />
+            <div>
+              <p className="text-xl font-semibold text-concluido">Importação concluída</p>
+              <p className="mt-1 text-sm text-muted-foreground">O sistema terminou de processar a pauta e atualizar os módulos.</p>
+            </div>
+            <div className="w-full max-w-2xl">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium">Progresso</span>
+                <span className="font-semibold tabular-nums text-concluido">100%</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-muted">
+                <div className="h-full w-full rounded-full bg-concluido" />
+              </div>
+            </div>
+            <div className="w-full max-w-2xl rounded-md border border-concluido/25 bg-concluido-suave p-4 text-left">
+              <p className="text-sm">
+                {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasAtualizadas} audiência(s) atualizada(s),
+                {" "}{resultado.audienciasJaExistentes} já existente(s), {resultado.processosCriados} processo(s) novo(s),
+                {" "}{resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s).
+              </p>
+            </div>
+            <button className={BOTAO_PRIMARIO} onClick={fecharImportador}>Fechar importador</button>
+          </div>
+        ) : falhaImportacao ? (
+          <div className="flex min-h-[360px] flex-col items-center justify-center gap-5 py-10 text-center">
+            <XCircle className="size-12 text-urgente" />
+            <div>
+              <p className="text-xl font-semibold text-urgente">Importação não concluída</p>
+              <p className="mt-1 text-sm text-muted-foreground">O processamento foi interrompido antes da conclusão.</p>
+            </div>
+            <div className="w-full max-w-2xl">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium">Ponto alcançado</span>
+                <span className="font-semibold tabular-nums text-urgente">{percentual}%</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-urgente"
+                  style={{ width: `${percentual}%` }}
+                />
+              </div>
+              <p className="mt-3 rounded-md border border-urgente/25 bg-urgente-suave p-3 text-left text-sm text-urgente">
+                {erro || "Não foi possível concluir a importação."}
+              </p>
+              {progresso?.etapa ? <p className="mt-2 text-xs text-muted-foreground">Última etapa: {progresso.etapa}</p> : null}
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                className={BOTAO}
+                onClick={() => {
+                  setFalhaImportacao(false);
+                  setErro("");
+                }}
+              >
+                Voltar para conferência
+              </button>
+              <button className={BOTAO_PRIMARIO} onClick={fecharImportador}>Fechar importador</button>
+            </div>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div className="rounded-md border border-border bg-muted/20 p-4">
             <p className="text-sm font-medium">Selecione o PDF da pauta de audiências</p>
@@ -154,22 +282,6 @@ export function ImportarPautaAudiencias({
 
           {lendo ? <p className="text-sm text-muted-foreground">Lendo e conferindo a pauta…</p> : null}
           {erro ? <p className="rounded-md border border-urgente/25 bg-urgente-suave p-3 text-sm text-urgente">{erro}</p> : null}
-
-          {resultado ? (
-            <div className="rounded-md border border-concluido/25 bg-concluido-suave p-4">
-              <p className="flex items-center gap-2 font-semibold text-concluido">
-                <FileCheck2 className="size-4" /> Pauta processada
-              </p>
-              <p className="mt-2 text-sm">
-                {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasAtualizadas} audiência(s) atualizada(s),
-                {" "}{resultado.audienciasJaExistentes} já existente(s), {resultado.processosCriados} processo(s) novo(s),
-                {" "}{resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s) com CPF da pauta.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Processos já existentes foram reutilizados. Reprocessar o mesmo PDF não deve recriar as audiências já identificadas.
-              </p>
-            </div>
-          ) : null}
 
           {analise ? (
             <>
@@ -272,6 +384,7 @@ export function ImportarPautaAudiencias({
             </>
           ) : null}
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );
