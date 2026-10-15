@@ -215,7 +215,7 @@ function Pagina() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {erro && fase === "idle" && <div className="rounded-md border border-urgente/40 bg-urgente/10 p-3 text-sm text-urgente">{erro}</div>}
 
