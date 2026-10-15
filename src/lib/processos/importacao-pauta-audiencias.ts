@@ -22,7 +22,7 @@ import {
   type NovoProcessoEntrada,
 } from "./repositorio";
 import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
-import { avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
+import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -472,6 +472,7 @@ export function analisarPautaAudiencias(
   // inclusive com a mesma finalidade.
   const horariosPorProcesso = new Map<string, number>();
   for (const l of linhasUnicas) {
+    if (!audienciaOcupaHorario(l.situacao)) continue;
     const processoHorario = `${normalizarNumeroProcesso(l.numero)}|${l.data}|${l.horario}`;
     horariosPorProcesso.set(processoHorario, (horariosPorProcesso.get(processoHorario) ?? 0) + 1);
   }
@@ -519,7 +520,7 @@ export function analisarPautaAudiencias(
     });
 
     const processoHorario = `${numeroNormalizado}|${l.data}|${l.horario}`;
-    if ((horariosPorProcesso.get(processoHorario) ?? 0) > 1) {
+    if (audienciaOcupaHorario(l.situacao) && (horariosPorProcesso.get(processoHorario) ?? 0) > 1) {
       return {
         ...l, processoId: processo?.id, processoNovo: !processo, reusNovos, estado: "conflito",
         motivo: "A própria pauta contém mais de uma audiência deste processo na mesma data e horário.",
@@ -820,7 +821,7 @@ export async function executarImportacaoPauta(
     // por outro usuário entre a prévia e o clique de importar gere duplicidade/choque.
     const { data: ocupadas, error: ocupadasError } = await supabase
       .from("audiencias")
-      .select("processo_id, tipo")
+      .select("processo_id, tipo, situacao")
       .eq("data", item.data)
       .eq("horario", item.horario);
     if (ocupadasError) throw ocupadasError;
@@ -829,6 +830,7 @@ export async function executarImportacaoPauta(
       (ocupadas ?? []).map((a) => ({
         processo_id: a.processo_id,
         tipo: tipoAudienciaCanonico(a.tipo),
+        situacao: a.situacao,
       })),
       processo.id,
       tipoAudienciaCanonico(item.tipo),
