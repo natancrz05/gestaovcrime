@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto } from "./modelo";
 import { tipoAudienciaCanonico } from "./audiencias";
+import { audienciaOcupaHorario } from "./colisoes-audiencias";
 
 /**
  * Acesso a dados do módulo de Processos (banco persistente).
@@ -506,7 +507,7 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   const horario = e.horario ? e.horario.slice(0, 5) : null;
   let consulta = supabase
     .from("audiencias")
-    .select("id, processo_id, tipo, horario")
+    .select("id, processo_id, tipo, horario, situacao")
     .eq("data", e.data);
 
   consulta = horario ? consulta.eq("horario", horario) : consulta.is("horario", null);
@@ -514,7 +515,9 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   if (consultaError) throw consultaError;
 
   const finalidade = tipoAudienciaCanonico(e.tipo);
-  const doMesmoProcesso = (existentes ?? []).filter((a) => a.id !== id && a.processo_id === e.processo_id);
+  const doMesmoProcesso = (existentes ?? []).filter(
+    (a) => a.id !== id && a.processo_id === e.processo_id && audienciaOcupaHorario(a.situacao),
+  );
 
   const duplicada = doMesmoProcesso.find((a) =>
     tipoAudienciaCanonico(a.tipo) === finalidade &&
