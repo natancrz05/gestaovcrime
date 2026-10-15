@@ -834,6 +834,7 @@ export async function executarImportacaoPauta(
       })),
       processo.id,
       tipoAudienciaCanonico(item.tipo),
+      item.situacao,
     );
     if (colisao === "ja-existente") {
       audienciasJaExistentes++;
