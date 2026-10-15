@@ -3,6 +3,7 @@ name: Verificação temporária auditoria
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   check:
