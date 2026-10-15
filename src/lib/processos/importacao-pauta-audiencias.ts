@@ -774,13 +774,15 @@ export async function executarImportacaoPauta(
   let audienciasJaExistentes = analise.audienciasExistentes;
   for (const item of analise.itens) {
     emitirProgresso(`Processando audiência de ${item.numero} em ${item.data} às ${item.horario}...`);
-    try {
-      const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
-      if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
+    const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
+    if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
 
-      if (item.estado === "ja-cadastrada") continue;
+    if (item.estado === "ja-cadastrada") {
+      avancarProgresso(`Audiência de ${item.numero} já estava cadastrada.`);
+      continue;
+    }
 
-      if (item.estado === "sincronizar") {
+    if (item.estado === "sincronizar") {
       const existente = processo.audiencias.find((a) =>
         a.id === item.audienciaId ||
         (a.data === item.data && (a.horario ?? "").slice(0, 5) === item.horario),
@@ -805,10 +807,14 @@ export async function executarImportacaoPauta(
       existente.local = item.local;
       existente.situacao = item.situacao;
       existente.observacao = mesclarObservacaoPauta(existente.observacao ?? "", observacaoImportacao(item));
+      avancarProgresso(`Audiência de ${item.numero} atualizada.`);
       continue;
     }
 
-    if (item.estado !== "nova") continue;
+    if (item.estado !== "nova") {
+      avancarProgresso(`Audiência de ${item.numero} conferida.`);
+      continue;
+    }
 
     // Última trava imediatamente antes da gravação. Evita que uma audiência criada
     // por outro usuário entre a prévia e o clique de importar gere duplicidade/choque.
@@ -829,6 +835,7 @@ export async function executarImportacaoPauta(
     );
     if (colisao === "ja-existente") {
       audienciasJaExistentes++;
+      avancarProgresso(`Audiência de ${item.numero} já existente, sem duplicação.`);
       continue;
     }
     if (colisao === "conflito-mesmo-processo") {
@@ -850,21 +857,19 @@ export async function executarImportacaoPauta(
     });
     audienciasCriadas++;
     // Mantém o estado local atualizado para que duas linhas subsequentes nunca escapem da verificação.
-      processo.audiencias.push({
-        id: `importando-${audienciasCriadas}`,
-        processo_id: processo.id,
-        tipo: item.tipo,
-        data: item.data,
-        horario: item.horario,
-        modalidade: item.modalidade,
-        local: item.local,
-        situacao: item.situacao,
-        observacao: observacaoImportacao(item),
-        criado_em: new Date().toISOString(),
-      });
-    } finally {
-      avancarProgresso(`Audiência de ${item.numero} processada.`);
-    }
+    processo.audiencias.push({
+      id: `importando-${audienciasCriadas}`,
+      processo_id: processo.id,
+      tipo: item.tipo,
+      data: item.data,
+      horario: item.horario,
+      modalidade: item.modalidade,
+      local: item.local,
+      situacao: item.situacao,
+      observacao: observacaoImportacao(item),
+      criado_em: new Date().toISOString(),
+    });
+    avancarProgresso(`Audiência de ${item.numero} cadastrada.`);
   }
 
   return {
