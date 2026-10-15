@@ -351,7 +351,7 @@ export function AdicionarRelacionado({ reu, onFechar, onSalvo }: { reu: (ReuEdit
   };
   return (
     <Dialog open={!!reu} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>Gerenciar processos relacionados — {reu?.nome}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
