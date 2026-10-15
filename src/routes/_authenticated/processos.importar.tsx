@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, FileSpreadsheet, Upload, Download, Undo2 } from "lucide-react";
@@ -9,6 +9,12 @@ import { useSessao } from "@/lib/sessao";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  TelaImportacaoConcluida,
+  TelaImportacaoFalhou,
+  TelaProcessandoImportacao,
+  type ProgressoVisualImportacao,
+} from "@/components/processos/EstadoProcessamentoImportacao";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -52,6 +58,7 @@ const dataHora = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle:
 function Pagina() {
   const sessao = useSessao();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [sim, setSim] = useState<ResultadoSimulacao | null>(null);
@@ -60,6 +67,8 @@ function Pagina() {
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Importacao | null>(null);
   const [aberta, setAberta] = useState<ImportacaoResumo | null>(null);
+  const [fase, setFase] = useState<"idle" | "analisando" | "importando" | "falha">("idle");
+  const [progresso, setProgresso] = useState<ProgressoVisualImportacao | null>(null);
 
   const historico = useQuery({
     queryKey: ["importacoes"],
@@ -92,16 +101,20 @@ function Pagina() {
 
   async function analisar() {
     if (!arquivo) return;
-    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null);
+    setOcupado(true); setErro(""); setAnalise(null); setSim(null); setResultado(null); setFase("analisando");
+    setProgresso({ concluidas: 0, total: 2, etapa: "Lendo e validando a planilha do acervo..." });
     try {
       const a = await lerPlanilha(arquivo);
+      setProgresso({ concluidas: 1, total: 2, etapa: "Conferindo o acervo e gerando a prévia..." });
       await simular(a, aplicarConflitos);
-      // Só troca a tela pela prévia quando o resultado da análise já está disponível.
       setAnalise(a);
+      setProgresso({ concluidas: 2, total: 2, etapa: "Análise concluída." });
+      setFase("idle");
     } catch (e) {
       setSim(null); setAnalise(null);
       const msg = e instanceof Error ? e.message : (e as { message?: string })?.message;
       setErro(`Não foi possível analisar a planilha. ${msg || "Falha desconhecida."} Nenhuma alteração foi feita.`);
+      setFase("idle");
     } finally { setOcupado(false); }
   }
 
@@ -115,34 +128,48 @@ function Pagina() {
 
   function cancelar() {
     setArquivo(null); setAnalise(null); setSim(null); setErro(""); setAplicarConflitos(false);
+    setFase("idle"); setProgresso(null); setOcupado(false);
   }
 
   async function confirmar() {
     if (!analise) return;
-    setOcupado(true); setErro("");
+    setOcupado(true); setErro(""); setFase("importando");
+    setProgresso({ concluidas: 0, total: 3, etapa: "Gravando a atualização do acervo no servidor..." });
     const p = problemas(analise);
-    const { data, error } = await supabase.rpc("importar_processos", {
-      p_arquivo: arquivo?.name ?? "", p_linhas: analise.validas as unknown as Json,
-      p_erros: p.erros as unknown as Json, p_ignorados: p.ignorados as unknown as Json,
-      p_aplicar_conflitos: aplicarConflitos, p_simular: false,
-    });
-    if (error) {
-      setOcupado(false);
-      setErro(`A importação falhou e nenhuma alteração foi gravada. Motivo: ${error.message}`);
-      return;
-    }
-    const id = (data as { id: string }).id;
 
-    // Regra de segurança: depois da RPC nenhuma outra escrita relacionada à
-    // importação é feita no cliente. Assim, toda alteração permanece registrada
-    // em importacao_itens e pode ser tratada pelo mecanismo "Desfazer importação".
-    const { data: imp } = await supabase.from("importacoes").select("*").eq("id", id).single();
-    setResultado(imp as unknown as Importacao);
-    setAnalise(null); setSim(null); setArquivo(null);
-    qc.invalidateQueries({ queryKey: ["processos"] });
-    qc.invalidateQueries({ queryKey: ["processos-seletor"] });
-    qc.invalidateQueries({ queryKey: ["importacoes"] });
-    setOcupado(false);
+    try {
+      const { data, error } = await supabase.rpc("importar_processos", {
+        p_arquivo: arquivo?.name ?? "", p_linhas: analise.validas as unknown as Json,
+        p_erros: p.erros as unknown as Json, p_ignorados: p.ignorados as unknown as Json,
+        p_aplicar_conflitos: aplicarConflitos, p_simular: false,
+      });
+      if (error) throw new Error(error.message);
+      const id = (data as { id: string }).id;
+      setProgresso({ concluidas: 1, total: 3, etapa: "Importação gravada. Conferindo o registro de auditoria..." });
+
+      // Regra de segurança: depois da RPC nenhuma outra escrita relacionada à
+      // importação é feita no cliente.
+      const { data: imp, error: impError } = await supabase.from("importacoes").select("*").eq("id", id).single();
+      if (impError) throw new Error(impError.message);
+      setProgresso({ concluidas: 2, total: 3, etapa: "Atualizando processos, seletores e histórico na interface..." });
+
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["processos"] }),
+        qc.invalidateQueries({ queryKey: ["processos-seletor"] }),
+        qc.invalidateQueries({ queryKey: ["importacoes"] }),
+      ]);
+
+      setResultado(imp as unknown as Importacao);
+      setAnalise(null); setSim(null); setArquivo(null);
+      setProgresso({ concluidas: 3, total: 3, etapa: "Importação concluída." });
+      setFase("idle");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Falha desconhecida.";
+      setErro(`A importação falhou. Motivo: ${msg}`);
+      setFase("falha");
+    } finally {
+      setOcupado(false);
+    }
   }
 
   const ultimaDesfazivel = historico.data?.find((i) => !i.desfeita_em && i.status !== "Falhou");
@@ -155,7 +182,24 @@ function Pagina() {
         acao={<Link to="/processos" className={BOTAO_SEC}><ArrowLeft className="size-4" /> Voltar aos processos</Link>}
       />
 
-      {!analise && !resultado && (
+      {fase === "analisando" || fase === "importando" ? (
+        <div className={CARTAO}>
+          <TelaProcessandoImportacao
+            progresso={progresso}
+            arquivo={arquivo?.name}
+            titulo={fase === "analisando" ? "Analisando planilha" : "Atualizando o sistema"}
+          />
+        </div>
+      ) : fase === "falha" ? (
+        <div className={CARTAO}>
+          <TelaImportacaoFalhou
+            progresso={progresso}
+            erro={erro}
+            onVoltar={() => { setFase("idle"); setErro(""); }}
+            onFechar={() => { cancelar(); void navigate({ to: "/processos" }); }}
+          />
+        </div>
+      ) : !analise && !resultado ? (
         <div className={`${CARTAO} space-y-3`}>
           <p className="text-sm text-muted-foreground">
             O leitor aceita XLSX, XLS e ODS, procura automaticamente a aba correta e reconhece variações de cabeçalho.
@@ -178,16 +222,20 @@ function Pagina() {
           ocupado={ocupado} onCancelar={cancelar} onConfirmar={confirmar} arquivo={arquivo?.name ?? ""} />
       )}
 
-      {resultado && (
+      {resultado && fase === "idle" && (
         <div className={`${CARTAO} space-y-4`}>
-          <h2 className="text-lg font-semibold">Importação #{resultado.numero} — {resultado.status}</h2>
-          <Resumo imp={resultado} />
+          <TelaImportacaoConcluida
+            onFechar={() => void navigate({ to: "/processos" })}
+            resumo={<Resumo imp={resultado} />}
+          />
           <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-            Esta importação não executou alterações paralelas fora do histórico. Réus existentes não são excluídos,
-            movimentações não são criadas pelo navegador e o campo de réu não é limpo após a RPC.
+            Importação #{resultado.numero} — {resultado.status}. Esta importação não executou alterações paralelas fora do histórico.
+            Réus existentes não são excluídos, movimentações não são criadas pelo navegador e o campo de réu não é limpo após a RPC.
           </div>
           <ListaProblemas imp={resultado} />
-          <button className={BOTAO_SEC} onClick={() => setResultado(null)}><Upload className="size-4" /> Nova importação</button>
+          <button className={BOTAO_SEC} onClick={() => { setResultado(null); setProgresso(null); }}>
+            <Upload className="size-4" /> Nova importação
+          </button>
         </div>
       )}
 
