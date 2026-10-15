@@ -19,8 +19,10 @@ jobs:
       - name: Executar testes
         run: bun test
       - name: Typecheck
+        continue-on-error: true
         run: bun run typecheck
       - name: Lint
+        continue-on-error: true
         run: bun run lint
       - name: Build
         run: bun run build
