@@ -179,7 +179,9 @@ function Pagina() {
       <Cabecalho
         titulo="Importar / Atualizar em lote"
         subtitulo="Planilha XLSX, XLS ou ODS do PJe. Processos ausentes na planilha nunca são excluídos ou alterados, e os dados internos da serventia são preservados."
-        acao={<Link to="/processos" className={BOTAO_SEC}><ArrowLeft className="size-4" /> Voltar aos processos</Link>}
+        acao={fase === "analisando" || fase === "importando"
+          ? <span className="text-xs font-medium text-muted-foreground">Processamento em andamento</span>
+          : <Link to="/processos" className={BOTAO_SEC}><ArrowLeft className="size-4" /> Voltar aos processos</Link>}
       />
 
       {fase === "analisando" || fase === "importando" ? (
@@ -215,7 +217,7 @@ function Pagina() {
         </div>
       )}
 
-      {erro && <div className="rounded-md border border-urgente/40 bg-urgente/10 p-3 text-sm text-urgente">{erro}</div>}
+      {erro && fase === "idle" && <div className="rounded-md border border-urgente/40 bg-urgente/10 p-3 text-sm text-urgente">{erro}</div>}
 
       {analise && sim && (
         <Previa analise={analise} sim={sim} aplicarConflitos={aplicarConflitos} onConflitos={trocarConflitos}
