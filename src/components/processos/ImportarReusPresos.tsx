@@ -72,7 +72,7 @@ export function ImportarReusPresos({ aberto, onFechar, onConcluir }: { aberto: b
 
   const r = final ?? previa;
   return (
-    <Dialog open={aberto} onOpenChange={(o) => !o && fechar()}>
+    <Dialog open={aberto} onOpenChange={(o) => { if (!o && ocupado) return; if (!o) fechar(); }}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Importar planilha de presos provisórios</DialogTitle></DialogHeader>
         {fase === "analisando" || fase === "importando" ? (
