@@ -103,12 +103,10 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
           />
         ) : (
           <>
-        {
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <input type="file" accept=".xlsx,.csv" onChange={(e) => { limpar(); setArquivo(e.target.files?.[0] ?? null); }} />
             <button className={BOTAO_SEC} disabled={!arquivo || ocupado} onClick={analisar}>{ocupado && !previa ? "Analisando…" : "Analisar arquivo"}</button>
           </div>
-        ) : null}
         <p className="text-xs text-muted-foreground">
           Colunas reconhecidas pelo nome, em qualquer ordem. A pessoa é identificada pelo processo + CPF ou nome. Processo não cadastrado é criado com o número informado e sinalizado; sem número utilizável, a pessoa entra como "Não vinculado". Registros ausentes da planilha não são alterados, e o histórico não é tocado.
         </p>
