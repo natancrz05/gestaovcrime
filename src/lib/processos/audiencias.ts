@@ -27,7 +27,7 @@ export const TIPOS_AUDIENCIA = [
   "Outra",
 ] as const;
 export const MODALIDADES = ["Presencial", "Virtual", "Híbrida"] as const;
-export const SITUACOES_AUDIENCIA = ["Agendada", "Redesignada", "Realizada", "Cancelada"] as const;
+export const SITUACOES_AUDIENCIA = ["Agendada", "Redesignada", "Realizada", "Cancelada", "Não realizada", "Convertida em diligência"] as const;
 
 /** Normaliza nomes antigos e variações do PJe para a finalidade usada pelo sistema. */
 export function tipoAudienciaCanonico(valor: string): string {
@@ -83,8 +83,11 @@ export function futuras(lista: AudienciaListada[]) {
 
 export const horaCurta = (h: string | null) => (h ? h.slice(0, 5) : "—");
 
-/** Pendente = Agendada (inclui registros antigos "Designada") ou Redesignada. */
-export const estaPendente = (a: { situacao: string }) => a.situacao !== "Realizada" && a.situacao !== "Cancelada";
+/** Pendente = somente situações ainda aguardando realização. */
+export const estaPendente = (a: { situacao: string }) => {
+  const s = a.situacao.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+  return /^(AGENDADA|DESIGNADA|REDESIGNADA)$/.test(s);
+};
 
 /** Única lógica de confirmação (lista e calendário): situação, data efetiva e movimentação sem duplicar. */
 export async function confirmarAudiencia(id: string, data: string, obs: string) {
