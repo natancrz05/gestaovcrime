@@ -1,5 +1,11 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  TelaImportacaoConcluida,
+  TelaImportacaoFalhou,
+  TelaProcessandoImportacao,
+  type ProgressoVisualImportacao,
+} from "@/components/processos/EstadoProcessamentoImportacao";
 import { formatarData } from "@/lib/dominio";
 import { baixarCSV } from "@/lib/processos/importacao";
 import {
@@ -18,28 +24,51 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
   const [final, setFinal] = useState<ResultadoComp | null>(null);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [fase, setFase] = useState<"idle" | "analisando" | "importando" | "falha">("idle");
+  const [progresso, setProgresso] = useState<ProgressoVisualImportacao | null>(null);
 
-  const limpar = () => { setArquivo(null); setAnalise(null); setPrevia(null); setFinal(null); setErro(""); };
+  const limpar = () => {
+    setArquivo(null); setAnalise(null); setPrevia(null); setFinal(null); setErro("");
+    setOcupado(false); setFase("idle"); setProgresso(null);
+  };
   const fechar = () => { limpar(); onFechar(); };
 
   async function analisar() {
     if (!arquivo) return;
-    setOcupado(true); setErro(""); setPrevia(null);
+    setOcupado(true); setErro(""); setPrevia(null); setFase("analisando");
+    setProgresso({ concluidas: 0, total: 2, etapa: "Lendo e validando a planilha..." });
     try {
       const a = await lerPlanilhaComparecimentos(arquivo);
       setAnalise(a);
-      setPrevia(await executarImportacaoComparecimentos(arquivo.name, a.validas, true));
-    } catch (e) { setErro(e instanceof Error ? e.message : "Falha ao analisar"); }
-    setOcupado(false);
+      setProgresso({ concluidas: 1, total: 2, etapa: "Conferindo vínculos e preparando a prévia..." });
+      const p = await executarImportacaoComparecimentos(arquivo.name, a.validas, true);
+      setPrevia(p);
+      setProgresso({ concluidas: 2, total: 2, etapa: "Análise concluída." });
+      setFase("idle");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao analisar");
+      setFase("idle");
+    } finally {
+      setOcupado(false);
+    }
   }
   async function confirmar() {
     if (!arquivo || !analise) return;
-    setOcupado(true); setErro("");
+    setOcupado(true); setErro(""); setFase("importando");
+    setProgresso({ concluidas: 0, total: 2, etapa: "Gravando comparecimentos no sistema..." });
     try {
-      setFinal(await executarImportacaoComparecimentos(arquivo.name, analise.validas, false));
+      const r = await executarImportacaoComparecimentos(arquivo.name, analise.validas, false);
+      setProgresso({ concluidas: 1, total: 2, etapa: "Atualizando o módulo de comparecimentos..." });
       await onConcluir();
-    } catch (e) { setErro(e instanceof Error ? e.message : "Falha na importação. Nada foi gravado."); }
-    setOcupado(false);
+      setFinal(r);
+      setProgresso({ concluidas: 2, total: 2, etapa: "Importação concluída." });
+      setFase("idle");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha na importação. Nada foi gravado.");
+      setFase("falha");
+    } finally {
+      setOcupado(false);
+    }
   }
 
   const r = final ?? previa;
@@ -48,7 +77,33 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
     <Dialog open={aberto} onOpenChange={(o) => !o && fechar()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Importar planilha de comparecimentos</DialogTitle></DialogHeader>
-        {!final ? (
+        {fase === "analisando" || fase === "importando" ? (
+          <TelaProcessandoImportacao
+            progresso={progresso}
+            arquivo={arquivo?.name}
+            titulo={fase === "analisando" ? "Analisando planilha" : "Atualizando o sistema"}
+          />
+        ) : final ? (
+          <TelaImportacaoConcluida
+            onFechar={fechar}
+            resumo={
+              <p>
+                {final.novos.length} novo(s) comparecimento(s), {final.atualizados.length} atualizado(s),
+                {" "}{final.sem_alteracao} sem alteração, {final.processos_criados?.length ?? 0} processo(s) criado(s)
+                e {final.nao_vinculados.length} registro(s) sem processo vinculado.
+              </p>
+            }
+          />
+        ) : fase === "falha" ? (
+          <TelaImportacaoFalhou
+            progresso={progresso}
+            erro={erro}
+            onVoltar={() => { setFase("idle"); setErro(""); }}
+            onFechar={fechar}
+          />
+        ) : (
+          <>
+        {
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <input type="file" accept=".xlsx,.csv" onChange={(e) => { limpar(); setArquivo(e.target.files?.[0] ?? null); }} />
             <button className={BOTAO_SEC} disabled={!arquivo || ocupado} onClick={analisar}>{ocupado && !previa ? "Analisando…" : "Analisar arquivo"}</button>
@@ -61,7 +116,6 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
 
         {r && analise ? (
           <div className="space-y-4 text-sm">
-            {final ? <p className="rounded-md bg-concluido-suave p-2 font-medium text-concluido">Importação concluída e registrada na auditoria.</p> : null}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 ["Pessoas encontradas", analise.total], [final ? "Novos criados" : "Novos comparecimentos", r.novos.length],
@@ -102,13 +156,15 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
               </div>
             ) : null}
             <div className="flex justify-end gap-2 border-t border-border pt-3">
-              {final ? <button className={BOTAO} onClick={fechar}>Fechar</button> : <>
-                <button className={BOTAO_SEC} onClick={fechar}>Cancelar</button>
-                <button className={BOTAO} disabled={ocupado || r.novos.length + r.atualizados.length === 0} onClick={confirmar}>{ocupado ? "Importando…" : "Confirmar importação"}</button>
-              </>}
+              <button className={BOTAO_SEC} onClick={fechar}>Cancelar</button>
+              <button className={BOTAO} disabled={ocupado || r.novos.length + r.atualizados.length === 0} onClick={confirmar}>
+                Confirmar importação
+              </button>
             </div>
           </div>
         ) : null}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
