@@ -33,7 +33,10 @@ export function avaliarColisaoHorarioPauta(
   ocupadas: Array<{ processo_id: string; tipo: string; situacao: string }>,
   processoId: string,
   tipoCanonico: string,
+  situacaoNova: string,
 ): ResultadoColisaoHorarioPauta {
+  if (!audienciaOcupaHorario(situacaoNova)) return "livre";
+
   const mesmoProcesso = ocupadas.filter(
     (a) => a.processo_id === processoId && audienciaOcupaHorario(a.situacao),
   );
