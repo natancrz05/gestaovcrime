@@ -44,6 +44,7 @@ describe("Colisão de horário na importação da pauta", () => {
         [{ processo_id: "processo-a", tipo: "Audiência preliminar", situacao: "Cancelada" }],
         "processo-a",
         "Audiência de instrução e julgamento",
+        "Agendada",
       ),
     ).toBe("livre");
   });
