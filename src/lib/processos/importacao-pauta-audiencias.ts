@@ -546,7 +546,14 @@ export function analisarPautaAudiencias(
         return { ...l, processoId: processo.id, audienciaId: exata.id, processoNovo: false, reusNovos, estado: "ja-cadastrada" };
       }
 
-      const mesmoMomento = processo.audiencias.find((a) => a.data === l.data && (a.horario ?? "").slice(0, 5) === l.horario);
+      const mesmoMomento = audienciaOcupaHorario(l.situacao)
+        ? processo.audiencias.find(
+            (a) =>
+              a.data === l.data &&
+              (a.horario ?? "").slice(0, 5) === l.horario &&
+              audienciaOcupaHorario(a.situacao),
+          )
+        : undefined;
       if (mesmoMomento) {
         return {
           ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "sincronizar",
