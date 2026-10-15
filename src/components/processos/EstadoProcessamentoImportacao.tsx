@@ -23,7 +23,7 @@ export function TelaProcessandoImportacao({
   titulo = "Atualizando o sistema",
 }: {
   progresso: ProgressoVisualImportacao | null;
-  arquivo?: string;
+  arquivo?: string | undefined;
   titulo?: string;
 }) {
   const percentual = percentualProgresso(progresso);
