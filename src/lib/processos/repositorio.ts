@@ -515,9 +515,12 @@ export async function salvarAudiencia(e: AudienciaEntrada, id?: string) {
   if (consultaError) throw consultaError;
 
   const finalidade = tipoAudienciaCanonico(e.tipo);
-  const doMesmoProcesso = (existentes ?? []).filter(
-    (a) => a.id !== id && a.processo_id === e.processo_id && audienciaOcupaHorario(a.situacao),
-  );
+  const ocupaHorario = audienciaOcupaHorario(e.situacao);
+  const doMesmoProcesso = ocupaHorario
+    ? (existentes ?? []).filter(
+        (a) => a.id !== id && a.processo_id === e.processo_id && audienciaOcupaHorario(a.situacao),
+      )
+    : [];
 
   const duplicada = doMesmoProcesso.find((a) =>
     tipoAudienciaCanonico(a.tipo) === finalidade &&
