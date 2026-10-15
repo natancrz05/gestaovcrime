@@ -11,6 +11,7 @@ describe("Colisão de horário na importação da pauta", () => {
         [{ processo_id: "processo-a", tipo: "Audiência de instrução e julgamento", situacao: "Agendada" }],
         "processo-b",
         "Audiência de instrução e julgamento",
+        "Agendada",
       ),
     ).toBe("livre");
   });
@@ -21,6 +22,7 @@ describe("Colisão de horário na importação da pauta", () => {
         [{ processo_id: "processo-a", tipo: "Audiência de instrução e julgamento", situacao: "Agendada" }],
         "processo-a",
         "Audiência de instrução e julgamento",
+        "Agendada",
       ),
     ).toBe("ja-existente");
   });
@@ -31,6 +33,7 @@ describe("Colisão de horário na importação da pauta", () => {
         [{ processo_id: "processo-a", tipo: "Audiência preliminar", situacao: "Agendada" }],
         "processo-a",
         "Audiência de instrução e julgamento",
+        "Agendada",
       ),
     ).toBe("conflito-mesmo-processo");
   });
@@ -51,6 +54,17 @@ describe("Colisão de horário na importação da pauta", () => {
     expect(audienciaOcupaHorario("Cancelada")).toBe(false);
   });
 
+  test("nova audiência cancelada pode coexistir com outra ativa no mesmo horário", () => {
+    expect(
+      avaliarColisaoHorarioPauta(
+        [{ processo_id: "processo-a", tipo: "Audiência preliminar", situacao: "Agendada" }],
+        "processo-a",
+        "Audiência de instrução e julgamento",
+        "Cancelada",
+      ),
+    ).toBe("livre");
+  });
+
   test("audiência realizada continua ocupando o horário", () => {
     expect(audienciaOcupaHorario("Realizada")).toBe(true);
     expect(
@@ -58,6 +72,7 @@ describe("Colisão de horário na importação da pauta", () => {
         [{ processo_id: "processo-a", tipo: "Audiência preliminar", situacao: "Realizada" }],
         "processo-a",
         "Audiência de instrução e julgamento",
+        "Agendada",
       ),
     ).toBe("conflito-mesmo-processo");
   });
