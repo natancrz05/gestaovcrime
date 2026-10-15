@@ -628,13 +628,17 @@ async function inserirReusAusentes(processo: ProcessoCompleto, pessoas: PessoaPa
 function mesclarObservacaoPauta(atual: string, pauta: string) {
   const a = atual.trim();
   if (!a) return pauta;
-  if (!a.includes("Importada da pauta de audiências do PJe.")) return `${a}\n${pauta}`;
+  const marcador = "Importada da pauta de audiências do PJe.";
+  if (!a.includes(marcador)) return `${a}\n${pauta}`;
 
-  // Preserva observações manuais e substitui o bloco antigo gerado pelo importador,
-  // evitando manter sala/situação desatualizadas após uma nova pauta.
-  const inicio = a.indexOf("Importada da pauta de audiências do PJe.");
-  const antes = a.slice(0, inicio).trimEnd();
-  return antes ? `${antes}\n${pauta}` : pauta;
+  // Remove somente a linha automática antiga do PJe e preserva qualquer
+  // observação manual existente antes ou depois dela.
+  const manuais = a
+    .split(/\r?\n/)
+    .filter((linha) => !linha.includes(marcador))
+    .join("\n")
+    .trim();
+  return manuais ? `${manuais}\n${pauta}` : pauta;
 }
 
 export async function executarImportacaoPauta(
