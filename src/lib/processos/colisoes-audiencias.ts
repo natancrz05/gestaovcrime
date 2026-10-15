@@ -17,7 +17,10 @@ const normalizar = (valor: string) =>
  */
 export function audienciaOcupaHorario(situacao: string): boolean {
   const s = normalizar(situacao);
-  return !/^(CANCELADA|NAO REALIZADA|CONVERTIDA EM DILIGENCIA)$/.test(s);
+  if (/^CANCELAD/.test(s)) return false;
+  if (/^NAO[ -]?REALIZAD/.test(s) || /^NAOREALIZAD/.test(s)) return false;
+  if (/^CONVERTID.*DILIG/.test(s)) return false;
+  return true;
 }
 
 /**
