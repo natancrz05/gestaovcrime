@@ -92,6 +92,15 @@ export interface ResultadoImportacaoPauta {
   audienciasJaExistentes: number;
 }
 
+export interface ProgressoImportacaoPauta {
+  /** Unidades de trabalho efetivamente concluídas. */
+  concluidas: number;
+  /** Total de unidades conhecidas após a análise inicial. Zero enquanto o acervo é carregado. */
+  total: number;
+  /** Descrição da operação real em execução/concluída. */
+  etapa: string;
+}
+
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 
@@ -644,7 +653,9 @@ function mesclarObservacaoPauta(atual: string, pauta: string) {
 export async function executarImportacaoPauta(
   linhas: LinhaPautaAudiencia[],
   errosLeitura: ProblemaPauta[] = [],
+  onProgresso?: (progresso: ProgressoImportacaoPauta) => void,
 ): Promise<ResultadoImportacaoPauta> {
+  onProgresso?.({ concluidas: 0, total: 0, etapa: "Carregando o acervo e validando a pauta..." });
   let processos = await listarProcessosCompletos();
   let processosPorNumero = indexarProcessosPorNumero(processos);
   let analise = analisarPautaAudiencias(linhas, processos, errosLeitura);
@@ -660,6 +671,18 @@ export async function executarImportacaoPauta(
     const k = normalizarNumeroProcesso(l.numero);
     porNumero.set(k, [...(porNumero.get(k) ?? []), l]);
   }
+
+  // Unidades reais: análise inicial + conferência de processos + conferência de réus
+  // + revalidação final + cada audiência processada.
+  const totalTrabalho = 2 + (porNumero.size * 2) + analise.itens.length;
+  let trabalhoConcluido = 1;
+  const emitirProgresso = (etapa: string) =>
+    onProgresso?.({ concluidas: trabalhoConcluido, total: totalTrabalho, etapa });
+  const avancarProgresso = (etapa: string) => {
+    trabalhoConcluido++;
+    emitirProgresso(etapa);
+  };
+  emitirProgresso("Pauta validada. Conferindo processos do acervo...");
 
   // Cria somente processos inexistentes, uma vez por número CNJ.
   for (const [numeroNormalizado, grupo] of porNumero) {
@@ -711,6 +734,7 @@ export async function executarImportacaoPauta(
       existentes = processosPorNumero.get(numeroNormalizado) ?? [];
       if (existentes.length !== 1) throw new Error(`Não foi possível vincular com segurança o processo ${grupo[0]!.numero}.`);
     }
+    avancarProgresso(`Processo ${grupo[0]!.numero} conferido.`);
   }
 
   // Completa réus em processos que já existiam (ou foram criados por concorrência).
@@ -731,6 +755,7 @@ export async function executarImportacaoPauta(
     reusAtualizados += await enriquecerReusExistentes(processo, pessoas);
     const criados = await inserirReusAusentes(processo, pessoas);
     reusCriados += criados;
+    avancarProgresso(`Réus do processo ${grupo[0]!.numero} conferidos.`);
   }
 
   // Reanalisa imediatamente antes das audiências para capturar qualquer alteração concorrente.
@@ -742,17 +767,20 @@ export async function executarImportacaoPauta(
   if (analise.erros.length || analise.conflitos) {
     throw new Error("O acervo mudou durante a importação e surgiu um conflito. As audiências não foram duplicadas; revise a prévia e tente novamente.");
   }
+  avancarProgresso("Acervo revalidado. Atualizando audiências...");
 
   let audienciasCriadas = 0;
   let audienciasAtualizadas = 0;
   let audienciasJaExistentes = analise.audienciasExistentes;
   for (const item of analise.itens) {
-    const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
-    if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
+    emitirProgresso(`Processando audiência de ${item.numero} em ${item.data} às ${item.horario}...`);
+    try {
+      const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
+      if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
 
-    if (item.estado === "ja-cadastrada") continue;
+      if (item.estado === "ja-cadastrada") continue;
 
-    if (item.estado === "sincronizar") {
+      if (item.estado === "sincronizar") {
       const existente = processo.audiencias.find((a) =>
         a.id === item.audienciaId ||
         (a.data === item.data && (a.horario ?? "").slice(0, 5) === item.horario),
@@ -822,18 +850,21 @@ export async function executarImportacaoPauta(
     });
     audienciasCriadas++;
     // Mantém o estado local atualizado para que duas linhas subsequentes nunca escapem da verificação.
-    processo.audiencias.push({
-      id: `importando-${audienciasCriadas}`,
-      processo_id: processo.id,
-      tipo: item.tipo,
-      data: item.data,
-      horario: item.horario,
-      modalidade: item.modalidade,
-      local: item.local,
-      situacao: item.situacao,
-      observacao: observacaoImportacao(item),
-      criado_em: new Date().toISOString(),
-    });
+      processo.audiencias.push({
+        id: `importando-${audienciasCriadas}`,
+        processo_id: processo.id,
+        tipo: item.tipo,
+        data: item.data,
+        horario: item.horario,
+        modalidade: item.modalidade,
+        local: item.local,
+        situacao: item.situacao,
+        observacao: observacaoImportacao(item),
+        criado_em: new Date().toISOString(),
+      });
+    } finally {
+      avancarProgresso(`Audiência de ${item.numero} processada.`);
+    }
   }
 
   return {
