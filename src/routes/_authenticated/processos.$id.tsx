@@ -534,7 +534,7 @@ function AbaPrisao({ presos, podeEditar, recarregar }: { presos: PresoFicha[]; p
                   <button className={LNK} onClick={() => setReav(r)}>Registrar reavaliação</button>
                   <button className={LNK} onClick={() => setEncerrar(r)}>Encerrar situação prisional</button>
                   <span className="text-muted-foreground">·</span>
-                  <button className={LNK} onClick={() => setRel(r)}>Adicionar processo relacionado</button>
+                  <button className={LNK} onClick={() => setRel(r)}>Gerenciar processos relacionados</button>
                 </div> : null}
               </div>
             );
