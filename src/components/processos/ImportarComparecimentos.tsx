@@ -74,7 +74,7 @@ export function ImportarComparecimentos({ aberto, onFechar, onConcluir }: { aber
   const r = final ?? previa;
   const naoVinc = r?.nao_vinculados ?? [];
   return (
-    <Dialog open={aberto} onOpenChange={(o) => !o && fechar()}>
+    <Dialog open={aberto} onOpenChange={(o) => { if (!o && ocupado) return; if (!o) fechar(); }}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader><DialogTitle>Importar planilha de comparecimentos</DialogTitle></DialogHeader>
         {fase === "analisando" || fase === "importando" ? (
