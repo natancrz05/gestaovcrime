@@ -6,7 +6,7 @@ import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { supabase } from "@/integrations/supabase/client";
 
 const POR_PAGINA = 50;
-const CATEGORIAS = ["Processos", "Audiências", "Comparecimentos", "Pendências", "Prisões", "Ofícios"] as const;
+const CATEGORIAS = ["Processos", "Movimentações", "Audiências", "Comparecimentos", "Pendências", "Prisões", "Ofícios"] as const;
 
 function hojeLocal() {
   const d = new Date();
