@@ -94,10 +94,13 @@ export type Database = {
       auditoria: {
         Row: {
           acao: string
+          categoria_produtividade: string
+          conta_produtividade: boolean
           criado_em: string
           descricao: string
           id: string
           modulo: string
+          origem: string
           processo_id: string | null
           processo_numero: string
           registro_id: string | null
@@ -106,10 +109,13 @@ export type Database = {
         }
         Insert: {
           acao: string
+          categoria_produtividade?: string
+          conta_produtividade?: boolean
           criado_em?: string
           descricao?: string
           id?: string
           modulo: string
+          origem?: string
           processo_id?: string | null
           processo_numero?: string
           registro_id?: string | null
@@ -118,10 +124,13 @@ export type Database = {
         }
         Update: {
           acao?: string
+          categoria_produtividade?: string
+          conta_produtividade?: boolean
           criado_em?: string
           descricao?: string
           id?: string
           modulo?: string
+          origem?: string
           processo_id?: string | null
           processo_numero?: string
           registro_id?: string | null
