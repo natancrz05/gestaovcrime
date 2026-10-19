@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Gauge, CalendarCheck2, ListChecks, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Gauge, CalendarCheck2, ListChecks, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,9 +49,14 @@ export function RelatorioProdutividade() {
   const usuarios = useQuery({
     queryKey: ["produtividade", "usuarios"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("usuarios").select("nome").order("nome");
+      const { data, error } = await supabase
+        .from("auditoria")
+        .select("usuario_nome")
+        .eq("conta_produtividade", true)
+        .order("usuario_nome")
+        .limit(5000);
       if (error) throw error;
-      return [...new Set((data ?? []).map((u) => u.nome).filter(Boolean))];
+      return [...new Set((data ?? []).map((u) => u.usuario_nome).filter(Boolean))];
     },
   });
 
@@ -70,34 +75,21 @@ export function RelatorioProdutividade() {
         .order("criado_em", { ascending: false })
         .limit(5000);
 
-      let ignorados = supabase
-        .from("auditoria")
-        .select("id", { count: "exact", head: true })
-        .eq("conta_produtividade", false)
-        .gte("criado_em", `${de}T00:00:00-03:00`)
-        .lt("criado_em", `${diaSeguinte(ate)}T00:00:00-03:00`);
-
-      if (usuario) {
-        produtivos = produtivos.eq("usuario_nome", usuario);
-        ignorados = ignorados.eq("usuario_nome", usuario);
-      }
+      if (usuario) produtivos = produtivos.eq("usuario_nome", usuario);
       if (categoria) produtivos = produtivos.eq("categoria_produtividade", categoria);
 
-      const [p, i] = await Promise.all([produtivos, ignorados]);
+      const p = await produtivos;
       if (p.error) throw p.error;
-      if (i.error) throw i.error;
 
       return {
         eventos: p.data ?? [],
         totalProdutivos: p.count ?? 0,
-        totalIgnorados: i.count ?? 0,
       };
     },
   });
 
   const eventos = relatorio.data?.eventos ?? [];
   const total = relatorio.data?.totalProdutivos ?? 0;
-  const ignorados = relatorio.data?.totalIgnorados ?? 0;
 
   const diasAtivos = useMemo(
     () => new Set(eventos.map((e) => e.criado_em.slice(0, 10))).size,
@@ -226,7 +218,7 @@ export function RelatorioProdutividade() {
             <Resumo icone={ListChecks} rotulo="Operações produtivas" valor={total.toLocaleString("pt-BR")} />
             <Resumo icone={CalendarCheck2} rotulo="Dias com produção" valor={diasAtivos.toLocaleString("pt-BR")} />
             <Resumo icone={Gauge} rotulo="Média por dia ativo" valor={mediaDia.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} />
-            <Resumo icone={ShieldCheck} rotulo="Logs técnicos ignorados" valor={ignorados.toLocaleString("pt-BR")} />
+            <Resumo icone={Users} rotulo="Usuários com produção" valor={porUsuario.length.toLocaleString("pt-BR")} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
