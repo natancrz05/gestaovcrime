@@ -3,6 +3,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
+  BarChart3,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
@@ -66,8 +67,10 @@ import {
   type ControleOficio,
 } from "@/lib/controle-oficios";
 import { cn } from "@/lib/utils";
+import { RelatorioProdutividade } from "@/components/relatorios/RelatorioProdutividade";
 
 type Tipo =
+  | "produtividade"
   | "processos"
   | "presos-provisorios"
   | "sem-movimentacao"
@@ -78,6 +81,7 @@ type Tipo =
   | "prioridades";
 
 const RELATORIOS: { chave: Tipo; titulo: string; descricao: string; icone: typeof FolderOpen }[] = [
+  { chave: "produtividade", titulo: "Produtividade", descricao: "Operações produtivas identificadas pela auditoria", icone: BarChart3 },
   { chave: "processos", titulo: "Processos", descricao: "Acervo, fluxo, movimentação e situação", icone: FolderOpen },
   { chave: "presos-provisorios", titulo: "Presos Provisórios", descricao: "Custódias ativas por tipo de prisão", icone: Lock },
   {
@@ -208,15 +212,19 @@ function Pagina() {
       </div>
 
       {atual ? (
-        <Relatorio
-          key={atual.chave}
-          tipo={atual.chave}
-          titulo={atual.titulo}
-          processos={processos}
-          presos={presos as unknown as ReuPresoBeta[]}
-          comparecimentos={comparecimentos as Comparecimento[]}
-          oficios={oficios}
-        />
+        atual.chave === "produtividade" ? (
+          <RelatorioProdutividade />
+        ) : (
+          <Relatorio
+            key={atual.chave}
+            tipo={atual.chave}
+            titulo={atual.titulo}
+            processos={processos}
+            presos={presos as unknown as ReuPresoBeta[]}
+            comparecimentos={comparecimentos as Comparecimento[]}
+            oficios={oficios}
+          />
+        )
       ) : (
         <p className="text-sm text-muted-foreground">Selecione um relatório acima.</p>
       )}
