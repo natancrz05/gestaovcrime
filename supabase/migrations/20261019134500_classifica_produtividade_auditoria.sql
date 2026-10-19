@@ -28,6 +28,7 @@ DECLARE
   v_observacao_audiencia text;
   v_dados_comparecimento jsonb;
   v_historico_oficio boolean;
+  v_origem_movimentacao text;
 BEGIN
   NEW.origem := 'indefinida';
   NEW.conta_produtividade := false;
@@ -164,14 +165,27 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Movimentações e alterações genéricas de réus permanecem auditadas,
-  -- mas não contam nesta primeira versão porque o histórico atual mistura
-  -- lançamentos manuais e importações sem metadado suficiente para separá-los.
   IF NEW.modulo = 'Movimentações' THEN
-    NEW.origem := 'indefinida';
+    SELECT origem INTO v_origem_movimentacao
+      FROM public.movimentacoes
+      WHERE id = NEW.registro_id;
+
+    IF v_origem_movimentacao = 'manual' THEN
+      NEW.origem := 'manual';
+      IF NEW.acao = 'Criado' THEN
+        NEW.conta_produtividade := true;
+        NEW.categoria_produtividade := 'Movimentações';
+      END IF;
+    ELSIF v_origem_movimentacao = 'pje_tjba' THEN
+      NEW.origem := 'importacao';
+    ELSE
+      NEW.origem := 'indefinida';
+    END IF;
     RETURN NEW;
   END IF;
 
+  -- Alterações genéricas de réus permanecem fora do indicador enquanto a
+  -- origem da ação não puder ser separada com segurança.
   IF NEW.modulo = 'Réus' THEN
     NEW.origem := 'indefinida';
     RETURN NEW;
