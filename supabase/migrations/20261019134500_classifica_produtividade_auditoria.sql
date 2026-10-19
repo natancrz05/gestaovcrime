@@ -54,6 +54,13 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- Log retroativo sem usuário identificável não pode virar produção pessoal.
+  IF COALESCE(NULLIF(NEW.usuario_nome, ''), 'Sistema') = 'Sistema'
+     AND NEW.usuario_id IS NULL THEN
+    NEW.origem := 'indefinida';
+    RETURN NEW;
+  END IF;
+
   IF NEW.modulo = 'Processos' THEN
     SELECT origem INTO v_origem_processo
       FROM public.processos
