@@ -17,6 +17,15 @@ CREATE INDEX IF NOT EXISTS auditoria_produtividade_usuario_data_idx
 CREATE INDEX IF NOT EXISTS auditoria_produtividade_categoria_data_idx
   ON public.auditoria (categoria_produtividade, conta_produtividade, criado_em DESC);
 
+DROP POLICY IF EXISTS "Admin ou servidor leem produtividade" ON public.auditoria;
+CREATE POLICY "Admin ou servidor leem produtividade"
+  ON public.auditoria
+  FOR SELECT TO authenticated
+  USING (
+    conta_produtividade = true
+    AND (SELECT public.pode_editar(auth.uid()))
+  );
+
 CREATE OR REPLACE FUNCTION public.classificar_auditoria_produtividade()
 RETURNS trigger
 LANGUAGE plpgsql
