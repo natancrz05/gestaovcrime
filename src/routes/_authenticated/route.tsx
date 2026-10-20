@@ -9,6 +9,14 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const sessao = await carregarSessao();
     if (!sessao) throw redirect({ to: "/auth" });
+    if (sessao.statusCadastro === "pendente") {
+      await supabase.auth.signOut();
+      throw redirect({ to: "/auth", search: { aviso: "pendente" } });
+    }
+    if (sessao.statusCadastro === "recusado") {
+      await supabase.auth.signOut();
+      throw redirect({ to: "/auth", search: { aviso: "recusado" } });
+    }
     if (!sessao.ativo || !sessao.perfil) {
       await supabase.auth.signOut();
       throw redirect({ to: "/auth", search: { aviso: "inativo" } });
