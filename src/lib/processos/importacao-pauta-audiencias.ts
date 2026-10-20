@@ -18,7 +18,7 @@ import {
   listarProcessosCompletos,
   criarProcesso,
   obterProcesso,
-  salvarAudiencia,
+  type AudienciaEntrada,
   type NovoProcessoEntrada,
 } from "./repositorio";
 import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
@@ -99,6 +99,27 @@ export interface ProgressoImportacaoPauta {
   total: number;
   /** Descrição da operação real em execução/concluída. */
   etapa: string;
+}
+
+async function salvarAudienciaImportada(e: AudienciaEntrada, id?: string) {
+  const horario = e.horario ? e.horario.slice(0, 5) : null;
+  const { data, error } = await supabase.rpc(
+    "salvar_audiencia_importada" as never,
+    {
+      p_id: id ?? null,
+      p_processo_id: e.processo_id,
+      p_tipo: tipoAudienciaCanonico(e.tipo),
+      p_data: e.data,
+      p_horario: horario,
+      p_modalidade: e.modalidade,
+      p_local: e.local,
+      p_situacao: e.situacao,
+      p_observacao: e.observacao,
+      p_aguardando_nova_data: e.aguardando_nova_data ?? false,
+    } as never,
+  );
+  if (error) throw error;
+  return data as string;
 }
 
 const norm = (s: string) =>
@@ -702,6 +723,7 @@ export async function executarImportacaoPauta(
       );
       const entrada: NovoProcessoEntrada = {
         numero: grupo[0]!.numero,
+        origem: "pje_tjba",
         classe: grupo[0]!.classe,
         assunto: "",
         data_distribuicao: null,
@@ -798,7 +820,7 @@ export async function executarImportacaoPauta(
       if (!existente) {
         throw new Error(`A audiência manual de ${item.numero} mudou durante a importação. Refaça a conferência da pauta.`);
       }
-      await salvarAudiencia({
+      await salvarAudienciaImportada({
         processo_id: processo.id,
         tipo: item.tipo,
         data: item.data,
@@ -854,7 +876,7 @@ export async function executarImportacaoPauta(
       );
     }
 
-    await salvarAudiencia({
+    await salvarAudienciaImportada({
       processo_id: processo.id,
       tipo: item.tipo,
       data: item.data,
