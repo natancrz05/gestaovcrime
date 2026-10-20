@@ -9,6 +9,7 @@ export interface Sessao {
   perfil: Perfil | null;
   ativo: boolean;
   statusCadastro: "pendente" | "aprovado" | "recusado";
+  trocaSenhaObrigatoria: boolean;
 }
 
 export async function carregarSessao(): Promise<Sessao | null> {
@@ -16,7 +17,7 @@ export async function carregarSessao(): Promise<Sessao | null> {
   if (error || !data.user) return null;
   const id = data.user.id;
   const [{ data: u }, { data: roles }] = await Promise.all([
-    supabase.from("usuarios").select("nome, email, ativo, status_cadastro").eq("id", id).maybeSingle(),
+    supabase.from("usuarios").select("nome, email, ativo, status_cadastro, troca_senha_obrigatoria").eq("id", id).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", id),
   ]);
   const lista = (roles ?? []).map((r) => r.role as Perfil);
@@ -34,6 +35,7 @@ export async function carregarSessao(): Promise<Sessao | null> {
     perfil,
     ativo: !!u?.ativo,
     statusCadastro: (u?.status_cadastro ?? "pendente") as "pendente" | "aprovado" | "recusado",
+    trocaSenhaObrigatoria: !!u?.troca_senha_obrigatoria,
   };
 }
 
