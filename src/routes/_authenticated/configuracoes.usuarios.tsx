@@ -2,7 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Plus, Check, KeyRound, X } from "lucide-react";
+import { ArrowLeft, Plus, Check, Copy, KeyRound, X } from "lucide-react";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -43,6 +43,7 @@ function Pagina() {
   const [excluindo, setExcluindo] = useState<{ id: string; nome: string } | null>(null);
   const [redefinindo, setRedefinindo] = useState<{ id: string; nome: string } | null>(null);
   const [senhaPadrao, setSenhaPadrao] = useState("");
+  const [mensagemCopiada, setMensagemCopiada] = useState(false);
   const qc = useQueryClient();
   const { data: usuarios = [], isLoading, error } = useQuery({ queryKey: ["usuarios"], queryFn: () => listar() });
   const [edicao, setEdicao] = useState<Edicao | null>(null);
@@ -53,6 +54,22 @@ function Pagina() {
   const pendentes = usuarios.filter((u) => u.status_cadastro === "pendente");
   const ativos = usuarios.filter((u) => u.status_cadastro === "aprovado" && u.ativo);
   const inativos = usuarios.filter((u) => u.status_cadastro !== "pendente" && !(u.status_cadastro === "aprovado" && u.ativo));
+
+  const mensagemRedefinicao = redefinindo && senhaPadrao
+    ? `Olá, ${redefinindo.nome}.
+
+Sua senha de acesso ao sistema Gestão da Vara Criminal foi redefinida pelo administrador.
+
+Acesse o sistema pelo endereço:
+${typeof window !== "undefined" ? window.location.origin : ""}
+
+Use sua conta normalmente e, no campo de senha, informe a senha temporária:
+${senhaPadrao}
+
+No primeiro acesso, o sistema solicitará obrigatoriamente a criação de uma nova senha pessoal. Depois de cadastrá-la, utilize essa nova senha nos próximos acessos.
+
+Em caso de dificuldade, procure o administrador da unidade.`
+    : "";
 
   async function alternar(u: (typeof usuarios)[number]) {
     setErro("");
@@ -141,6 +158,7 @@ function Pagina() {
                             onClick={() => {
                               setErro("");
                               setSenhaPadrao("");
+                              setMensagemCopiada(false);
                               setRedefinindo({ id: u.id, nome: u.nome });
                             }}
                           >
@@ -245,6 +263,7 @@ function Pagina() {
           if (!o) {
             setRedefinindo(null);
             setSenhaPadrao("");
+            setMensagemCopiada(false);
           }
         }}
       >
@@ -262,8 +281,52 @@ function Pagina() {
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Senha padrão</p>
                 <p className="mt-1 select-all font-mono text-base font-semibold">{senhaPadrao}</p>
               </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold">Mensagem para o servidor</p>
+                  <button
+                    type="button"
+                    className={BOTAO_SEC}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(mensagemRedefinicao);
+                        setMensagemCopiada(true);
+                        window.setTimeout(() => setMensagemCopiada(false), 2200);
+                      } catch {
+                        setErro("Não foi possível copiar automaticamente. Selecione o texto abaixo e copie manualmente.");
+                      }
+                    }}
+                  >
+                    <Copy className="mr-1 size-3.5" />
+                    {mensagemCopiada ? "Copiado!" : "Copiar mensagem"}
+                  </button>
+                </div>
+                <textarea
+                  readOnly
+                  rows={12}
+                  className={cn(CLASSE_CAMPO, "h-auto resize-y whitespace-pre-wrap text-sm leading-relaxed")}
+                  value={mensagemRedefinicao}
+                  onFocus={(e) => e.currentTarget.select()}
+                  aria-label="Mensagem de redefinição de senha"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Você pode colar esta mensagem no WhatsApp, e-mail ou outro canal interno.
+                </p>
+              </div>
+
               <div className="flex justify-end">
-                <button type="button" className={BOTAO} onClick={() => { setRedefinindo(null); setSenhaPadrao(""); }}>Fechar</button>
+                <button
+                  type="button"
+                  className={BOTAO}
+                  onClick={() => {
+                    setRedefinindo(null);
+                    setSenhaPadrao("");
+                    setMensagemCopiada(false);
+                  }}
+                >
+                  Fechar
+                </button>
               </div>
             </div>
           ) : (
