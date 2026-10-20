@@ -1,7 +1,7 @@
 export type EstadoCadastroLogin = "pendente" | "aprovado" | "recusado";
 
 export type UsuarioLogin = {
-  status_cadastro: EstadoCadastroLogin;
+  status_cadastro: EstadoCadastroLogin | string;
   ativo: boolean;
   troca_senha_obrigatoria: boolean;
 };
