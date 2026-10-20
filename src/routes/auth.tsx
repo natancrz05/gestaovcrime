@@ -386,12 +386,43 @@ function Entrar() {
 
               setEnviando(true);
               try {
-                await trocarSenha({ data: { senha } });
+                const { data: sessaoAtual } = await supabase.auth.getSession();
+                const accessToken = sessaoAtual.session?.access_token;
+
+                if (!accessToken) {
+                  setErro("Sua sessão expirou. Entre novamente com a senha padrão.");
+                  setModo("entrar");
+                  return;
+                }
+
+                await trocarSenha({ data: { senha, accessToken } });
+
+                // Reabre a sessão com a nova senha para não manter credencial
+                // temporária ou token antigo após a redefinição.
+                await supabase.auth.signOut();
+                const { error: novoLoginErro } = await supabase.auth.signInWithPassword({
+                  email: email.trim(),
+                  password: senha,
+                });
+
+                if (novoLoginErro) {
+                  setSucesso("Senha alterada com sucesso. Entre novamente usando a nova senha.");
+                  setModo("entrar");
+                  setSenha("");
+                  setConfirmarSenha("");
+                  return;
+                }
+
                 setSucesso("Senha alterada. Acesso liberado.");
                 await registrarAcesso({ data: { acao: "Login" } }).catch(() => {});
                 navigate({ to: "/", replace: true });
               } catch (e) {
-                setErro((e as Error).message);
+                const mensagem = e instanceof Error ? e.message : "Não foi possível alterar a senha.";
+                setErro(
+                  /authorization header|unauthorized/i.test(mensagem)
+                    ? "Não foi possível validar sua sessão. Entre novamente com a senha padrão."
+                    : mensagem,
+                );
               } finally {
                 setEnviando(false);
               }
