@@ -32,13 +32,12 @@ function Entrar() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState(
-    aviso === "pendente"
-      ? "Seu cadastro ainda aguarda aprovação de um administrador."
-      : aviso === "recusado"
-        ? "Sua solicitação de acesso foi recusada. Procure um administrador da unidade."
-        : aviso === "inativo"
-          ? "Seu usuário está inativo. Procure o Administrador."
-          : "",
+    aviso === "inativo"
+      ? "Seu usuário está inativo. Procure o Administrador."
+      : "",
+  );
+  const [statusAcesso, setStatusAcesso] = useState<"pendente" | "recusado" | null>(
+    aviso === "pendente" ? "pendente" : aviso === "recusado" ? "recusado" : null,
   );
   const [sucesso, setSucesso] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -46,6 +45,7 @@ function Entrar() {
   const trocarModo = (novo: "entrar" | "solicitar") => {
     setModo(novo);
     setErro("");
+    setStatusAcesso(null);
     setSucesso("");
     setSenha("");
   };
@@ -87,14 +87,40 @@ function Entrar() {
               e.preventDefault();
               setEnviando(true);
               setErro("");
+              setStatusAcesso(null);
               setSucesso("");
-              const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
-              setEnviando(false);
+              const { data: login, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
               if (error) {
+                setEnviando(false);
                 setErro(/banned/i.test(error.message) ? "Seu usuário está inativo ou teve a solicitação recusada. Procure o Administrador." : "E-mail ou senha incorretos.");
                 registrarFalhaLogin({ data: { email: email.trim() } }).catch(() => {});
                 return;
               }
+
+              const id = login.user?.id;
+              if (id) {
+                const { data: usuario } = await supabase
+                  .from("usuarios")
+                  .select("status_cadastro, ativo")
+                  .eq("id", id)
+                  .maybeSingle();
+
+                if (usuario?.status_cadastro === "pendente") {
+                  await supabase.auth.signOut();
+                  setEnviando(false);
+                  setStatusAcesso("pendente");
+                  return;
+                }
+
+                if (usuario?.status_cadastro === "recusado") {
+                  await supabase.auth.signOut();
+                  setEnviando(false);
+                  setStatusAcesso("recusado");
+                  return;
+                }
+              }
+
+              setEnviando(false);
               await registrarAcesso({ data: { acao: "Login" } }).catch(() => {});
               navigate({ to: "/", replace: true });
             }}
@@ -105,6 +131,22 @@ function Entrar() {
             <Campo rotulo="Senha">
               <input type="password" autoComplete="current-password" required className={CLASSE_CAMPO} value={senha} onChange={(e) => setSenha(e.target.value)} />
             </Campo>
+            {statusAcesso === "pendente" ? (
+              <div className="rounded-md border border-atencao/30 bg-atencao-suave p-3">
+                <p className="text-sm font-semibold text-atencao">Aguardando aprovação</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Seu cadastro foi recebido, mas o acesso ainda precisa ser aprovado por um administrador da unidade.
+                </p>
+              </div>
+            ) : null}
+            {statusAcesso === "recusado" ? (
+              <div className="rounded-md border border-urgente/30 bg-urgente-suave p-3">
+                <p className="text-sm font-semibold text-urgente">Acesso não autorizado</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Sua solicitação de acesso foi recusada. Procure um administrador da unidade.
+                </p>
+              </div>
+            ) : null}
             {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
             <button disabled={enviando} className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
               {enviando ? "Entrando…" : "Entrar"}
