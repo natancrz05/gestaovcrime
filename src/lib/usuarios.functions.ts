@@ -9,6 +9,7 @@ type ContextoAutenticado = { supabase: ClienteSupabase; userId: string };
 
 const perfilSchema = z.enum(["administrador", "servidor", "consulta"]);
 const perfilAprovacaoSchema = z.enum(["servidor", "consulta"]);
+const SENHA_PADRAO_TEMPORARIA = "PrimeiroAcesso@Cdm67";
 
 export const solicitarAcesso = createServerFn({ method: "POST" })
   .inputValidator((d) =>
@@ -110,6 +111,8 @@ export const listarUsuarios = createServerFn({ method: "GET" })
       solicitado_em: u.solicitado_em as string | null,
       aprovado_em: u.aprovado_em as string | null,
       recusado_em: u.recusado_em as string | null,
+      troca_senha_obrigatoria: u.troca_senha_obrigatoria as boolean,
+      senha_temporaria_em: u.senha_temporaria_em as string | null,
       perfil: ((roles ?? []).find((r) => r.user_id === u.id)?.role ?? null) as z.infer<typeof perfilSchema> | null,
     }));
   });
@@ -244,6 +247,105 @@ export const recusarSolicitacao = createServerFn({ method: "POST" })
       "Alteração de status",
       `Solicitação de acesso de ${usuario.nome || usuario.email} recusada`,
     );
+    return { ok: true };
+  });
+
+export const redefinirSenhaPadrao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    if (data.id === context.userId) throw new Error("Use a troca normal de senha para a sua própria conta.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: usuario } = await supabaseAdmin
+      .from("usuarios")
+      .select("nome, email, ativo, status_cadastro")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (!usuario) throw new Error("Usuário não encontrado.");
+    if (usuario.status_cadastro !== "aprovado") throw new Error("A senha padrão só pode ser aplicada a usuários aprovados.");
+    if (!usuario.ativo) throw new Error("Ative o usuário antes de redefinir a senha.");
+
+    const agora = new Date().toISOString();
+    const marca = await supabaseAdmin.from("usuarios").update({
+      troca_senha_obrigatoria: true,
+      senha_temporaria_em: agora,
+      senha_temporaria_por: context.userId,
+    }).eq("id", data.id);
+    if (marca.error) throw new Error(marca.error.message);
+
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, {
+      password: SENHA_PADRAO_TEMPORARIA,
+    });
+    if (authUpdate.error) {
+      await supabaseAdmin.from("usuarios").update({
+        troca_senha_obrigatoria: false,
+        senha_temporaria_em: null,
+        senha_temporaria_por: null,
+      }).eq("id", data.id);
+      throw new Error("Não foi possível redefinir a senha do usuário.");
+    }
+
+    await auditarUsuario(
+      supabaseAdmin,
+      context.userId,
+      data.id,
+      "Alteração de status",
+      `Senha de ${usuario.nome || usuario.email} redefinida para a senha padrão; troca obrigatória no próximo acesso`,
+    );
+
+    return { ok: true, senhaPadrao: SENHA_PADRAO_TEMPORARIA };
+  });
+
+export const trocarSenhaObrigatoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      senha: z.string().min(6, "A nova senha deve ter pelo menos 6 caracteres.").max(72),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    if (data.senha === SENHA_PADRAO_TEMPORARIA) {
+      throw new Error("Escolha uma senha diferente da senha padrão.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: usuario } = await supabaseAdmin
+      .from("usuarios")
+      .select("nome, ativo, status_cadastro, troca_senha_obrigatoria")
+      .eq("id", context.userId)
+      .maybeSingle();
+
+    if (!usuario) throw new Error("Usuário não encontrado.");
+    if (!usuario.ativo || usuario.status_cadastro !== "aprovado") {
+      throw new Error("Seu acesso não está liberado.");
+    }
+    if (!usuario.troca_senha_obrigatoria) {
+      throw new Error("Não há troca obrigatória de senha pendente.");
+    }
+
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      password: data.senha,
+    });
+    if (authUpdate.error) throw new Error(traduzirErro(authUpdate.error.message));
+
+    const atualiza = await supabaseAdmin.from("usuarios").update({
+      troca_senha_obrigatoria: false,
+      senha_temporaria_em: null,
+      senha_temporaria_por: null,
+    }).eq("id", context.userId);
+    if (atualiza.error) throw new Error("A senha foi alterada, mas não foi possível concluir a liberação. Tente novamente.");
+
+    await auditarUsuario(
+      supabaseAdmin,
+      context.userId,
+      context.userId,
+      "Alteração de status",
+      `Senha obrigatória alterada por ${usuario.nome}`,
+    );
+
     return { ok: true };
   });
 
