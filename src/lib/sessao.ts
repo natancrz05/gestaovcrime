@@ -8,6 +8,7 @@ export interface Sessao {
   nome: string;
   perfil: Perfil | null;
   ativo: boolean;
+  statusCadastro: "pendente" | "aprovado" | "recusado";
 }
 
 export async function carregarSessao(): Promise<Sessao | null> {
@@ -15,7 +16,7 @@ export async function carregarSessao(): Promise<Sessao | null> {
   if (error || !data.user) return null;
   const id = data.user.id;
   const [{ data: u }, { data: roles }] = await Promise.all([
-    supabase.from("usuarios").select("nome, email, ativo").eq("id", id).maybeSingle(),
+    supabase.from("usuarios").select("nome, email, ativo, status_cadastro").eq("id", id).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", id),
   ]);
   const lista = (roles ?? []).map((r) => r.role as Perfil);
@@ -26,7 +27,14 @@ export async function carregarSessao(): Promise<Sessao | null> {
       : lista.includes("consulta")
         ? "consulta"
         : null;
-  return { id, email: u?.email ?? data.user.email ?? "", nome: u?.nome ?? "", perfil, ativo: !!u?.ativo };
+  return {
+    id,
+    email: u?.email ?? data.user.email ?? "",
+    nome: u?.nome ?? "",
+    perfil,
+    ativo: !!u?.ativo,
+    statusCadastro: (u?.status_cadastro ?? "pendente") as "pendente" | "aprovado" | "recusado",
+  };
 }
 
 const rotaAutenticada = getRouteApi("/_authenticated");
