@@ -7,6 +7,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { pode } from "@/lib/permissoes";
 import { useSessao } from "@/lib/sessao";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
+import { CarregandoBloco } from "@/components/ui-serventia/CarregandoPagina";
 import { Etiqueta } from "@/components/ui-serventia/Etiqueta";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -444,9 +445,13 @@ function DetalheImportacao({ imp: resumo, onFechar, podeDesfazer, onDesfeita }: 
     <Dialog open={!!resumo} onOpenChange={(o) => { if (!o) { onFechar(); setErro(""); } }}>
       <DialogContent className="max-w-4xl">
         {resumo && !imp ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            {detalhe.error ? "Não foi possível carregar os detalhes desta importação." : "Carregando detalhes da importação…"}
-          </div>
+          detalhe.error ? (
+            <div className="rounded-lg border border-urgente/25 bg-urgente-suave p-4 text-center text-sm text-urgente">
+              Não foi possível carregar os detalhes desta importação.
+            </div>
+          ) : (
+            <CarregandoBloco texto="Carregando detalhes da importação..." />
+          )
         ) : null}
         {imp && (
           <>
