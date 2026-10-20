@@ -5,7 +5,7 @@ const EMAIL = "e2e.login.servidor@varacrime.test";
 const SENHA = ["Teste", "Login", "2026"].join("-");
 
 async function abrir(page: any) {
-  await page.goto(BASE + "/auth", { waitUntil: "networkidle" });
+  await page.goto(BASE + "/auth", { waitUntil: "domcontentloaded", timeout: 30000 });
   await expect(page.getByText("Vara Criminal")).toBeVisible();
 }
 
