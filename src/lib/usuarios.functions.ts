@@ -8,6 +8,47 @@ type ClienteSupabase = SupabaseClient<Database>;
 type ContextoAutenticado = { supabase: ClienteSupabase; userId: string };
 
 const perfilSchema = z.enum(["administrador", "servidor", "consulta"]);
+const perfilAprovacaoSchema = z.enum(["servidor", "consulta"]);
+
+export const solicitarAcesso = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z.object({
+      nome: z.string().trim().min(3, "Informe seu nome completo.").max(120),
+      email: z.string().trim().email("Informe um e-mail válido.").max(200),
+      senha: z.string().min(6, "A senha deve ter pelo menos 6 caracteres.").max(72),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = data.email.trim().toLowerCase();
+    const { data: criado, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: data.senha,
+      email_confirm: true,
+    });
+    if (error || !criado.user) throw new Error(traduzirErro(error?.message));
+
+    const id = criado.user.id;
+    try {
+      const { error: perfilError } = await supabaseAdmin.from("usuarios").insert({
+        id,
+        nome: data.nome.trim(),
+        email,
+        ativo: false,
+        status_cadastro: "pendente",
+        solicitado_em: new Date().toISOString(),
+        aprovado_em: null,
+        aprovado_por: null,
+        recusado_em: null,
+        recusado_por: null,
+      });
+      if (perfilError) throw perfilError;
+    } catch (e) {
+      await supabaseAdmin.auth.admin.deleteUser(id).catch(() => undefined);
+      throw new Error(e instanceof Error ? e.message : "Não foi possível concluir a solicitação de acesso.");
+    }
+    return { ok: true };
+  });
 
 function traduzirErro(msg?: string) {
   if (!msg) return "Falha ao criar usuário.";
@@ -65,6 +106,10 @@ export const listarUsuarios = createServerFn({ method: "GET" })
       email: u.email as string,
       ativo: u.ativo as boolean,
       criado_em: u.criado_em as string,
+      status_cadastro: u.status_cadastro as "pendente" | "aprovado" | "recusado",
+      solicitado_em: u.solicitado_em as string | null,
+      aprovado_em: u.aprovado_em as string | null,
+      recusado_em: u.recusado_em as string | null,
       perfil: ((roles ?? []).find((r) => r.user_id === u.id)?.role ?? null) as z.infer<typeof perfilSchema> | null,
     }));
   });
@@ -90,7 +135,16 @@ export const criarUsuario = createServerFn({ method: "POST" })
     if (error || !criado.user) throw new Error(traduzirErro(error?.message));
     const id = criado.user.id;
     try {
-      const r1 = await supabaseAdmin.from("usuarios").insert({ id, nome: data.nome, email: data.email, ativo: true });
+      const r1 = await supabaseAdmin.from("usuarios").insert({
+        id,
+        nome: data.nome,
+        email: data.email.toLowerCase(),
+        ativo: true,
+        status_cadastro: "aprovado",
+        solicitado_em: new Date().toISOString(),
+        aprovado_em: new Date().toISOString(),
+        aprovado_por: context.userId,
+      });
       if (r1.error) throw r1.error;
 
       const r2 = await supabaseAdmin.from("user_roles").insert({ user_id: id, role: data.perfil });
@@ -102,6 +156,95 @@ export const criarUsuario = createServerFn({ method: "POST" })
     }
     await auditarUsuario(supabaseAdmin, context.userId, id, "Criado", `Usuário ${data.nome} criado com perfil ${data.perfil}`);
     return { id };
+  });
+
+export const aprovarSolicitacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      id: z.string().uuid(),
+      perfil: perfilAprovacaoSchema,
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: usuario } = await supabaseAdmin
+      .from("usuarios")
+      .select("nome, email, status_cadastro")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!usuario) throw new Error("Solicitação não encontrada.");
+
+    const { data: roles } = await supabaseAdmin.from("user_roles").select("id").eq("user_id", data.id);
+    if (roles?.length) {
+      const { error } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
+      if (error) throw new Error(error.message);
+    }
+    const papel = await supabaseAdmin.from("user_roles").insert({ user_id: data.id, role: data.perfil });
+    if (papel.error) throw new Error(papel.error.message);
+
+    const agora = new Date().toISOString();
+    const upd = await supabaseAdmin.from("usuarios").update({
+      ativo: true,
+      status_cadastro: "aprovado",
+      aprovado_em: agora,
+      aprovado_por: context.userId,
+      recusado_em: null,
+      recusado_por: null,
+    }).eq("id", data.id);
+    if (upd.error) throw new Error(upd.error.message);
+
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "none" });
+    if (authUpdate.error) throw new Error("Não foi possível liberar o acesso na autenticação.");
+
+    await auditarUsuario(
+      supabaseAdmin,
+      context.userId,
+      data.id,
+      "Alteração de status",
+      `Solicitação de acesso de ${usuario.nome || usuario.email} aprovada como ${data.perfil}`,
+    );
+    return { ok: true };
+  });
+
+export const recusarSolicitacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirAdmin(context);
+    if (data.id === context.userId) throw new Error("Você não pode recusar a sua própria conta.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: usuario } = await supabaseAdmin
+      .from("usuarios")
+      .select("nome, email")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!usuario) throw new Error("Solicitação não encontrada.");
+
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
+    const agora = new Date().toISOString();
+    const upd = await supabaseAdmin.from("usuarios").update({
+      ativo: false,
+      status_cadastro: "recusado",
+      recusado_em: agora,
+      recusado_por: context.userId,
+      aprovado_em: null,
+      aprovado_por: null,
+    }).eq("id", data.id);
+    if (upd.error) throw new Error(upd.error.message);
+
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "876000h" });
+    if (authUpdate.error) throw new Error("Não foi possível bloquear a solicitação recusada.");
+
+    await auditarUsuario(
+      supabaseAdmin,
+      context.userId,
+      data.id,
+      "Alteração de status",
+      `Solicitação de acesso de ${usuario.nome || usuario.email} recusada`,
+    );
+    return { ok: true };
   });
 
 export const atualizarUsuario = createServerFn({ method: "POST" })
