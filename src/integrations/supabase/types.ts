@@ -1076,6 +1076,9 @@ export type Database = {
           recusado_por: string | null
           solicitado_em: string | null
           status_cadastro: string
+          senha_temporaria_em: string | null
+          senha_temporaria_por: string | null
+          troca_senha_obrigatoria: boolean
         }
         Insert: {
           aprovado_em?: string | null
@@ -1089,6 +1092,9 @@ export type Database = {
           recusado_por?: string | null
           solicitado_em?: string | null
           status_cadastro?: string
+          senha_temporaria_em?: string | null
+          senha_temporaria_por?: string | null
+          troca_senha_obrigatoria?: boolean
         }
         Update: {
           aprovado_em?: string | null
@@ -1102,6 +1108,9 @@ export type Database = {
           recusado_por?: string | null
           solicitado_em?: string | null
           status_cadastro?: string
+          senha_temporaria_em?: string | null
+          senha_temporaria_por?: string | null
+          troca_senha_obrigatoria?: boolean
         }
         Relationships: []
       }
