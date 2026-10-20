@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { registrarAcesso, registrarFalhaLogin } from "@/lib/auditoria.functions";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { solicitarAcesso, trocarSenhaObrigatoria } from "@/lib/usuarios.functions";
@@ -37,6 +37,8 @@ function Entrar() {
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [capsLockAtivo, setCapsLockAtivo] = useState(false);
+  const [lembrarEmail, setLembrarEmail] = useState(false);
   const [ajudaSenha, setAjudaSenha] = useState(false);
   const [erro, setErro] = useState(
     aviso === "inativo" ? "Seu usuário está inativo. Procure o Administrador." : "",
@@ -47,6 +49,18 @@ function Entrar() {
   const [sucesso, setSucesso] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  useEffect(() => {
+    try {
+      const salvo = window.localStorage.getItem("gestao-varacrime-email");
+      if (salvo) {
+        setEmail(salvo);
+        setLembrarEmail(true);
+      }
+    } catch {
+      // O navegador pode bloquear o armazenamento local; o login continua normalmente.
+    }
+  }, []);
+
   const trocarModo = (novo: "entrar" | "solicitar") => {
     setModo(novo);
     setErro("");
@@ -56,6 +70,7 @@ function Entrar() {
     setSenha("");
     setConfirmarSenha("");
     setMostrarSenha(false);
+    setCapsLockAtivo(false);
   };
 
   const campoSenha = (
@@ -73,6 +88,9 @@ function Entrar() {
         className={`${CLASSE_CAMPO} pr-10`}
         value={valor}
         onChange={(e) => aoMudar(e.target.value)}
+        onKeyDown={(e) => setCapsLockAtivo(e.getModifierState("CapsLock"))}
+        onKeyUp={(e) => setCapsLockAtivo(e.getModifierState("CapsLock"))}
+        onBlur={() => setCapsLockAtivo(false)}
       />
       <button
         type="button"
@@ -82,6 +100,9 @@ function Entrar() {
       >
         {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>
+      {capsLockAtivo && !mostrarSenha ? (
+        <p className="mt-1 text-xs font-medium text-atencao">Caps Lock ativado</p>
+      ) : null}
     </div>
   );
 
@@ -140,6 +161,16 @@ function Entrar() {
                 return;
               }
 
+              try {
+                if (lembrarEmail) {
+                  window.localStorage.setItem("gestao-varacrime-email", email.trim());
+                } else {
+                  window.localStorage.removeItem("gestao-varacrime-email");
+                }
+              } catch {
+                // Se o armazenamento local estiver bloqueado, não impede o acesso.
+              }
+
               const id = login.user?.id;
               if (id) {
                 const { data: usuario } = await supabase
@@ -193,6 +224,24 @@ function Entrar() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Campo>
+
+            <label className="-mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={lembrarEmail}
+                onChange={(e) => {
+                  setLembrarEmail(e.target.checked);
+                  if (!e.target.checked) {
+                    try {
+                      window.localStorage.removeItem("gestao-varacrime-email");
+                    } catch {
+                      // Sem impacto no login.
+                    }
+                  }
+                }}
+              />
+              Lembrar meu e-mail neste dispositivo
+            </label>
 
             <Campo rotulo="Senha">{campoSenha(senha, setSenha, "current-password")}</Campo>
 
