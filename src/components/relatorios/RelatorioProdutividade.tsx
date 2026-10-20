@@ -75,7 +75,7 @@ export function RelatorioProdutividade() {
         .order("criado_em", { ascending: false })
         .limit(5000);
 
-      if (usuario) produtivos = produtivos.eq("usuario_nome", usuario);
+      if (usuario.trim()) produtivos = produtivos.ilike("usuario_nome", `%${usuario.trim()}%`);
       if (categoria) produtivos = produtivos.eq("categoria_produtividade", categoria);
 
       const p = await produtivos;
@@ -174,12 +174,19 @@ export function RelatorioProdutividade() {
           Até
           <input type="date" className={CLASSE_CAMPO} value={ate} onChange={(e) => { setPagina(1); setAte(e.target.value); }} />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <label className="flex min-w-[240px] flex-col gap-1 text-xs text-muted-foreground">
           Usuário
-          <select className={CLASSE_CAMPO} value={usuario} onChange={(e) => alterarFiltro(setUsuario)(e.target.value)}>
-            <option value="">Todos</option>
-            {(usuarios.data ?? []).map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
+          <input
+            className={CLASSE_CAMPO}
+            value={usuario}
+            onChange={(e) => alterarFiltro(setUsuario)(e.target.value)}
+            placeholder="Digite o nome do servidor"
+            list="produtividade-usuarios"
+            autoComplete="off"
+          />
+          <datalist id="produtividade-usuarios">
+            {(usuarios.data ?? []).map((u) => <option key={u} value={u} />)}
+          </datalist>
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           Categoria
