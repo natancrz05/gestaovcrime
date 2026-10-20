@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, ShieldCheck, Tags, Users } from "lucide-react";
 import { usePode } from "@/lib/sessao";
 import { CONFIG_INTEGRACAO_PJE } from "@/lib/integracao/pje";
-import { AvisoEtapa, Cabecalho } from "@/components/ui-serventia/Cabecalho";
+import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 
 export const Route = createFileRoute("/_authenticated/configuracoes/")({
   head: () => ({
@@ -10,40 +10,17 @@ export const Route = createFileRoute("/_authenticated/configuracoes/")({
       { title: "Configurações — Gestão da Vara Criminal" },
       {
         name: "description",
-        content: "Parâmetros de funcionamento do sistema de gestão da serventia.",
+        content: "Configurações de acesso, etiquetas, auditoria e integrações do sistema.",
       },
       { property: "og:title", content: "Configurações — Gestão da Vara Criminal" },
       {
         property: "og:description",
-        content: "Parâmetros de funcionamento do sistema de gestão da serventia.",
+        content: "Configurações de acesso, etiquetas, auditoria e integrações do sistema.",
       },
     ],
   }),
   component: Pagina,
 });
-
-const PARAMETROS = [
-  {
-    titulo: "Limite de dias sem movimentação",
-    valor: "100 dias",
-    descricao: "Critério para destacar processos parados no acervo.",
-  },
-  {
-    titulo: "Janela de audiência próxima",
-    valor: "30 dias",
-    descricao: "Prazo em que a audiência passa a ser sinalizada como próxima.",
-  },
-  {
-    titulo: "Janela de prazo próximo",
-    valor: "7 dias",
-    descricao: "Prazo em que a providência passa a ser sinalizada como urgente.",
-  },
-  {
-    titulo: "Unidade judicial",
-    valor: "Vara Criminal — Coração de Maria/BA",
-    descricao: "Identificação exibida no cabeçalho do sistema.",
-  },
-];
 
 function Pagina() {
   const admin = usePode("gerenciar-usuarios");
@@ -51,7 +28,7 @@ function Pagina() {
     <div className="space-y-6">
       <Cabecalho
         titulo="Configurações"
-        subtitulo="Parâmetros utilizados para classificar prioridades e alertas"
+        subtitulo="Gerencie acessos, etiquetas, auditoria e integrações do sistema"
       />
       {admin ? (
         <Link
@@ -92,18 +69,6 @@ function Pagina() {
           <ChevronRight className="size-4 text-muted-foreground" />
         </Link>
       ) : null}
-      <AvisoEtapa>Nesta etapa os parâmetros abaixo são apenas exibidos.</AvisoEtapa>
-
-      <dl className="grid gap-3 md:grid-cols-2">
-        {PARAMETROS.map((p) => (
-          <div key={p.titulo} className="rounded-lg border border-border bg-card p-4 shadow-card">
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{p.titulo}</dt>
-            <dd className="mt-1 text-sm font-semibold text-foreground">{p.valor}</dd>
-            <dd className="mt-1 text-xs text-muted-foreground">{p.descricao}</dd>
-          </div>
-        ))}
-      </dl>
-
       <section className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-card">
         <h2 className="text-base font-semibold text-foreground">Integração com PJe</h2>
         <dl className="grid gap-3 sm:grid-cols-3">
