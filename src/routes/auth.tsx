@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { solicitarAcesso, trocarSenhaObrigatoria } from "@/lib/usuarios.functions";
+import { decidirAcessoAposLogin } from "@/lib/login-acesso";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 
 export const Route = createFileRoute("/auth")({
@@ -172,41 +173,43 @@ function Entrar() {
               }
 
               const id = login.user?.id;
-              if (id) {
-                const { data: usuario } = await supabase
-                  .from("usuarios")
-                  .select("status_cadastro, ativo, troca_senha_obrigatoria")
-                  .eq("id", id)
-                  .maybeSingle();
+              const { data: usuario } = id
+                ? await supabase
+                    .from("usuarios")
+                    .select("status_cadastro, ativo, troca_senha_obrigatoria")
+                    .eq("id", id)
+                    .maybeSingle()
+                : { data: null };
 
-                if (usuario?.status_cadastro === "pendente") {
-                  await supabase.auth.signOut();
-                  setEnviando(false);
-                  setStatusAcesso("pendente");
-                  return;
-                }
+              const decisao = decidirAcessoAposLogin(usuario);
 
-                if (usuario?.status_cadastro === "recusado") {
-                  await supabase.auth.signOut();
-                  setEnviando(false);
-                  setStatusAcesso("recusado");
-                  return;
-                }
+              if (decisao === "pendente") {
+                await supabase.auth.signOut();
+                setEnviando(false);
+                setStatusAcesso("pendente");
+                return;
+              }
 
-                if (!usuario?.ativo) {
-                  await supabase.auth.signOut();
-                  setEnviando(false);
-                  setErro("Seu usuário está inativo. Procure um administrador da unidade.");
-                  return;
-                }
+              if (decisao === "recusado") {
+                await supabase.auth.signOut();
+                setEnviando(false);
+                setStatusAcesso("recusado");
+                return;
+              }
 
-                if (usuario.troca_senha_obrigatoria) {
-                  setEnviando(false);
-                  setSenha("");
-                  setConfirmarSenha("");
-                  setModo("trocar");
-                  return;
-                }
+              if (decisao === "inativo") {
+                await supabase.auth.signOut();
+                setEnviando(false);
+                setErro("Seu usuário está inativo ou não possui acesso liberado. Procure um administrador da unidade.");
+                return;
+              }
+
+              if (decisao === "trocar_senha") {
+                setEnviando(false);
+                setSenha("");
+                setConfirmarSenha("");
+                setModo("trocar");
+                return;
               }
 
               setEnviando(false);
