@@ -237,8 +237,11 @@ export const recusarSolicitacao = createServerFn({ method: "POST" })
     }).eq("id", data.id);
     if (upd.error) throw new Error(upd.error.message);
 
-    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "876000h" });
-    if (authUpdate.error) throw new Error("Não foi possível bloquear a solicitação recusada.");
+    // Não bane no Supabase Auth: a conta precisa conseguir autenticar a senha correta
+    // apenas o suficiente para a tela identificar "recusado" e encerrar a sessão.
+    // O acesso aos dados continua bloqueado por ativo=false, ausência de perfil e RLS.
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "none" });
+    if (authUpdate.error) throw new Error("Não foi possível concluir a recusa da solicitação.");
 
     await auditarUsuario(
       supabaseAdmin,
