@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { registrarAcesso, registrarFalhaLogin } from "@/lib/auditoria.functions";
 import { useState } from "react";
-import { Scale } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { solicitarAcesso } from "@/lib/usuarios.functions";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
@@ -27,10 +27,12 @@ function Entrar() {
   const { aviso } = Route.useSearch();
   const navigate = useNavigate();
   const solicitar = useServerFn(solicitarAcesso);
-  const [modo, setModo] = useState<"entrar" | "solicitar">("entrar");
+  const [modo, setModo] = useState<"entrar" | "solicitar" | "recuperar">("entrar");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState(
     aviso === "inativo"
       ? "Seu usuário está inativo. Procure o Administrador."
@@ -42,12 +44,14 @@ function Entrar() {
   const [sucesso, setSucesso] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  const trocarModo = (novo: "entrar" | "solicitar") => {
+  const trocarModo = (novo: "entrar" | "solicitar" | "recuperar") => {
     setModo(novo);
     setErro("");
     setStatusAcesso(null);
     setSucesso("");
     setSenha("");
+    setConfirmarSenha("");
+    setMostrarSenha(false);
   };
 
   return (
@@ -63,22 +67,38 @@ function Entrar() {
           </div>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 rounded-md border border-border bg-muted/40 p-1 text-sm">
-          <button
-            type="button"
-            className={`rounded px-3 py-2 font-medium ${modo === "entrar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
-            onClick={() => trocarModo("entrar")}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            className={`rounded px-3 py-2 font-medium ${modo === "solicitar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
-            onClick={() => trocarModo("solicitar")}
-          >
-            Solicitar acesso
-          </button>
-        </div>
+        {modo === "recuperar" ? (
+          <div className="mb-5">
+            <button
+              type="button"
+              className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => trocarModo("entrar")}
+            >
+              <ArrowLeft className="size-4" /> Voltar ao login
+            </button>
+            <h2 className="text-base font-semibold">Recuperar senha</h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Informe seu e-mail. Se houver uma conta cadastrada, enviaremos um link para redefinir a senha.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-5 grid grid-cols-2 rounded-md border border-border bg-muted/40 p-1 text-sm">
+            <button
+              type="button"
+              className={`rounded px-3 py-2 font-medium ${modo === "entrar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+              onClick={() => trocarModo("entrar")}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              className={`rounded px-3 py-2 font-medium ${modo === "solicitar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+              onClick={() => trocarModo("solicitar")}
+            >
+              Solicitar acesso
+            </button>
+          </div>
+        )}
 
         {modo === "entrar" ? (
           <form
@@ -129,8 +149,34 @@ function Entrar() {
               <input type="email" autoComplete="email" required className={CLASSE_CAMPO} value={email} onChange={(e) => setEmail(e.target.value)} />
             </Campo>
             <Campo rotulo="Senha">
-              <input type="password" autoComplete="current-password" required className={CLASSE_CAMPO} value={senha} onChange={(e) => setSenha(e.target.value)} />
+              <div className="relative">
+                <input
+                  type={mostrarSenha ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  className={`${CLASSE_CAMPO} pr-10`}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                />
+                <button
+                  type="button"
+                  aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                  onClick={() => setMostrarSenha((v) => !v)}
+                >
+                  {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </Campo>
+            <div className="-mt-2 text-right">
+              <button
+                type="button"
+                className="text-xs font-medium text-primary hover:underline"
+                onClick={() => trocarModo("recuperar")}
+              >
+                Esqueci minha senha
+              </button>
+            </div>
             {statusAcesso === "pendente" ? (
               <div className="rounded-md border border-atencao/30 bg-atencao-suave p-3">
                 <p className="text-sm font-semibold text-atencao">Aguardando aprovação</p>
@@ -152,7 +198,7 @@ function Entrar() {
               {enviando ? "Entrando…" : "Entrar"}
             </button>
           </form>
-        ) : (
+        ) : modo === "solicitar" ? (
           <form
             className="space-y-4"
             onSubmit={async (e) => {
@@ -161,11 +207,17 @@ function Entrar() {
               setErro("");
               setSucesso("");
               try {
+                if (senha !== confirmarSenha) {
+                  setErro("As senhas não coincidem.");
+                  setEnviando(false);
+                  return;
+                }
                 await solicitar({ data: { nome, email, senha } });
                 setSucesso("Solicitação enviada. Seu acesso ficará disponível após a aprovação de um administrador.");
                 setNome("");
                 setEmail("");
                 setSenha("");
+                setConfirmarSenha("");
               } catch (e) {
                 setErro((e as Error).message);
               } finally {
@@ -180,12 +232,86 @@ function Entrar() {
               <input type="email" autoComplete="email" required className={CLASSE_CAMPO} value={email} onChange={(e) => setEmail(e.target.value)} />
             </Campo>
             <Campo rotulo="Senha">
-              <input type="password" autoComplete="new-password" required minLength={6} maxLength={72} className={CLASSE_CAMPO} value={senha} onChange={(e) => setSenha(e.target.value)} />
+              <div className="relative">
+                <input
+                  type={mostrarSenha ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  maxLength={72}
+                  className={`${CLASSE_CAMPO} pr-10`}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                />
+                <button
+                  type="button"
+                  aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                  onClick={() => setMostrarSenha((v) => !v)}
+                >
+                  {mostrarSenha ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </Campo>
+            <Campo rotulo="Confirmar senha">
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                maxLength={72}
+                className={CLASSE_CAMPO}
+                value={confirmarSenha}
+                onChange={(e) => setConfirmarSenha(e.target.value)}
+              />
             </Campo>
             {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
             {sucesso ? <p className="rounded-md border border-concluido/25 bg-concluido-suave p-3 text-sm text-concluido">{sucesso}</p> : null}
             <button disabled={enviando} className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
               {enviando ? "Enviando…" : "Enviar solicitação"}
+            </button>
+          </form>
+        ) : (
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setEnviando(true);
+              setErro("");
+              setSucesso("");
+              try {
+                const redirectTo = `${window.location.origin}/redefinir-senha`;
+                const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+                if (error) throw error;
+                setSucesso("Se houver uma conta com este e-mail, enviaremos as instruções para redefinir a senha.");
+              } catch {
+                setErro("Não foi possível enviar as instruções agora. Tente novamente em alguns instantes.");
+              } finally {
+                setEnviando(false);
+              }
+            }}
+          >
+            <Campo rotulo="E-mail">
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                className={CLASSE_CAMPO}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </Campo>
+            {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
+            {sucesso ? (
+              <p className="rounded-md border border-concluido/25 bg-concluido-suave p-3 text-sm text-concluido">
+                {sucesso}
+              </p>
+            ) : null}
+            <button
+              disabled={enviando}
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {enviando ? "Enviando…" : "Enviar instruções"}
             </button>
           </form>
         )}
