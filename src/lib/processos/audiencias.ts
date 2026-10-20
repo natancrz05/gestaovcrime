@@ -89,6 +89,23 @@ export const estaPendente = (a: { situacao: string }) => {
   return /^(AGENDADA|DESIGNADA|REDESIGNADA)$/.test(s);
 };
 
+const normalizarSituacao = (situacao: string) =>
+  situacao.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+
+/** Situações encerradas não podem ser reabertas automaticamente por importação de pauta. */
+export function situacaoAudienciaFinal(situacao: string) {
+  const s = normalizarSituacao(situacao);
+  return /^(REALIZADA|CANCELADA|NAO REALIZADA|CONVERTIDA EM DILIGENCIA)$/.test(s);
+}
+
+/**
+ * A situação final registrada no sistema prevalece sobre uma pauta posterior.
+ * Correções de uma situação final continuam possíveis manualmente pelo servidor.
+ */
+export function devePreservarSituacaoFinalNaImportacao(atual: string, recebida: string) {
+  return situacaoAudienciaFinal(atual) && normalizarSituacao(atual) !== normalizarSituacao(recebida);
+}
+
 /** Única lógica de confirmação (lista e calendário): situação, data efetiva e movimentação sem duplicar. */
 export async function confirmarAudiencia(id: string, data: string, obs: string) {
   const { error } = await supabase.rpc("confirmar_audiencia" as never, { p_id: id, p_data: data, p_obs: obs } as never);
