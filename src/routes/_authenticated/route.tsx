@@ -21,6 +21,9 @@ export const Route = createFileRoute("/_authenticated")({
       await supabase.auth.signOut();
       throw redirect({ to: "/auth", search: { aviso: "inativo" } });
     }
+    if (sessao.trocaSenhaObrigatoria) {
+      throw redirect({ to: "/auth", search: { aviso: "troca_senha" } });
+    }
     return { sessao };
   },
   component: Layout,
