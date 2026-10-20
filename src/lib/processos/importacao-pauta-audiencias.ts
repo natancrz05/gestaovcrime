@@ -21,7 +21,7 @@ import {
   type AudienciaEntrada,
   type NovoProcessoEntrada,
 } from "./repositorio";
-import { TIPOS_AUDIENCIA, tipoAudienciaCanonico } from "./audiencias";
+import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
@@ -554,6 +554,19 @@ export function analisarPautaAudiencias(
       );
       if (exata) {
         const situacaoExistente = situacaoCanonica(exata.situacao) ?? exata.situacao;
+
+        if (devePreservarSituacaoFinalNaImportacao(situacaoExistente, l.situacao)) {
+          return {
+            ...l,
+            processoId: processo.id,
+            audienciaId: exata.id,
+            processoNovo: false,
+            reusNovos,
+            estado: "ja-cadastrada",
+            motivo: `Situação final preservada: a audiência está como "${situacaoExistente}" no sistema e a pauta informa "${l.situacao}". A importação não reabre audiências finalizadas.`,
+          };
+        }
+
         if (
           situacaoExistente !== l.situacao ||
           exata.local !== l.local ||
@@ -576,6 +589,17 @@ export function analisarPautaAudiencias(
           )
         : undefined;
       if (mesmoMomento) {
+        if (situacaoAudienciaFinal(mesmoMomento.situacao)) {
+          return {
+            ...l,
+            processoId: processo.id,
+            audienciaId: mesmoMomento.id,
+            processoNovo: false,
+            reusNovos,
+            estado: "conflito",
+            motivo: `Já existe audiência finalizada neste processo, data e horário (${mesmoMomento.tipo} — ${mesmoMomento.situacao}). A pauta não pode sobrescrevê-la automaticamente.`,
+          };
+        }
         return {
           ...l, processoId: processo.id, audienciaId: mesmoMomento.id, processoNovo: false, reusNovos, estado: "sincronizar",
           motivo: `Audiência localizada no mesmo processo, data e horário (${mesmoMomento.tipo}); o cadastro será atualizado com os dados atuais do PJe.`,
