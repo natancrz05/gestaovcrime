@@ -1065,25 +1065,43 @@ export type Database = {
       }
       usuarios: {
         Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
           ativo: boolean
           criado_em: string
           email: string
           id: string
           nome: string
+          recusado_em: string | null
+          recusado_por: string | null
+          solicitado_em: string | null
+          status_cadastro: string
         }
         Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           ativo?: boolean
           criado_em?: string
           email?: string
           id: string
           nome?: string
+          recusado_em?: string | null
+          recusado_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
         }
         Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
           ativo?: boolean
           criado_em?: string
           email?: string
           id?: string
           nome?: string
+          recusado_em?: string | null
+          recusado_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
         }
         Relationships: []
       }
