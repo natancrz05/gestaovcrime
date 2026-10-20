@@ -303,22 +303,32 @@ export const redefinirSenhaPadrao = createServerFn({ method: "POST" })
   });
 
 export const trocarSenhaObrigatoria = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
       senha: z.string().min(6, "A nova senha deve ter pelo menos 6 caracteres.").max(72),
+      accessToken: z.string().min(20, "Sessão inválida."),
     }).parse(d),
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data }) => {
     if (data.senha === SENHA_PADRAO_TEMPORARIA) {
       throw new Error("Escolha uma senha diferente da senha padrão.");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Este fluxo acontece antes de o usuário entrar na área autenticada.
+    // Valida explicitamente a sessão enviada pelo navegador, sem depender
+    // do middleware global de Authorization dos demais server functions.
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(data.accessToken);
+    const userId = authData.user?.id;
+    if (authError || !userId) {
+      throw new Error("Sua sessão expirou. Entre novamente com a senha padrão.");
+    }
+
     const { data: usuario } = await supabaseAdmin
       .from("usuarios")
       .select("nome, ativo, status_cadastro, troca_senha_obrigatoria")
-      .eq("id", context.userId)
+      .eq("id", userId)
       .maybeSingle();
 
     if (!usuario) throw new Error("Usuário não encontrado.");
@@ -329,7 +339,7 @@ export const trocarSenhaObrigatoria = createServerFn({ method: "POST" })
       throw new Error("Não há troca obrigatória de senha pendente.");
     }
 
-    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password: data.senha,
     });
     if (authUpdate.error) throw new Error(traduzirErro(authUpdate.error.message));
@@ -338,13 +348,17 @@ export const trocarSenhaObrigatoria = createServerFn({ method: "POST" })
       troca_senha_obrigatoria: false,
       senha_temporaria_em: null,
       senha_temporaria_por: null,
-    }).eq("id", context.userId);
-    if (atualiza.error) throw new Error("A senha foi alterada, mas não foi possível concluir a liberação. Tente novamente.");
+    }).eq("id", userId);
+    if (atualiza.error) {
+      // Mantém uma mensagem operacional clara. A conta seguirá marcada para troca
+      // até que o servidor conclua novamente o fluxo.
+      throw new Error("A senha foi alterada, mas não foi possível concluir a liberação. Entre novamente e tente concluir a troca.");
+    }
 
     await auditarUsuario(
       supabaseAdmin,
-      context.userId,
-      context.userId,
+      userId,
+      userId,
       "Alteração de status",
       `Senha obrigatória alterada por ${usuario.nome}`,
     );
