@@ -112,7 +112,7 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('total', jsonb_array_length(p_linhas), 'novos', novos, 'atualizados', atual, 'sem_alteracao', iguais,
     'nao_vinculados', semvinc, 'processos_encontrados', encontrados, 'processos_criados', criados, 'correspondencias', corresp);
-END $function$
+END $function$;
 
 
 CREATE OR REPLACE FUNCTION public.classificar_auditoria_produtividade()
