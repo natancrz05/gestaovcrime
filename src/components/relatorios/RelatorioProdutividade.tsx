@@ -1,12 +1,136 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Gauge, CalendarCheck2, ListChecks, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Gauge, CalendarCheck2, ListChecks, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 const POR_PAGINA = 50;
 const CATEGORIAS = ["Processos", "Movimentações", "Audiências", "Comparecimentos", "Pendências", "Prisões", "Ofícios"] as const;
+const LIMITE_USUARIOS = 15;
+const sem = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+function SeletorUsuarioProdutividade({
+  value,
+  onChange,
+  usuarios,
+}: {
+  value: string;
+  onChange: (nome: string) => void;
+  usuarios: string[];
+}) {
+  const [termo, setTermo] = useState("");
+  const [aberto, setAberto] = useState(false);
+  const [ativo, setAtivo] = useState(0);
+  const ref = useRef<HTMLInputElement>(null);
+
+  const resultados = useMemo(() => {
+    const t = sem(termo.trim());
+    if (!t) return [];
+    return usuarios
+      .filter((nome) => sem(nome).includes(t))
+      .slice(0, LIMITE_USUARIOS);
+  }, [termo, usuarios]);
+
+  const escolher = (nome: string) => {
+    onChange(nome);
+    setTermo("");
+    setAberto(false);
+  };
+
+  if (value && !aberto) {
+    return (
+      <div className={cn(CLASSE_CAMPO, "flex min-w-[240px] items-center justify-between gap-2")}>
+        <span className="min-w-0 truncate font-medium">{value}</span>
+        <button
+          type="button"
+          aria-label="Trocar usuário"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            onChange("");
+            setAberto(true);
+            setTimeout(() => ref.current?.focus(), 0);
+          }}
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative min-w-[240px]">
+      <input
+        ref={ref}
+        role="combobox"
+        aria-expanded={aberto}
+        aria-label="Pesquisar usuário"
+        className={CLASSE_CAMPO}
+        placeholder="Pesquisar servidor por nome..."
+        value={termo}
+        onFocus={() => setAberto(true)}
+        onBlur={() => setTimeout(() => setAberto(false), 150)}
+        onChange={(e) => {
+          setTermo(e.target.value);
+          setAtivo(0);
+          setAberto(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setAtivo((a) => Math.min(a + 1, Math.max(0, resultados.length - 1)));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setAtivo((a) => Math.max(a - 1, 0));
+          } else if (e.key === "Enter" && resultados[ativo]) {
+            e.preventDefault();
+            escolher(resultados[ativo]);
+          } else if (e.key === "Escape") {
+            setAberto(false);
+          }
+        }}
+      />
+
+      {aberto ? (
+        <ul
+          role="listbox"
+          className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover text-sm shadow-md"
+        >
+          {!termo.trim() ? (
+            <li className="px-3 py-2 text-muted-foreground">Digite o nome do servidor para pesquisar.</li>
+          ) : resultados.length === 0 ? (
+            <li className="px-3 py-2 text-muted-foreground">Nenhum servidor encontrado.</li>
+          ) : (
+            resultados.map((nome, i) => (
+              <li key={nome} role="option" aria-selected={i === ativo}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    escolher(nome);
+                  }}
+                  onMouseEnter={() => setAtivo(i)}
+                  className={cn(
+                    "block w-full px-3 py-2 text-left",
+                    i === ativo && "bg-muted",
+                  )}
+                >
+                  <span className="block truncate font-medium">{nome}</span>
+                </button>
+              </li>
+            ))
+          )}
+          {resultados.length === LIMITE_USUARIOS ? (
+            <li className="px-3 py-1.5 text-xs text-muted-foreground">
+              Mostrando os primeiros {LIMITE_USUARIOS}. Refine a pesquisa.
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 function hojeLocal() {
   const d = new Date();
@@ -75,7 +199,7 @@ export function RelatorioProdutividade() {
         .order("criado_em", { ascending: false })
         .limit(5000);
 
-      if (usuario.trim()) produtivos = produtivos.ilike("usuario_nome", `%${usuario.trim()}%`);
+      if (usuario) produtivos = produtivos.eq("usuario_nome", usuario);
       if (categoria) produtivos = produtivos.eq("categoria_produtividade", categoria);
 
       const p = await produtivos;
@@ -174,19 +298,13 @@ export function RelatorioProdutividade() {
           Até
           <input type="date" className={CLASSE_CAMPO} value={ate} onChange={(e) => { setPagina(1); setAte(e.target.value); }} />
         </label>
-        <label className="flex min-w-[240px] flex-col gap-1 text-xs text-muted-foreground">
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           Usuário
-          <input
-            className={CLASSE_CAMPO}
+          <SeletorUsuarioProdutividade
             value={usuario}
-            onChange={(e) => alterarFiltro(setUsuario)(e.target.value)}
-            placeholder="Digite o nome do servidor"
-            list="produtividade-usuarios"
-            autoComplete="off"
+            onChange={(nome) => alterarFiltro(setUsuario)(nome)}
+            usuarios={usuarios.data ?? []}
           />
-          <datalist id="produtividade-usuarios">
-            {(usuarios.data ?? []).map((u) => <option key={u} value={u} />)}
-          </datalist>
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           Categoria
