@@ -8,7 +8,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     env:
-      E2E_BASE_URL: https://id-preview--402722ba-7ae3-47b6-aba6-3226bd990bbf.lovable.app
+      E2E_BASE_URL: https://gestaovcrime.lovable.app
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
