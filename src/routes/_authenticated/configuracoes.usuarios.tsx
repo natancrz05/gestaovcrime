@@ -2,12 +2,12 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Plus, Check, X } from "lucide-react";
+import { ArrowLeft, Plus, Check, KeyRound, X } from "lucide-react";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PERFIS, pode, rotuloPerfil, type Perfil } from "@/lib/permissoes";
-import { aprovarSolicitacao, atualizarUsuario, criarUsuario, excluirUsuario, listarUsuarios, recusarSolicitacao } from "@/lib/usuarios.functions";
+import { aprovarSolicitacao, atualizarUsuario, criarUsuario, excluirUsuario, listarUsuarios, recusarSolicitacao, redefinirSenhaPadrao } from "@/lib/usuarios.functions";
 import { useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,10 @@ function Pagina() {
   const excluir = useServerFn(excluirUsuario);
   const aprovar = useServerFn(aprovarSolicitacao);
   const recusar = useServerFn(recusarSolicitacao);
+  const redefinirSenha = useServerFn(redefinirSenhaPadrao);
   const [excluindo, setExcluindo] = useState<{ id: string; nome: string } | null>(null);
+  const [redefinindo, setRedefinindo] = useState<{ id: string; nome: string } | null>(null);
+  const [senhaPadrao, setSenhaPadrao] = useState("");
   const qc = useQueryClient();
   const { data: usuarios = [], isLoading, error } = useQuery({ queryKey: ["usuarios"], queryFn: () => listar() });
   const [edicao, setEdicao] = useState<Edicao | null>(null);
@@ -114,6 +117,11 @@ function Pagina() {
                   )}>
                     {u.status_cadastro === "recusado" ? "Recusado" : u.ativo ? "Ativo" : "Inativo"}
                   </span>
+                  {u.troca_senha_obrigatoria ? (
+                    <span className="ml-1 inline-flex rounded border border-atencao/30 bg-atencao-suave px-1.5 py-0.5 text-[11px] font-medium text-atencao">
+                      Troca de senha pendente
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2.5 tabular-nums">{new Date(u.criado_em).toLocaleDateString("pt-BR")}</td>
                 <td className="px-4 py-2.5 text-right">
@@ -126,6 +134,19 @@ function Pagina() {
                     ) : (
                       <>
                         <button className={BOTAO_SEC} onClick={() => { setErro(""); setEdicao({ id: u.id, nome: u.nome, email: u.email, senha: "", perfil: u.perfil ?? "consulta", ativo: u.ativo }); }}>Editar</button>
+                        {u.ativo ? (
+                          <button
+                            className={BOTAO_SEC}
+                            disabled={u.id === eu.id || processandoId === u.id}
+                            onClick={() => {
+                              setErro("");
+                              setSenhaPadrao("");
+                              setRedefinindo({ id: u.id, nome: u.nome });
+                            }}
+                          >
+                            <KeyRound className="mr-1 size-3.5" /> Redefinir senha
+                          </button>
+                        ) : null}
                         <button className={BOTAO_SEC} disabled={u.id === eu.id} onClick={() => alternar(u)}>{u.ativo ? "Inativar" : "Ativar"}</button>
                       </>
                     )}
@@ -215,6 +236,67 @@ function Pagina() {
               </div>
             </form>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!redefinindo}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRedefinindo(null);
+            setSenhaPadrao("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader><DialogTitle>Redefinir senha de {redefinindo?.nome}?</DialogTitle></DialogHeader>
+          {senhaPadrao ? (
+            <div className="space-y-3">
+              <div className="rounded-md border border-concluido/25 bg-concluido-suave p-4">
+                <p className="text-sm font-semibold text-concluido">Senha redefinida</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Informe ao usuário a senha padrão abaixo. No próximo acesso, ele será obrigado a criar uma nova senha.
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Senha padrão</p>
+                <p className="mt-1 select-all font-mono text-base font-semibold">{senhaPadrao}</p>
+              </div>
+              <div className="flex justify-end">
+                <button type="button" className={BOTAO} onClick={() => { setRedefinindo(null); setSenhaPadrao(""); }}>Fechar</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                A senha atual será substituída pela senha padrão da unidade. O usuário não poderá acessar o sistema sem definir uma nova senha pessoal no próximo login.
+              </p>
+              {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
+              <div className="flex justify-end gap-2">
+                <button type="button" className={BOTAO_SEC} onClick={() => setRedefinindo(null)}>Cancelar</button>
+                <button
+                  className={BOTAO}
+                  disabled={salvando}
+                  onClick={async () => {
+                    if (!redefinindo) return;
+                    setSalvando(true);
+                    setErro("");
+                    try {
+                      const r = await redefinirSenha({ data: { id: redefinindo.id } });
+                      setSenhaPadrao(r.senhaPadrao);
+                      await recarregar();
+                    } catch (e) {
+                      setErro((e as Error).message);
+                    } finally {
+                      setSalvando(false);
+                    }
+                  }}
+                >
+                  {salvando ? "Redefinindo…" : "Redefinir para senha padrão"}
+                </button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
