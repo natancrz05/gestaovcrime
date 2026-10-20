@@ -2,12 +2,12 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Check, X } from "lucide-react";
 import { Cabecalho } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PERFIS, pode, rotuloPerfil, type Perfil } from "@/lib/permissoes";
-import { atualizarUsuario, criarUsuario, excluirUsuario, listarUsuarios } from "@/lib/usuarios.functions";
+import { aprovarSolicitacao, atualizarUsuario, criarUsuario, excluirUsuario, listarUsuarios, recusarSolicitacao } from "@/lib/usuarios.functions";
 import { useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
@@ -37,13 +37,19 @@ function Pagina() {
   const criar = useServerFn(criarUsuario);
   const atualizar = useServerFn(atualizarUsuario);
   const excluir = useServerFn(excluirUsuario);
+  const aprovar = useServerFn(aprovarSolicitacao);
+  const recusar = useServerFn(recusarSolicitacao);
   const [excluindo, setExcluindo] = useState<{ id: string; nome: string } | null>(null);
   const qc = useQueryClient();
   const { data: usuarios = [], isLoading, error } = useQuery({ queryKey: ["usuarios"], queryFn: () => listar() });
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
   const recarregar = () => qc.invalidateQueries({ queryKey: ["usuarios"] });
+  const pendentes = usuarios.filter((u) => u.status_cadastro === "pendente");
+  const ativos = usuarios.filter((u) => u.status_cadastro === "aprovado" && u.ativo);
+  const inativos = usuarios.filter((u) => u.status_cadastro !== "pendente" && !(u.status_cadastro === "aprovado" && u.ativo));
 
   async function alternar(u: (typeof usuarios)[number]) {
     setErro("");
@@ -66,6 +72,75 @@ function Pagina() {
     } catch (e) { setErro((e as Error).message); } finally { setSalvando(false); }
   }
 
+  async function decidir(id: string, acao: "servidor" | "consulta" | "recusar") {
+    setErro("");
+    setProcessandoId(id);
+    try {
+      if (acao === "recusar") await recusar({ data: { id } });
+      else await aprovar({ data: { id, perfil: acao } });
+      await recarregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  const tabelaUsuarios = (lista: typeof usuarios, titulo: string) => (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">{titulo}</h2>
+        <span className="text-xs text-muted-foreground">{lista.length}</span>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
+            <tr><th className="px-4 py-2.5 font-medium">Nome</th><th className="px-4 py-2.5 font-medium">E-mail</th><th className="px-4 py-2.5 font-medium">Perfil</th><th className="px-4 py-2.5 font-medium">Status</th><th className="px-4 py-2.5 font-medium">Criado em</th><th /></tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {lista.map((u) => (
+              <tr key={u.id} className={cn(!u.ativo && "text-muted-foreground")}>
+                <td className="px-4 py-2.5 font-medium">{u.nome}{u.id === eu.id ? <span className="ml-1 text-xs text-muted-foreground">(você)</span> : null}</td>
+                <td className="px-4 py-2.5">{u.email}</td>
+                <td className="px-4 py-2.5">{rotuloPerfil(u.perfil)}</td>
+                <td className="px-4 py-2.5">
+                  <span className={cn(
+                    "inline-flex rounded border px-1.5 py-0.5 text-[11px] font-medium",
+                    u.status_cadastro === "recusado"
+                      ? "border-urgente/30 bg-urgente-suave text-urgente"
+                      : u.ativo
+                        ? "border-concluido/30 bg-concluido-suave text-concluido"
+                        : "border-border bg-muted text-muted-foreground",
+                  )}>
+                    {u.status_cadastro === "recusado" ? "Recusado" : u.ativo ? "Ativo" : "Inativo"}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 tabular-nums">{new Date(u.criado_em).toLocaleDateString("pt-BR")}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {u.status_cadastro === "recusado" ? (
+                      <>
+                        <button className={BOTAO_SEC} disabled={processandoId === u.id} onClick={() => decidir(u.id, "servidor")}>Aprovar como Servidor</button>
+                        <button className={BOTAO_SEC} disabled={processandoId === u.id} onClick={() => decidir(u.id, "consulta")}>Aprovar como Consulta</button>
+                      </>
+                    ) : (
+                      <>
+                        <button className={BOTAO_SEC} onClick={() => { setErro(""); setEdicao({ id: u.id, nome: u.nome, email: u.email, senha: "", perfil: u.perfil ?? "consulta", ativo: u.ativo }); }}>Editar</button>
+                        <button className={BOTAO_SEC} disabled={u.id === eu.id} onClick={() => alternar(u)}>{u.ativo ? "Inativar" : "Ativar"}</button>
+                      </>
+                    )}
+                    <button className={cn(BOTAO_SEC, "text-urgente")} disabled={u.id === eu.id} onClick={() => { setErro(""); setExcluindo({ id: u.id, nome: u.nome }); }}>Excluir</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!lista.length && !isLoading ? <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Nenhum usuário nesta categoria.</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+
   return (
     <div className="space-y-6">
       <Link to="/configuracoes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Configurações</Link>
@@ -76,34 +151,40 @@ function Pagina() {
       />
       {erro && !edicao ? <p className="text-sm text-urgente">{erro}</p> : null}
       {error ? <p className="text-sm text-urgente">{(error as Error).message}</p> : null}
-      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-card">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
-            <tr><th className="px-4 py-2.5 font-medium">Nome</th><th className="px-4 py-2.5 font-medium">E-mail</th><th className="px-4 py-2.5 font-medium">Perfil</th><th className="px-4 py-2.5 font-medium">Status</th><th className="px-4 py-2.5 font-medium">Criado em</th><th /></tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Carregando…</td></tr> : null}
-            {usuarios.map((u) => (
-              <tr key={u.id} className={cn(!u.ativo && "text-muted-foreground")}>
-                <td className="px-4 py-2.5 font-medium">{u.nome}{u.id === eu.id ? <span className="ml-1 text-xs text-muted-foreground">(você)</span> : null}</td>
-                <td className="px-4 py-2.5">{u.email}</td>
-                <td className="px-4 py-2.5">{rotuloPerfil(u.perfil)}</td>
-                <td className="px-4 py-2.5">
-                  <span className={cn("inline-flex rounded border px-1.5 py-0.5 text-[11px] font-medium", u.ativo ? "border-concluido/30 bg-concluido-suave text-concluido" : "border-border bg-muted text-muted-foreground")}>{u.ativo ? "Ativo" : "Inativo"}</span>
-                </td>
-                <td className="px-4 py-2.5 tabular-nums">{new Date(u.criado_em).toLocaleDateString("pt-BR")}</td>
-                <td className="px-4 py-2.5 text-right">
-                  <div className="flex justify-end gap-1.5">
-                    <button className={BOTAO_SEC} onClick={() => { setErro(""); setEdicao({ id: u.id, nome: u.nome, email: u.email, senha: "", perfil: u.perfil ?? "consulta", ativo: u.ativo }); }}>Editar</button>
-                    <button className={BOTAO_SEC} disabled={u.id === eu.id} onClick={() => alternar(u)}>{u.ativo ? "Inativar" : "Ativar"}</button>
-                    <button className={cn(BOTAO_SEC, "text-urgente")} disabled={u.id === eu.id} onClick={() => { setErro(""); setExcluindo({ id: u.id, nome: u.nome }); }}>Excluir</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Solicitações pendentes</h2>
+            <p className="text-xs text-muted-foreground">Cadastros que ainda não possuem acesso ao sistema.</p>
+          </div>
+          <span className="inline-flex min-w-6 justify-center rounded-full bg-atencao-suave px-2 py-0.5 text-xs font-semibold text-atencao">{pendentes.length}</span>
+        </div>
+        <div className="space-y-2">
+          {pendentes.map((u) => (
+            <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-atencao/25 bg-card p-4 shadow-card">
+              <div className="min-w-0">
+                <p className="font-medium">{u.nome}</p>
+                <p className="text-sm text-muted-foreground">{u.email}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Solicitado em {new Date(u.solicitado_em ?? u.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className={BOTAO_SEC} disabled={processandoId === u.id} onClick={() => decidir(u.id, "servidor")}><Check className="mr-1 size-3.5" /> Aprovar como Servidor</button>
+                <button className={BOTAO_SEC} disabled={processandoId === u.id} onClick={() => decidir(u.id, "consulta")}><Check className="mr-1 size-3.5" /> Aprovar como Consulta</button>
+                <button className={cn(BOTAO_SEC, "text-urgente")} disabled={processandoId === u.id} onClick={() => decidir(u.id, "recusar")}><X className="mr-1 size-3.5" /> Recusar</button>
+              </div>
+            </div>
+          ))}
+          {!pendentes.length && !isLoading ? (
+            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">Nenhuma solicitação aguardando aprovação.</div>
+          ) : null}
+        </div>
+      </section>
+
+      {tabelaUsuarios(ativos, "Usuários ativos")}
+      {tabelaUsuarios(inativos, "Inativos e recusados")}
 
       <Dialog open={!!edicao} onOpenChange={(o) => !o && setEdicao(null)}>
         <DialogContent>
