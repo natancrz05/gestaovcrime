@@ -242,7 +242,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$function$
+$function$;
 
 
 -- O registro efetivo já é auditado pela rotina de comparecimento com o usuário correto.
