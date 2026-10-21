@@ -108,17 +108,24 @@ function Entrar() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-card">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-md bg-primary">
-            <Scale className="size-5 text-primary-foreground" />
-          </span>
-          <div className="leading-tight">
-            <h1 className="text-base font-semibold text-foreground">Vara Criminal</h1>
-            <p className="text-xs text-muted-foreground">Coração de Maria/BA · Acesso interno</p>
+    <div className="relative min-h-screen overflow-hidden bg-slate-950">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/forum-coracao-de-maria.webp')" }}
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-slate-950/55" aria-hidden="true" />
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:justify-end lg:px-12 xl:px-20">
+        <div className="w-full max-w-md rounded-xl border border-white/60 bg-white/95 p-6 text-slate-950 shadow-2xl backdrop-blur-sm sm:p-8">
+          <div className="mb-6 text-center">
+            <span className="mx-auto flex size-11 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+              <Scale className="size-5 text-white" />
+            </span>
+            <h1 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">Central de Gestão da Vara Criminal</h1>
+            <p className="mt-1 text-sm font-medium text-slate-600">Fórum Juiz João Leal</p>
+            <p className="mt-0.5 text-xs text-slate-500">Comarca de Coração de Maria/BA · Acesso interno</p>
           </div>
-        </div>
 
         {modo !== "trocar" ? (
           <div className="mb-5 grid grid-cols-2 rounded-md border border-border bg-muted/40 p-1 text-sm">
@@ -461,9 +468,10 @@ function Entrar() {
           </form>
         )}
 
-        <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
-          O cadastro não libera acesso automaticamente. Um administrador da unidade precisa aprovar a solicitação e definir o perfil.
-        </p>
+          <p className="mt-6 border-t border-slate-200 pt-4 text-[11px] leading-relaxed text-slate-500">
+            O cadastro não libera acesso automaticamente. Um administrador da unidade precisa aprovar a solicitação e definir o perfil.
+          </p>
+        </div>
       </div>
     </div>
   );
