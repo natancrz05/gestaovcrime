@@ -24,7 +24,7 @@ import {
 import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 import { papelEhReu } from "./papeis-pauta";
-import { orgaosDistintosDaPauta } from "./orgaos-pauta";
+import { orgaoPertenceUnidade } from "./orgaos-pauta";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -74,7 +74,9 @@ export interface AnalisePautaAudiencias {
   total: number;
   itens: ItemAnalisePauta[];
   erros: ProblemaPauta[];
+  avisos: ProblemaPauta[];
   duplicadasArquivo: ProblemaPauta[];
+  linhasOutraJurisdicao: number;
   processosNovos: number;
   processosExistentes: number;
   audienciasNovas: number;
@@ -451,13 +453,26 @@ export function analisarPautaAudiencias(
   errosLeitura: ProblemaPauta[] = [],
 ): AnalisePautaAudiencias {
   const erros = [...errosLeitura];
+  const avisos: ProblemaPauta[] = [];
   const duplicadasArquivo: ProblemaPauta[] = [];
 
   const processosPorNumero = indexarProcessosPorNumero(processos);
 
+  // Pautas do PJe podem manter processos cuja competência já foi declinada.
+  // Esses registros não pertencem mais à jurisdição desta unidade e são apenas ignorados.
+  const linhasDaUnidade = linhas.filter((l) => {
+    if (orgaoPertenceUnidade(l.orgao)) return true;
+    avisos.push({
+      pagina: l.pagina,
+      numero: l.numero,
+      motivo: `Processo ${l.numero} ignorado por pertencer a outra jurisdição.`,
+    });
+    return false;
+  });
+
   const primeiraPorChave = new Set<string>();
   const linhasUnicas: LinhaPautaAudiencia[] = [];
-  for (const l of linhas) {
+  for (const l of linhasDaUnidade) {
     const k = chaveAudiencia(l.numero, l.data, l.horario, l.tipo);
     if (primeiraPorChave.has(k)) {
       duplicadasArquivo.push({ pagina: l.pagina, numero: l.numero, motivo: "Linha repetida na própria pauta; será ignorada." });
@@ -465,15 +480,6 @@ export function analisarPautaAudiencias(
     }
     primeiraPorChave.add(k);
     linhasUnicas.push(l);
-  }
-
-  const orgaos = orgaosDistintosDaPauta(linhasUnicas.map((l) => l.orgao));
-  if (orgaos.length > 1) {
-    const identificados = orgaos.map((o) => o.rotulo).join(" | ");
-    erros.push({
-      pagina: 0,
-      motivo: `A pauta contém mais de um órgão julgador: ${identificados}. Importe apenas a pauta da mesma unidade por vez.`,
-    });
   }
 
   // O mesmo processo deve ter uma única classe na pauta.
@@ -617,7 +623,9 @@ export function analisarPautaAudiencias(
     total: linhas.length,
     itens,
     erros,
+    avisos,
     duplicadasArquivo,
+    linhasOutraJurisdicao: avisos.length,
     processosNovos: numsNovos.size,
     processosExistentes: numsExistentes.size,
     audienciasNovas: itens.filter((i) => i.estado === "nova").length,
@@ -719,8 +727,9 @@ export async function executarImportacaoPauta(
   let processosCriados = 0;
   let reusCriados = 0;
   let reusAtualizados = 0;
+  const linhasImportaveis: LinhaPautaAudiencia[] = analise.itens;
   const porNumero = new Map<string, LinhaPautaAudiencia[]>();
-  for (const l of linhas) {
+  for (const l of linhasImportaveis) {
     const k = normalizarNumeroProcesso(l.numero);
     porNumero.set(k, [...(porNumero.get(k) ?? []), l]);
   }
