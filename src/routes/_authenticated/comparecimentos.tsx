@@ -407,6 +407,7 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
             const id = await criarProcesso({
               numero: numero.trim(),
               origem: "manual",
+              sistema_externo: "SEEU",
               classe: "Não informada",
               assunto: "",
               data_distribuicao: null,
