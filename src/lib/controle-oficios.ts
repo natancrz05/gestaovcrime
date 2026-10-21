@@ -109,10 +109,10 @@ export async function criarControleOficio(entrada: ControleOficioEntrada) {
     p_data_expedicao: entrada.data_expedicao,
     p_destinatario: entrada.destinatario.trim(),
     p_finalidade: entrada.finalidade.trim(),
-    p_processo_id: entrada.processo_id || undefined,
-    p_processo_original: entrada.processo_id
-      ? undefined
-      : entrada.processo_original?.trim() || undefined,
+    ...(entrada.processo_id ? { p_processo_id: entrada.processo_id } : {}),
+    ...(!entrada.processo_id && entrada.processo_original?.trim()
+      ? { p_processo_original: entrada.processo_original.trim() }
+      : {}),
   });
 
   if (error) throw new Error(error.message);
