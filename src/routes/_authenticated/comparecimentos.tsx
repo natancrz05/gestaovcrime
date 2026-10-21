@@ -15,7 +15,7 @@ import { CLASSE_CAMPO, Campo, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
-import { etiquetasDosProcessosQuery, processosReferenciaQuery } from "@/lib/processos/repositorio";
+import { criarProcesso, etiquetasDosProcessosQuery, processosReferenciaQuery } from "@/lib/processos/repositorio";
 import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -385,6 +385,7 @@ function FormRegistro({ c, onFeito }: { c: ComparecimentoListado; onFeito: () =>
 }
 
 function FormComparecimento({ inicial, processos, onSalvar }: { inicial: ComparecimentoEntrada; processos: { id: string; numero: string }[]; onSalvar: (v: ComparecimentoEntrada) => Promise<void> }) {
+  const qc = useQueryClient();
   const [v, setV] = useState(inicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -399,7 +400,33 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
       try { await onSalvar(v); } catch (err) { setErro(err instanceof Error ? err.message : "Erro ao salvar."); setSalvando(false); }
     }}>
       <Campo rotulo="Processo">
-        <SeletorProcesso value={v.processo_id} onChange={(id) => setV({ ...v, processo_id: id })} />
+        <SeletorProcesso
+          value={v.processo_id}
+          onChange={(id) => setV((atual) => ({ ...atual, processo_id: id }))}
+          onCriarProcesso={async (numero) => {
+            const id = await criarProcesso({
+              numero: numero.trim(),
+              origem: "SEEU",
+              classe: "Não informada",
+              assunto: "",
+              data_distribuicao: null,
+              status: "Ativo",
+              fase: "",
+              responsavel: "",
+              observacao_geral: "Processo criado a partir do cadastro manual de comparecimento no SEEU.",
+              partes: [],
+              reus: [],
+              movimentacao: null,
+              observacao_interna: "",
+            });
+            await Promise.all([
+              qc.invalidateQueries({ queryKey: ["processos", "seletor"] }),
+              qc.invalidateQueries({ queryKey: ["processos", "referencia"] }),
+              qc.invalidateQueries({ queryKey: ["processos"] }),
+            ]);
+            return id;
+          }}
+        />
       </Campo>
       <Campo rotulo="Pessoa"><input className={CLASSE_CAMPO} maxLength={200} value={v.pessoa} onChange={(e) => setV({ ...v, pessoa: e.target.value })} /></Campo>
       <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => recalcular({ ...v, data_inicio: e.target.value })} /></Campo>
