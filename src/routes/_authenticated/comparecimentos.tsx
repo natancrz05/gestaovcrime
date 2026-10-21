@@ -406,22 +406,22 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
           onCriarProcesso={async (numero) => {
             const id = await criarProcesso({
               numero: numero.trim(),
-              origem: "SEEU",
+              origem: "manual",
               classe: "Não informada",
               assunto: "",
               data_distribuicao: null,
               status: "Ativo",
               fase: "",
               responsavel: "",
-              observacao_geral: "Processo criado a partir do cadastro manual de comparecimento no SEEU.",
+              observacao_geral: "Processo do SEEU criado a partir do cadastro manual de comparecimento.",
               partes: [],
               reus: [],
               movimentacao: null,
               observacao_interna: "",
             });
             await Promise.all([
-              qc.invalidateQueries({ queryKey: ["processos", "seletor"] }),
-              qc.invalidateQueries({ queryKey: ["processos", "referencia"] }),
+              qc.refetchQueries({ queryKey: ["processos-seletor"] }),
+              qc.invalidateQueries({ queryKey: ["processos-referencia"] }),
               qc.invalidateQueries({ queryKey: ["processos"] }),
             ]);
             return id;
