@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { papelEhReu } from "../src/lib/processos/importacao-pauta-audiencias";
+import { papelEhReu } from "../src/lib/processos/papeis-pauta";
 
 describe("papéis das Partes na pauta do PJe", () => {
   test("reconhece nomenclaturas passivas de APF e cautelares", () => {
