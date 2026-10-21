@@ -108,30 +108,43 @@ function Entrar() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-card">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-md bg-primary">
-            <Scale className="size-5 text-primary-foreground" />
-          </span>
-          <div className="leading-tight">
-            <h1 className="text-base font-semibold text-foreground">Vara Criminal</h1>
-            <p className="text-xs text-muted-foreground">Coração de Maria/BA · Acesso interno</p>
-          </div>
-        </div>
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-950">
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/forum-coracao-de-maria.webp')" }}
+        aria-hidden="true"
+      />
+      <div
+        className="fixed inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/50 to-slate-950/35"
+        aria-hidden="true"
+      />
 
-        {modo !== "trocar" ? (
-          <div className="mb-5 grid grid-cols-2 rounded-md border border-border bg-muted/40 p-1 text-sm">
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <main className="flex flex-1 items-center justify-center px-4 py-7 sm:px-6 lg:justify-end lg:px-12 lg:py-10 xl:px-20">
+          <section className="w-full max-w-[470px] rounded-xl border border-white/60 bg-white/95 p-6 text-slate-950 shadow-[0_24px_70px_rgba(2,8,23,0.38)] backdrop-blur-[2px] sm:p-8">
+            <div className="mb-6 text-center">
+              <span className="mx-auto flex size-12 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
+                <Scale className="size-6 text-white" />
+              </span>
+              <h1 className="mt-4 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+                Central de Gestão da Vara Criminal
+              </h1>
+              <p className="mt-1.5 text-sm font-medium text-slate-600">Fórum Juiz João Leal</p>
+              <p className="mt-0.5 text-xs text-slate-500">Comarca de Coração de Maria/BA · Acesso interno</p>
+            </div>
+
+            {modo !== "trocar" ? (
+              <div className="mb-6 grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-100/80 p-1 text-sm">
             <button
               type="button"
-              className={`rounded px-3 py-2 font-medium ${modo === "entrar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`rounded-md px-3 py-2.5 font-medium transition-colors ${modo === "entrar" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
               onClick={() => trocarModo("entrar")}
             >
               Entrar
             </button>
             <button
               type="button"
-              className={`rounded px-3 py-2 font-medium ${modo === "solicitar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`rounded-md px-3 py-2.5 font-medium transition-colors ${modo === "solicitar" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
               onClick={() => trocarModo("solicitar")}
             >
               Solicitar acesso
@@ -228,7 +241,7 @@ function Entrar() {
               />
             </Campo>
 
-            <label className="-mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <label className="-mt-2 flex cursor-pointer items-center gap-2 text-xs text-slate-600">
               <input
                 type="checkbox"
                 checked={lembrarEmail}
@@ -251,7 +264,7 @@ function Entrar() {
             <div className="-mt-2 text-right">
               <button
                 type="button"
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-semibold text-slate-700 underline-offset-4 hover:text-slate-950 hover:underline"
                 onClick={() => {
                   setAjudaSenha(true);
                   setErro("");
@@ -263,9 +276,9 @@ function Entrar() {
             </div>
 
             {ajudaSenha ? (
-              <div className="rounded-md border border-border bg-muted/40 p-3">
-                <p className="text-sm font-semibold">Redefinição de senha</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
+                <p className="text-sm font-semibold text-slate-900">Redefinição de senha</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
                   Procure um administrador da unidade. Ele poderá redefinir sua conta para a senha padrão.
                   No próximo acesso, o sistema exigirá que você cadastre uma nova senha.
                 </p>
@@ -294,7 +307,7 @@ function Entrar() {
 
             <button
               disabled={enviando}
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {enviando ? "Entrando…" : "Entrar"}
             </button>
@@ -367,7 +380,7 @@ function Entrar() {
             ) : null}
             <button
               disabled={enviando}
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {enviando ? "Enviando…" : "Enviar solicitação"}
             </button>
@@ -454,16 +467,31 @@ function Entrar() {
 
             <button
               disabled={enviando}
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-900 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {enviando ? "Salvando…" : "Definir nova senha"}
             </button>
           </form>
         )}
 
-        <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
-          O cadastro não libera acesso automaticamente. Um administrador da unidade precisa aprovar a solicitação e definir o perfil.
-        </p>
+            <p className="mt-6 border-t border-slate-200 pt-4 text-[11px] leading-relaxed text-slate-500">
+              O cadastro não libera acesso automaticamente. Um administrador da unidade precisa aprovar a solicitação e definir o perfil.
+            </p>
+          </section>
+        </main>
+
+        <footer className="border-t border-white/15 bg-slate-950/70 px-4 py-3 text-[11px] text-white/75 backdrop-blur-md sm:px-6">
+          <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <div className="flex items-center gap-2.5">
+              <Scale className="size-4 text-white/85" />
+              <span className="font-medium text-white/90">Central de Gestão da Vara Criminal</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+              <span>Comarca de Coração de Maria/BA</span>
+              <span className="font-medium text-white/90">Uso interno</span>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
