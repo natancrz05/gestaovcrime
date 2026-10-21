@@ -1,7 +1,7 @@
 /** Campo único e reutilizável para pesquisar e selecionar um processo. */
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { CLASSE_CAMPO } from "./campos";
 import { processosSeletorQuery, type ProcessoParaSelecao } from "@/lib/processos/repositorio";
 import { cn } from "@/lib/utils";
@@ -22,17 +22,21 @@ export function SeletorProcesso({
   onChange,
   numeroManual = "",
   onNumeroManualChange,
+  onCriarProcesso,
 }: {
   value: string;
   onChange: (id: string) => void;
   numeroManual?: string;
   onNumeroManualChange?: (numero: string) => void;
+  onCriarProcesso?: (numero: string) => Promise<string>;
 }) {
   const { data: processos = [] } = useQuery(processosSeletorQuery());
   const opcoes = useMemo(() => processos.map(paraOpcao), [processos]);
   const [termo, setTermo] = useState("");
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(0);
+  const [criando, setCriando] = useState(false);
+  const [erroCriacao, setErroCriacao] = useState("");
   const ref = useRef<HTMLInputElement>(null);
   const selecionado = opcoes.find((o) => o.id === value);
 
@@ -43,6 +47,31 @@ export function SeletorProcesso({
     const soNumero = /^[\d.\-\s]+$/.test(t);
     return opcoes.filter((o) => o.texto.includes(t) || (soNumero && dig.length > 0 && o.digitos.includes(dig))).slice(0, LIMITE);
   }, [termo, opcoes]);
+
+  const numeroDigitado = termo.trim();
+  const digitosDigitados = numeroDigitado.replace(/\D/g, "");
+  const existeNumeroExato = digitosDigitados.length > 0 && opcoes.some((o) => o.digitos === digitosDigitados);
+  const podeCriarProcesso =
+    Boolean(onCriarProcesso) &&
+    digitosDigitados.length >= 6 &&
+    !existeNumeroExato;
+
+  const criarProcessoAusente = async () => {
+    if (!onCriarProcesso || !podeCriarProcesso || criando) return;
+    setCriando(true);
+    setErroCriacao("");
+    try {
+      const id = await onCriarProcesso(numeroDigitado);
+      onNumeroManualChange?.("");
+      onChange(id);
+      setTermo("");
+      setAberto(false);
+    } catch (e) {
+      setErroCriacao(e instanceof Error ? e.message : "Não foi possível criar o processo.");
+    } finally {
+      setCriando(false);
+    }
+  };
 
   const escolher = (o: Opcao) => {
     onNumeroManualChange?.("");
@@ -112,6 +141,7 @@ export function SeletorProcesso({
           if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((a) => Math.min(a + 1, resultados.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((a) => Math.max(a - 1, 0)); }
           else if (e.key === "Enter" && resultados[ativo]) { e.preventDefault(); escolher(resultados[ativo]); }
+          else if (e.key === "Enter" && podeCriarProcesso) { e.preventDefault(); void criarProcessoAusente(); }
           else if (e.key === "Enter" && podeUsarNumeroManual) { e.preventDefault(); usarNumeroManual(); }
           else if (e.key === "Escape") setAberto(false);
         }}
@@ -135,6 +165,25 @@ export function SeletorProcesso({
               </button>
             </li>
           ))}
+          {podeCriarProcesso ? (
+            <li className="border-t border-border p-1.5">
+              <button
+                type="button"
+                disabled={criando}
+                onMouseDown={(e) => { e.preventDefault(); void criarProcessoAusente(); }}
+                className="flex w-full items-start gap-2 rounded px-2 py-2 text-left text-sm font-medium text-primary hover:bg-muted disabled:opacity-60"
+              >
+                <Plus className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  {criando ? "Criando processo..." : <>Criar processo <span className="numero-processo">{numeroDigitado}</span></>}
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    O processo será criado no acervo e selecionado automaticamente.
+                  </span>
+                </span>
+              </button>
+              {erroCriacao ? <p className="px-2 pb-1 text-xs text-urgente">{erroCriacao}</p> : null}
+            </li>
+          ) : null}
           {podeUsarNumeroManual ? (
             <li className="border-t border-border p-1.5">
               <button
