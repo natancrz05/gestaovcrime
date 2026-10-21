@@ -1074,10 +1074,10 @@ export type Database = {
           nome: string
           recusado_em: string | null
           recusado_por: string | null
-          solicitado_em: string | null
-          status_cadastro: string
           senha_temporaria_em: string | null
           senha_temporaria_por: string | null
+          solicitado_em: string | null
+          status_cadastro: string
           troca_senha_obrigatoria: boolean
         }
         Insert: {
@@ -1090,10 +1090,10 @@ export type Database = {
           nome?: string
           recusado_em?: string | null
           recusado_por?: string | null
-          solicitado_em?: string | null
-          status_cadastro?: string
           senha_temporaria_em?: string | null
           senha_temporaria_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
           troca_senha_obrigatoria?: boolean
         }
         Update: {
@@ -1106,10 +1106,10 @@ export type Database = {
           nome?: string
           recusado_em?: string | null
           recusado_por?: string | null
-          solicitado_em?: string | null
-          status_cadastro?: string
           senha_temporaria_em?: string | null
           senha_temporaria_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
           troca_senha_obrigatoria?: boolean
         }
         Relationships: []
@@ -1189,6 +1189,7 @@ export type Database = {
         }
         Returns: Json
       }
+      limpar_auditoria_expirada: { Args: never; Returns: number }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
       proximo_numero_controle_oficio: {
         Args: { p_ano: number }
@@ -1208,6 +1209,21 @@ export type Database = {
         Returns: undefined
       }
       rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
+      salvar_audiencia_importada: {
+        Args: {
+          p_aguardando_nova_data: boolean
+          p_data: string
+          p_horario: string
+          p_id: string
+          p_local: string
+          p_modalidade: string
+          p_observacao: string
+          p_processo_id: string
+          p_situacao: string
+          p_tipo: string
+        }
+        Returns: string
+      }
       unaccent_safe: { Args: { t: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
