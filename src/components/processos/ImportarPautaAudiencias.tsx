@@ -107,7 +107,7 @@ export function ImportarPautaAudiencias({
   }
 
   async function importar() {
-    if (!analise || analise.erros.length || analise.conflitos || !linhas.length) return;
+    if (!analise || analise.erros.length || analise.conflitos || !analise.itens.length) return;
     setImportando(true);
     setFalhaImportacao(false);
     setResultado(null);
@@ -156,7 +156,7 @@ export function ImportarPautaAudiencias({
     limpar();
   }
 
-  const bloqueada = !analise || analise.erros.length > 0 || analise.conflitos > 0 || !linhas.length;
+  const bloqueada = !analise || analise.erros.length > 0 || analise.conflitos > 0 || !analise.itens.length;
   const conflitos = analise?.itens
     .filter((i) => i.estado === "conflito")
     .map((i) => ({ pagina: i.pagina, numero: i.numero, motivo: i.motivo ?? "Conflito não identificado." })) ?? [];
