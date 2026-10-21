@@ -24,6 +24,7 @@ import {
 import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 import { papelEhReu } from "./papeis-pauta";
+import { orgaosDistintosDaPauta } from "./orgaos-pauta";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -466,9 +467,13 @@ export function analisarPautaAudiencias(
     linhasUnicas.push(l);
   }
 
-  const orgaos = new Set(linhasUnicas.map((l) => norm(l.orgao)).filter(Boolean));
-  if (orgaos.size > 1) {
-    erros.push({ pagina: 0, motivo: "A pauta contém mais de um órgão julgador. Importe apenas a pauta da mesma unidade por vez." });
+  const orgaos = orgaosDistintosDaPauta(linhasUnicas.map((l) => l.orgao));
+  if (orgaos.length > 1) {
+    const identificados = orgaos.map((o) => o.rotulo).join(" | ");
+    erros.push({
+      pagina: 0,
+      motivo: `A pauta contém mais de um órgão julgador: ${identificados}. Importe apenas a pauta da mesma unidade por vez.`,
+    });
   }
 
   // O mesmo processo deve ter uma única classe na pauta.
