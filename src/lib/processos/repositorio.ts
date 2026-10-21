@@ -377,6 +377,7 @@ export async function removerEtiquetaDoProcesso(processoId: string, etiquetaId: 
 export interface NovoProcessoEntrada {
   numero: string;
   origem?: string;
+  sistema_externo?: string | null;
   classe: string;
   assunto: string;
   data_distribuicao: string | null;
@@ -403,6 +404,7 @@ export async function criarProcesso(e: NovoProcessoEntrada): Promise<string> {
     .insert({
       numero: e.numero,
       origem: e.origem ?? "manual",
+      pje_sistema: e.sistema_externo ?? null,
       classe: e.classe,
       assunto: e.assunto,
       data_distribuicao: e.data_distribuicao,
