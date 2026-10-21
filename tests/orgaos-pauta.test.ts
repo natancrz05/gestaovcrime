@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chaveOrgaoPauta, orgaosDistintosDaPauta } from "../src/lib/processos/orgaos-pauta";
+import { chaveOrgaoPauta, orgaoPertenceUnidade, orgaosDistintosDaPauta } from "../src/lib/processos/orgaos-pauta";
 
 describe("órgão julgador da pauta", () => {
   test("trata variações da Vara Criminal de Coração de Maria como a mesma unidade", () => {
@@ -12,6 +12,11 @@ describe("órgão julgador da pauta", () => {
 
     expect(new Set(variacoes.map(chaveOrgaoPauta)).size).toBe(1);
     expect(orgaosDistintosDaPauta(variacoes)).toHaveLength(1);
+  });
+
+  test("identifica corretamente a jurisdição da unidade", () => {
+    expect(orgaoPertenceUnidade("VARA CRIMINAL DE CORAÇÃO DE MARIA")).toBe(true);
+    expect(orgaoPertenceUnidade("3ª VARA CRIMINAL DA COMARCA DE FEIRA DE SANTANA")).toBe(false);
   });
 
   test("mantém unidade realmente diferente como órgão distinto", () => {
