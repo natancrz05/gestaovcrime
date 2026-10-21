@@ -195,10 +195,9 @@ function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidad
   return { local: "Outro", modalidade: "Presencial" };
 }
 
-function papelEhReu(papel: string) {
+export function papelEhReu(papel: string) {
   const t = norm(papel).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-  // APELADO/APELADA: no 2º grau o réu da ação figura como polo passivo do recurso.
-  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD)/.test(t);
+  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD|FLAGRANTEAD|AUTUAD)/.test(t);
 }
 
 function extrairPessoas(texto: string): PessoaPauta[] {
