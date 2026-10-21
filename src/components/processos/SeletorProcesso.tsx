@@ -140,12 +140,31 @@ export function SeletorProcesso({
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setAtivo((a) => Math.min(a + 1, resultados.length - 1)); }
           else if (e.key === "ArrowUp") { e.preventDefault(); setAtivo((a) => Math.max(a - 1, 0)); }
-          else if (e.key === "Enter" && resultados[ativo]) { e.preventDefault(); escolher(resultados[ativo]); }
           else if (e.key === "Enter" && podeCriarProcesso) { e.preventDefault(); void criarProcessoAusente(); }
+          else if (e.key === "Enter" && resultados[ativo]) { e.preventDefault(); escolher(resultados[ativo]); }
           else if (e.key === "Enter" && podeUsarNumeroManual) { e.preventDefault(); usarNumeroManual(); }
           else if (e.key === "Escape") setAberto(false);
         }}
       />
+      {podeCriarProcesso ? (
+        <div className="mt-2 rounded-md border border-primary/25 bg-primary/5 p-3">
+          <p className="text-xs text-muted-foreground">Processo não encontrado no acervo.</p>
+          <button
+            type="button"
+            disabled={criando}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void criarProcessoAusente()}
+            className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline disabled:opacity-60"
+          >
+            <Plus className="size-4" />
+            {criando ? "Criando processo..." : "Criar processo no sistema"}
+          </button>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            <span className="numero-processo">{numeroDigitado}</span> será criado e selecionado automaticamente.
+          </p>
+          {erroCriacao ? <p className="mt-1 text-xs text-urgente">{erroCriacao}</p> : null}
+        </div>
+      ) : null}
       {aberto ? (
         <ul role="listbox" className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border border-border bg-popover text-sm shadow-md">
           {!termo.trim() ? (
@@ -165,25 +184,6 @@ export function SeletorProcesso({
               </button>
             </li>
           ))}
-          {podeCriarProcesso ? (
-            <li className="border-t border-border p-1.5">
-              <button
-                type="button"
-                disabled={criando}
-                onMouseDown={(e) => { e.preventDefault(); void criarProcessoAusente(); }}
-                className="flex w-full items-start gap-2 rounded px-2 py-2 text-left text-sm font-medium text-primary hover:bg-muted disabled:opacity-60"
-              >
-                <Plus className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {criando ? "Criando processo..." : <>Criar processo <span className="numero-processo">{numeroDigitado}</span></>}
-                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                    O processo será criado no acervo e selecionado automaticamente.
-                  </span>
-                </span>
-              </button>
-              {erroCriacao ? <p className="px-2 pb-1 text-xs text-urgente">{erroCriacao}</p> : null}
-            </li>
-          ) : null}
           {podeUsarNumeroManual ? (
             <li className="border-t border-border p-1.5">
               <button
