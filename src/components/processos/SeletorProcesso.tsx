@@ -53,7 +53,7 @@ export function SeletorProcesso({
   const existeNumeroExato = digitosDigitados.length > 0 && opcoes.some((o) => o.digitos === digitosDigitados);
   const podeCriarProcesso =
     Boolean(onCriarProcesso) &&
-    digitosDigitados.length >= 6 &&
+    digitosDigitados.length === 20 &&
     !existeNumeroExato;
 
   const criarProcessoAusente = async () => {
