@@ -247,10 +247,22 @@ export function ImportarPautaAudiencias({
                 <Resumo rotulo="Processos já existentes" valor={analise.processosExistentes} />
                 <Resumo rotulo="Conflitos" valor={analise.conflitos} />
                 <Resumo rotulo="Linhas repetidas ignoradas" valor={analise.duplicadasArquivo.length} />
+                <Resumo rotulo="Outra jurisdição ignorada" valor={analise.linhasOutraJurisdicao} />
               </div>
 
               <Problemas titulo="Erros de leitura — a importação está bloqueada" itens={analise.erros} />
               <Problemas titulo="Conflitos — a importação está bloqueada" itens={conflitos} />
+
+              {analise.avisos.length ? (
+                <div className="rounded-md border border-atencao/25 bg-atencao-suave p-3 text-xs">
+                  <p className="font-semibold text-atencao">Avisos — não bloqueiam a importação</p>
+                  <div className="mt-1 space-y-1 text-muted-foreground">
+                    {analise.avisos.map((aviso, idx) => (
+                      <p key={`${aviso.numero ?? "aviso"}-${idx}`}>{aviso.motivo}</p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {analise.duplicadasArquivo.length ? (
                 <div className="rounded-md border border-atencao/25 bg-atencao-suave p-3 text-xs">
