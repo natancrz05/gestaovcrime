@@ -35,3 +35,10 @@ export function orgaosDistintosDaPauta(orgaos: string[]) {
 
   return [...porChave.entries()].map(([chave, rotulo]) => ({ chave, rotulo }));
 }
+
+
+export const ORGAO_LOCAL_PAUTA = "VARA CRIMINAL DE CORACAO DE MARIA";
+
+export function orgaoPertenceUnidade(orgao: string) {
+  return chaveOrgaoPauta(orgao) === ORGAO_LOCAL_PAUTA;
+}
