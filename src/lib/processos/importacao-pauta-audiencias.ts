@@ -23,6 +23,7 @@ import {
 } from "./repositorio";
 import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
+import { papelEhReu } from "./papeis-pauta";
 
 type Coluna = "data" | "processo" | "orgao" | "partes" | "classe" | "tipo" | "sala" | "situacao";
 
@@ -193,11 +194,6 @@ function salaCanonica(s: string): Pick<LinhaPautaAudiencia, "local" | "modalidad
     return { local: "Sala de Audiências", modalidade: "Presencial" };
   }
   return { local: "Outro", modalidade: "Presencial" };
-}
-
-export function papelEhReu(papel: string) {
-  const t = norm(papel).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD|FLAGRANTEAD|AUTUAD)/.test(t);
 }
 
 function extrairPessoas(texto: string): PessoaPauta[] {
