@@ -1,6 +1,6 @@
 /** Cadastro/edição manual, retirada da prisão e reavaliação de presos provisórios (mesmo registro da tabela reus). */
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Campo, CLASSE_CAMPO } from "./campos";
@@ -20,6 +20,7 @@ const EXTRAS = ["Andamento do último procedimento", "Término de eventual prazo
 const BTN = "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium disabled:opacity-50";
 
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
+  const queryClient = useQueryClient();
   const [proc, setProc] = useState("");
   const [numeroProcesso, setNumeroProcesso] = useState("");
   const [reuId, setReuId] = useState<string>("novo");
@@ -101,6 +102,13 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     else ({ error } = await supabase.from("reus").insert({ ...linha, ordem: vinculados.length }));
     setSalvando(false);
     if (error) { toast.error(error.message); return; }
+    // Reflete a alteração do tipo imediatamente no contador e na lista compartilhados.
+    // A invalidação em onSalvo continua reconciliando os dados com o banco.
+    if (id) {
+      queryClient.setQueryData<Array<{ id: string; tipo_prisao: string }>>(["reus-presos"], (anterior) =>
+        anterior?.map((item) => item.id === id ? { ...item, tipo_prisao: linha.tipo_prisao } : item),
+      );
+    }
     toast.success("Preso provisório salvo"); onSalvo(); onFechar();
   };
 
