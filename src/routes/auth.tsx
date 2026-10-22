@@ -7,8 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { solicitarAcesso, trocarSenhaObrigatoria } from "@/lib/usuarios.functions";
 import { decidirAcessoAposLogin } from "@/lib/login-acesso";
 import { CLASSE_CAMPO, Campo } from "@/components/processos/campos";
-
-const FUNDO_LOGIN = new URL("../assets/forum-login.webp", import.meta.url).href;
+import FUNDO_LOGIN from "../assets/forum-login-data";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): { aviso?: string } =>
