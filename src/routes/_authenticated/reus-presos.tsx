@@ -60,10 +60,14 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// A espécie da planilha é a fonte de verdade para a classificação exibida.
-// O tipo legado do cadastro fica como fallback para registros sem espécie.
+// O tipo salvo no cadastro (inclusive alterações manuais) prevalece na exibição.
+// A espécie importada é usada somente como fallback para registros sem tipo válido.
 const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
-  p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
+  TIPOS_CUSTODIA.includes(p.tipo_prisao)
+    ? p.tipo_prisao
+    : p.especie_cautelar?.trim()
+      ? tipoPrisaoDe(p.especie_cautelar)
+      : p.tipo_prisao;
 
 const NIVEL_PRIORIDADE = {
   critico: { rotulo: "Crítico", severidade: "urgente", ordem: 0 },
