@@ -117,7 +117,7 @@ function Entrar() {
       />
       <div className="absolute inset-0 bg-slate-950/55" aria-hidden="true" />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:justify-end lg:px-12 xl:px-20">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
         <div className="w-full max-w-md rounded-xl border border-white/60 bg-white/95 p-6 text-slate-950 shadow-2xl backdrop-blur-sm sm:p-8">
           <div className="mb-6 text-center">
             <span className="mx-auto flex size-11 items-center justify-center rounded-lg bg-slate-900 shadow-sm">
