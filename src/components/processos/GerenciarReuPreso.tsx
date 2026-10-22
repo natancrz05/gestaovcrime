@@ -16,8 +16,16 @@ export interface ReuEditavel {
   rji: string; especie_cautelar: string; observacoes?: string; dados_planilha: Record<string, string>;
 }
 
-const EXTRAS = ["Andamento do último procedimento", "Término de eventual prazo", "Prazo de reavaliação", "Data de reavaliação", "Sistema"] as const;
+const CHAVE_PRAZO_TEMPORARIA = "Prazo da prisão temporária (dias)";
+const CHAVE_TERMINO_TEMPORARIA = "Término de eventual prazo";
 const BTN = "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium disabled:opacity-50";
+
+function somarDiasISO(iso: string, dias: number): string {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const data = new Date(Date.UTC(ano!, mes! - 1, dia!));
+  data.setUTCDate(data.getUTCDate() + dias);
+  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}-${String(data.getUTCDate()).padStart(2, "0")}`;
+}
 
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
   const queryClient = useQueryClient();
@@ -25,7 +33,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
   const [numeroProcesso, setNumeroProcesso] = useState("");
   const [reuId, setReuId] = useState<string>("novo");
   const [f, setF] = useState({ nome: "", rji: "", tipo_prisao: "Prisão preventiva", especie_cautelar: "", data_prisao: "", situacao: "", observacoes: "" });
-  const [extras, setExtras] = useState<Record<string, string>>({});
+  const [prazoTemporaria, setPrazoTemporaria] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -33,7 +41,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     setProc(reu?.processo_id ?? ""); setNumeroProcesso(""); setReuId(reu?.id ?? "novo");
     setF({ nome: reu?.nome ?? "", rji: reu?.rji ?? "", tipo_prisao: reu && TIPOS_CUSTODIA.includes(reu.tipo_prisao) ? reu.tipo_prisao : "Prisão preventiva",
       especie_cautelar: reu?.especie_cautelar ?? "", data_prisao: reu?.data_prisao ?? "", situacao: reu?.situacao ?? "", observacoes: reu?.observacoes ?? "" });
-    setExtras(Object.fromEntries(EXTRAS.map((k) => [k, reu?.dados_planilha?.[k] ?? ""])));
+    setPrazoTemporaria(reu?.dados_planilha?.[CHAVE_PRAZO_TEMPORARIA] ?? "");
   }, [aberto, reu]);
 
   const { data: vinculados = [] } = useQuery({
@@ -48,7 +56,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
       setF({ nome: r.nome, rji: r.rji, tipo_prisao: TIPOS_CUSTODIA.includes(r.tipo_prisao) ? r.tipo_prisao : "Prisão preventiva", especie_cautelar: r.especie_cautelar,
         data_prisao: r.data_prisao ?? "", situacao: r.situacao, observacoes: r.observacoes });
       const dp = (r.dados_planilha ?? {}) as Record<string, string>;
-      setExtras(Object.fromEntries(EXTRAS.map((k) => [k, dp[k] ?? ""])));
+      setPrazoTemporaria(dp[CHAVE_PRAZO_TEMPORARIA] ?? "");
     }
   };
 
@@ -93,7 +101,32 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     }
     const base = reu ?? vinculados.find((x) => x.id === reuId);
     const dados = { ...((base?.dados_planilha ?? {}) as Record<string, string>) };
-    for (const k of EXTRAS) { if (extras[k]?.trim()) dados[k] = extras[k].trim(); else delete dados[k]; }
+
+    if (f.tipo_prisao === "Prisão temporária") {
+      const prazoInformado = prazoTemporaria.trim();
+      const terminoExistente = dados[CHAVE_TERMINO_TEMPORARIA]?.trim();
+      if (!prazoInformado && !terminoExistente) {
+        setSalvando(false);
+        toast.error("Informe o prazo da prisão temporária em dias.");
+        return;
+      }
+      if (prazoInformado) {
+        const dias = Number(prazoInformado);
+        if (!Number.isInteger(dias) || dias <= 0 || dias > 365) {
+          setSalvando(false);
+          toast.error("Informe um prazo válido, em dias.");
+          return;
+        }
+        if (!f.data_prisao) {
+          setSalvando(false);
+          toast.error("Informe a data da prisão para calcular o término da temporária.");
+          return;
+        }
+        dados[CHAVE_PRAZO_TEMPORARIA] = String(dias);
+        dados[CHAVE_TERMINO_TEMPORARIA] = somarDiasISO(f.data_prisao, dias);
+      }
+    }
+
     const linha = { processo_id: processoId, nome: f.nome.trim(), rji: f.rji.trim(), tipo_prisao: f.tipo_prisao, especie_cautelar: f.especie_cautelar.trim(),
       data_prisao: f.data_prisao || null, situacao: f.situacao.trim(), observacoes: f.observacoes, preso: true, dados_planilha: dados };
     const id = reu?.id ?? (reuId !== "novo" ? reuId : null);
@@ -145,18 +178,42 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
           <div className="grid gap-3 sm:grid-cols-2">
             <Campo rotulo="Nome do réu"><input className={CLASSE_CAMPO} value={f.nome} onChange={set("nome")} /></Campo>
             <Campo rotulo="RJI"><input className={CLASSE_CAMPO} value={f.rji} onChange={set("rji")} /></Campo>
-            <Campo rotulo="Tipo de prisão"><select className={CLASSE_CAMPO} value={f.tipo_prisao} onChange={set("tipo_prisao")}>{TIPOS_CUSTODIA.map((t) => <option key={t}>{t}</option>)}</select></Campo>
-            <Campo rotulo="Espécie de cautelar"><input className={CLASSE_CAMPO} value={f.especie_cautelar} onChange={set("especie_cautelar")} /></Campo>
+            <Campo rotulo="Tipo de prisão">
+              <select className={CLASSE_CAMPO} value={f.tipo_prisao} onChange={set("tipo_prisao")}>
+                {TIPOS_CUSTODIA.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </Campo>
             <Campo rotulo="Data da prisão"><input type="date" className={CLASSE_CAMPO} value={f.data_prisao} onChange={set("data_prisao")} /></Campo>
-            <Campo rotulo="Situação"><input className={CLASSE_CAMPO} value={f.situacao} onChange={set("situacao")} /></Campo>
-            <Campo rotulo="Término de eventual prazo"><input type="date" className={CLASSE_CAMPO} value={extras["Término de eventual prazo"] ?? ""} onChange={(e) => setExtras({ ...extras, "Término de eventual prazo": e.target.value })} /></Campo>
-            <Campo rotulo="Prazo de reavaliação"><input className={CLASSE_CAMPO} value={extras["Prazo de reavaliação"] ?? ""} onChange={(e) => setExtras({ ...extras, "Prazo de reavaliação": e.target.value })} /></Campo>
-            <Campo rotulo="Próxima reavaliação"><input type="date" className={CLASSE_CAMPO} value={extras["Data de reavaliação"] ?? ""} onChange={(e) => setExtras({ ...extras, "Data de reavaliação": e.target.value })} /></Campo>
-            <Campo rotulo="Sistema"><input className={CLASSE_CAMPO} value={extras["Sistema"] ?? ""} onChange={(e) => setExtras({ ...extras, Sistema: e.target.value })} /></Campo>
-            <Campo rotulo="Andamento do último procedimento"><input className={CLASSE_CAMPO} value={extras["Andamento do último procedimento"] ?? ""} onChange={(e) => setExtras({ ...extras, "Andamento do último procedimento": e.target.value })} /></Campo>
+            {f.tipo_prisao === "Prisão temporária" ? (
+              <div className="sm:col-span-2 rounded-md border border-border bg-muted/30 p-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Campo rotulo="Prazo da temporária (dias)">
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      inputMode="numeric"
+                      className={CLASSE_CAMPO}
+                      value={prazoTemporaria}
+                      onChange={(e) => setPrazoTemporaria(e.target.value)}
+                      placeholder="Ex.: 5 ou 30"
+                    />
+                  </Campo>
+                  <div className="flex flex-col justify-end">
+                    <span className="mb-1 text-xs font-medium text-muted-foreground">Término calculado</span>
+                    <div className="flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm">
+                      {f.data_prisao && Number(prazoTemporaria) > 0
+                        ? formatarData(somarDiasISO(f.data_prisao, Number(prazoTemporaria)))
+                        : "Informe a data e o prazo"}
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">O sistema calcula e acompanha automaticamente o término da prisão temporária.</p>
+              </div>
+            ) : null}
           </div>
           <Campo rotulo="Observações"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} value={f.observacoes} onChange={set("observacoes")} /></Campo>
-          <p className="text-xs text-muted-foreground">A última reavaliação é atualizada pela ação "Registrar reavaliação", que mantém o histórico.</p>
+          <p className="text-xs text-muted-foreground">Reavaliações são registradas pela ação própria e mantidas no histórico. Campos técnicos e datas derivadas são controlados automaticamente pelo sistema.</p>
           <div className="flex justify-end gap-2">
             <button className={`${BTN} border border-border`} onClick={onFechar}>Cancelar</button>
             <button className={`${BTN} bg-primary text-primary-foreground`} disabled={salvando} onClick={salvar}>{salvando ? "Salvando..." : "Salvar"}</button>
