@@ -3,6 +3,7 @@
  * audiência a partir do campo TAREFAS (planilha do PJe). Critério
  * administrativo de acompanhamento — sem conclusão jurídica.
  */
+import { estaPendente } from "./audiencias";
 import { contagemSuspensa, diasEntre, hojeISO, proximaAudiencia, reuPrincipal, ultimaMovimentacao, type ProcessoCompleto } from "./modelo";
 
 export type NivelAudiencia = "critica" | "alta" | "normal";
@@ -41,7 +42,7 @@ export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral 
   // Entra na Central tanto pelo fluxo importado (TAREFAS) quanto por audiência
   // pendente cadastrada diretamente no sistema. Assim, uma marcação manual integra
   // o mesmo fluxo operacional sem exigir alteração artificial de pje_tarefas.
-  const pendente = p.audiencias.some((a) => a.situacao !== "Realizada" && a.situacao !== "Cancelada");
+  const pendente = p.audiencias.some(estaPendente);
   if (!tarefaIndicaAudiencia(p.pje_tarefas) && !pendente) return null;
   // Audiência Realizada após a informação da planilha: a espera foi atendida. Não reinicia contagem.
   const ref = p.pje_ultima_mov_data ?? "";
