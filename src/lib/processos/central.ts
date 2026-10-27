@@ -38,11 +38,17 @@ export interface ItemCentral {
   proxima: ReturnType<typeof proximaAudiencia>;
 }
 
-export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral | null {
-  // Entra na Central tanto pelo fluxo importado (TAREFAS) quanto por audiência
-  // pendente cadastrada diretamente no sistema. Assim, uma marcação manual integra
-  // o mesmo fluxo operacional sem exigir alteração artificial de pje_tarefas.
-  const pendente = p.audiencias.some(estaPendente);
+export function itemCentral(
+  p: ProcessoCompleto,
+  hoje = hojeISO(),
+  processosComAudienciaPendente?: ReadonlySet<string>,
+): ItemCentral | null {
+  // Quando a tela já calculou as audiências pendentes, usa exatamente esse mesmo
+  // conjunto para impedir divergência entre a lista "A realizar/Agendadas" e a
+  // métrica superior. Fora da tela, mantém o cálculo local como fallback.
+  const pendente = processosComAudienciaPendente
+    ? processosComAudienciaPendente.has(p.id)
+    : p.audiencias.some(estaPendente);
   if (!tarefaIndicaAudiencia(p.pje_tarefas) && !pendente) return null;
   // Audiência Realizada após a informação da planilha: a espera foi atendida. Não reinicia contagem.
   const ref = p.pje_ultima_mov_data ?? "";
@@ -64,10 +70,14 @@ export function itemCentral(p: ProcessoCompleto, hoje = hojeISO()): ItemCentral 
   };
 }
 
-export function listarCentral(processos: ProcessoCompleto[], hoje = hojeISO()): ItemCentral[] {
+export function listarCentral(
+  processos: ProcessoCompleto[],
+  hoje = hojeISO(),
+  processosComAudienciaPendente?: ReadonlySet<string>,
+): ItemCentral[] {
   const ordem = { critica: 0, alta: 1, normal: 2 };
   return processos
-    .map((p) => itemCentral(p, hoje))
+    .map((p) => itemCentral(p, hoje, processosComAudienciaPendente))
     .filter((x): x is ItemCentral => !!x)
     .sort((a, b) => ordem[a.nivel] - ordem[b.nivel] || (b.dias ?? 0) - (a.dias ?? 0));
 }
