@@ -105,11 +105,10 @@ function Pagina() {
 
   const [detalhe, setDetalhe] = useState<AudienciaListada | null>(null);
   const [confirmar, setConfirmar] = useState<{ a: AudienciaListada; data: string; obs: string; erro?: string | undefined; salvando?: boolean } | null>(null);
-  const [filtroSit, setFiltroSit] = useState("Todas");
+  const [filtroSit, setFiltroSit] = useState("A realizar");
   const rotuloSit = (s: string) => (s === "Designada" ? "Agendada" : s);
   const audienciasPorFiltro = useMemo(() => {
     const resultado: Record<string, AudienciaListada[]> = {
-      Todas: todas,
       "A realizar": todas.filter(estaPendente),
       Agendada: [],
       Realizada: [],
@@ -123,7 +122,7 @@ function Pagina() {
     }
     return resultado;
   }, [todas]);
-  const listadas = audienciasPorFiltro[filtroSit] ?? todas;
+  const listadas = audienciasPorFiltro[filtroSit] ?? audienciasPorFiltro["A realizar"] ?? [];
   const mostrarSelo = (a: AudienciaListada) => a.reuPreso && !a.ocultar_selo_reu_preso && estaPendente(a);
   async function removerSelo(a: AudienciaListada) {
     await ocultarSeloReuPreso(a.id);
@@ -203,9 +202,9 @@ function Pagina() {
 
       <Secao titulo="Todas as audiências">
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {["Todas", "A realizar", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
+          {["A realizar", "Agendada", "Realizada", "Cancelada", "Redesignada"].map((s) => (
             <button key={s} aria-pressed={filtroSit === s} onClick={() => setFiltroSit(s)} className={cn("rounded-full border border-border px-3 py-1 text-xs", filtroSit === s ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
-              {s === "Todas" || s === "A realizar" ? s : s + "s"} ({audienciasPorFiltro[s]?.length ?? 0})
+              {s === "A realizar" ? s : s + "s"} ({audienciasPorFiltro[s]?.length ?? 0})
             </button>
           ))}
         </div>
