@@ -48,6 +48,11 @@ describe("Central de Audiências", () => {
     expect(itemCentral(processoComAudiencia("Redesignada"), "2026-10-27")).not.toBeNull();
   });
 
+  test("respeita o mesmo conjunto de pendências calculado pela lista de audiências", () => {
+    const p = processoComAudiencia("Realizada", "Minutar despacho");
+    expect(itemCentral(p, "2026-10-27", new Set([p.id]))).not.toBeNull();
+  });
+
   test("não considera situações finalizadas como audiência pendente", () => {
     for (const situacao of ["Realizada", "Cancelada", "Não realizada", "Convertida em diligência"]) {
       expect(itemCentral(processoComAudiencia(situacao), "2026-10-27")).toBeNull();
