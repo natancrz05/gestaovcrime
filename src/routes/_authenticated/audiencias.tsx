@@ -73,7 +73,14 @@ function Pagina() {
   const { data: processos } = useSuspenseQuery(processosAudienciasQuery());
   const hoje = hojeISO();
   const todas = useMemo(() => listarAudienciasDe(processos, hoje), [processos, hoje]);
-  const itensCentral = useMemo(() => listarCentral(processos), [processos]);
+  const processosComAudienciaPendente = useMemo(
+    () => new Set(todas.filter(estaPendente).map((a) => a.processo_id)),
+    [todas],
+  );
+  const itensCentral = useMemo(
+    () => listarCentral(processos, hoje, processosComAudienciaPendente),
+    [processos, hoje, processosComAudienciaPendente],
+  );
 
   // Etiquetas só são necessárias para processos efetivamente exibidos nesta tela:
   // os que possuem audiência e os que aparecem na central aguardando marcação.
