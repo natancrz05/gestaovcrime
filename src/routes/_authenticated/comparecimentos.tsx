@@ -20,6 +20,7 @@ import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { cpfValido, formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
@@ -170,6 +171,7 @@ function Pagina() {
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
+  const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string } | null>(null);
   const [importar, setImportar] = useState(false);
 
   return (
@@ -355,32 +357,155 @@ function Pagina() {
       <Dialog open={!!registro} onOpenChange={(o) => !o && setRegistro(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Registrar comparecimento</DialogTitle></DialogHeader>
-          {registro ? <FormRegistro c={registro} onFeito={async () => { await recarregar(); setRegistro(null); }} /> : null}
+          {registro ? (
+            <FormRegistro
+              c={registro}
+              onFeito={async (dados) => {
+                await recarregar();
+                setRegistro(null);
+                setCertidao(dados);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!certidao} onOpenChange={(o) => !o && setCertidao(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Emitir certidão de comparecimento · teste</DialogTitle></DialogHeader>
+          {certidao ? <FormCertidao dados={certidao} onFechar={() => setCertidao(null)} /> : null}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-function FormRegistro({ c, onFeito }: { c: ComparecimentoListado; onFeito: () => Promise<void> }) {
+function FormRegistro({
+  c,
+  onFeito,
+}: {
+  c: ComparecimentoListado;
+  onFeito: (dados: { comparecimento: ComparecimentoListado; data: string; cpf: string }) => Promise<void>;
+}) {
   const [data, setData] = useState(hojeISO());
   const [obs, setObs] = useState("");
+  const [cpf, setCpf] = useState(c.cpf ? formatarCpf(c.cpf) : "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const precisaCpf = !c.cpf?.replace(/\D/g, "");
+
   return (
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
       if (!data) return setErro("Informe a data do comparecimento.");
+      if (precisaCpf && !cpfValido(cpf)) return setErro("Informe um CPF válido para emitir a certidão.");
+
+      const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
-      try { await registrarComparecimento(c.id, data, obs); await onFeito(); } catch (err) { setErro(err instanceof Error ? err.message : "Erro ao registrar."); setSalvando(false); }
+      try {
+        await registrarComparecimento(c.id, data, obs, precisaCpf ? cpfFinal : undefined);
+        await onFeito({ comparecimento: { ...c, cpf: cpfFinal }, data, cpf: cpfFinal });
+      } catch (err) {
+        setErro(err instanceof Error ? err.message : "Erro ao registrar.");
+        setSalvando(false);
+      }
     }}>
       <p className="text-sm">{c.pessoa} · <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>
-      <Campo rotulo="Data do comparecimento"><input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} /></Campo>
-      <Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={obs} onChange={(e) => setObs(e.target.value)} /></Campo>
+
+      <Campo rotulo="Data do comparecimento">
+        <input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} />
+      </Campo>
+
+      {precisaCpf ? (
+        <Campo rotulo="CPF do comparecente *">
+          <input
+            inputMode="numeric"
+            autoComplete="off"
+            className={CLASSE_CAMPO}
+            maxLength={14}
+            placeholder="000.000.000-00"
+            value={cpf}
+            onChange={(e) => setCpf(formatarCpf(e.target.value))}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Obrigatório porque o CPF ainda não está cadastrado. Após o registro, ficará salvo para os próximos comparecimentos.</p>
+        </Campo>
+      ) : (
+        <p className="text-xs text-muted-foreground">CPF cadastrado: <span className="font-medium text-foreground">{formatarCpf(c.cpf)}</span></p>
+      )}
+
+      <Campo rotulo="Observação">
+        <textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={obs} onChange={(e) => setObs(e.target.value)} />
+      </Campo>
+
       {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
+      <p className="rounded-md border border-alerta/30 bg-alerta-suave p-2 text-xs text-alerta">Versão de teste: após registrar, o sistema abrirá a etapa de emissão da certidão em duas vias.</p>
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
-      <div className="flex justify-end"><button className={BOTAO} disabled={salvando}>{salvando ? "Registrando…" : "Marcar como realizado"}</button></div>
+      <div className="flex justify-end"><button className={BOTAO} disabled={salvando}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
     </form>
+  );
+}
+
+function FormCertidao({
+  dados,
+  onFechar,
+}: {
+  dados: { comparecimento: ComparecimentoListado; data: string; cpf: string };
+  onFechar: () => void;
+}) {
+  const [analista, setAnalista] = useState("");
+  const [erro, setErro] = useState("");
+
+  const gerar = () => {
+    const nome = analista.trim();
+    if (!nome) return setErro("Informe o nome do Analista Judiciário responsável.");
+
+    const janela = window.open("", "_blank");
+    if (!janela) return setErro("O navegador bloqueou a janela da certidão. Permita pop-ups para este site e tente novamente.");
+
+    janela.opener = null;
+    janela.document.open();
+    janela.document.write(
+      montarHtmlCertidaoComparecimento({
+        numero: dados.comparecimento.numero,
+        pessoa: dados.comparecimento.pessoa,
+        cpf: dados.cpf,
+        data: dados.data,
+        analista: nome,
+      }),
+    );
+    janela.document.close();
+    janela.focus();
+    janela.setTimeout(() => janela.print(), 250);
+    setErro("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+        <p className="font-medium">{dados.comparecimento.pessoa}</p>
+        <p className="numero-processo text-xs text-muted-foreground">{dados.comparecimento.numero}</p>
+        <p className="mt-1 text-xs text-muted-foreground">CPF {formatarCpf(dados.cpf)} · comparecimento em {formatarData(dados.data)}</p>
+      </div>
+
+      <Campo rotulo="Analista Judiciário responsável *">
+        <input
+          autoFocus
+          className={CLASSE_CAMPO}
+          maxLength={150}
+          placeholder="Nome completo do Analista Judiciário"
+          value={analista}
+          onChange={(e) => setAnalista(e.target.value)}
+        />
+      </Campo>
+
+      <p className="text-xs text-muted-foreground">A certidão será aberta em uma nova janela, em formato A4, com duas vias idênticas e pronta para impressão.</p>
+      {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className={BOTAO_SEC} onClick={onFechar}>Fechar sem imprimir</button>
+        <button type="button" className={BOTAO} onClick={gerar}>Gerar e imprimir certidão</button>
+      </div>
+    </div>
   );
 }
 
