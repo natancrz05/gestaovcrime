@@ -18,20 +18,6 @@ export function formatarCpf(valor: string): string {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
 
-export function cpfValido(valor: string): boolean {
-  const d = digitosCpf(valor);
-  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
-
-  const calcular = (tamanho: number) => {
-    let soma = 0;
-    for (let i = 0; i < tamanho; i += 1) soma += Number(d[i]) * (tamanho + 1 - i);
-    const resto = (soma * 10) % 11;
-    return resto === 10 ? 0 : resto;
-  };
-
-  return calcular(9) === Number(d[9]) && calcular(10) === Number(d[10]);
-}
-
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
