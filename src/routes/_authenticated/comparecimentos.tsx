@@ -398,7 +398,7 @@ function FormRegistro({
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
       if (!data) return setErro("Informe a data do comparecimento.");
-      if (precisaCpf && !cpf.replace(/\D/g, "")) return setErro("Informe o CPF para emitir a certidão.");
+      if (precisaCpf && cpf.replace(/\D/g, "").length !== 11) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
 
       const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
