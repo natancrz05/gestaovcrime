@@ -1,17 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  cpfValido,
   dataPorExtenso,
   formatarCpf,
   montarHtmlCertidaoComparecimento,
 } from "../src/lib/processos/certidao-comparecimento";
 
 describe("Certidão de comparecimento", () => {
-  test("formata e valida CPF", () => {
+  test("formata CPF sem validar o número informado", () => {
     expect(formatarCpf("52998224725")).toBe("529.982.247-25");
-    expect(cpfValido("529.982.247-25")).toBe(true);
-    expect(cpfValido("111.111.111-11")).toBe(false);
-    expect(cpfValido("123")).toBe(false);
+    expect(formatarCpf("11111111111")).toBe("111.111.111-11");
   });
 
   test("escreve a data por extenso", () => {
