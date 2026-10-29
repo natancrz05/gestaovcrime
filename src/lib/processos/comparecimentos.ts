@@ -221,7 +221,15 @@ export async function salvarComparecimento(v: ComparecimentoEntrada, id?: string
   if (error) throw new Error(error.message);
 }
 
-export async function registrarComparecimento(id: string, data: string, obs: string) {
+export async function registrarComparecimento(id: string, data: string, obs: string, cpf?: string) {
+  if (cpf) {
+    const { error: cpfError } = await supabase
+      .from("comparecimentos")
+      .update({ cpf })
+      .eq("id", id);
+    if (cpfError) throw new Error(cpfError.message);
+  }
+
   const { data: r, error } = await supabase.rpc("registrar_comparecimento", { p_id: id, p_data: data, p_obs: obs });
   if (error) throw new Error(error.message);
   return r as string;
