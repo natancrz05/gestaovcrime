@@ -6,9 +6,10 @@ import {
 } from "../src/lib/processos/certidao-comparecimento";
 
 describe("Certidão de comparecimento", () => {
-  test("formata CPF sem validar o número informado", () => {
+  test("formata CPF sem validar os dígitos verificadores", () => {
     expect(formatarCpf("52998224725")).toBe("529.982.247-25");
     expect(formatarCpf("11111111111")).toBe("111.111.111-11");
+    expect(formatarCpf("1234567890")).toBe("123.456.789-0");
   });
 
   test("escreve a data por extenso", () => {
