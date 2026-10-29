@@ -20,7 +20,7 @@ import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { cpfValido, formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
+import { formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
@@ -398,7 +398,7 @@ function FormRegistro({
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
       if (!data) return setErro("Informe a data do comparecimento.");
-      if (precisaCpf && !cpfValido(cpf)) return setErro("Informe um CPF válido para emitir a certidão.");
+      if (precisaCpf && !cpf.replace(/\D/g, "")) return setErro("Informe o CPF para emitir a certidão.");
 
       const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
