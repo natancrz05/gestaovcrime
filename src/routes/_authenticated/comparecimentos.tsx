@@ -20,7 +20,7 @@ import { usePode } from "@/lib/sessao";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
+import { cpfTemOnzeDigitos, formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
@@ -392,13 +392,13 @@ function FormRegistro({
   const [cpf, setCpf] = useState(c.cpf ? formatarCpf(c.cpf) : "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const precisaCpf = c.cpf.replace(/\D/g, "").length !== 11;
+  const precisaCpf = !cpfTemOnzeDigitos(c.cpf);
 
   return (
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
       if (!data) return setErro("Informe a data do comparecimento.");
-      if (precisaCpf && cpf.replace(/\D/g, "").length !== 11) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
+      if (precisaCpf && !cpfTemOnzeDigitos(cpf)) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
 
       const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
