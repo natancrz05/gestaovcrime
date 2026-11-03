@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  cpfTemOnzeDigitos,
   dataPorExtenso,
   formatarCpf,
   montarHtmlCertidaoComparecimento,
@@ -10,6 +11,13 @@ describe("Certidão de comparecimento", () => {
     expect(formatarCpf("52998224725")).toBe("529.982.247-25");
     expect(formatarCpf("11111111111")).toBe("111.111.111-11");
     expect(formatarCpf("1234567890")).toBe("123.456.789-0");
+  });
+
+  test("aceita CPF somente pela presença de 11 dígitos", () => {
+    expect(cpfTemOnzeDigitos("111.111.111-11")).toBe(true);
+    expect(cpfTemOnzeDigitos("12345678901")).toBe(true);
+    expect(cpfTemOnzeDigitos("1234567890")).toBe(false);
+    expect(cpfTemOnzeDigitos("123456789012")).toBe(false);
   });
 
   test("escreve a data por extenso", () => {
