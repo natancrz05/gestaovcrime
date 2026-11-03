@@ -372,7 +372,7 @@ function Pagina() {
 
       <Dialog open={!!certidao} onOpenChange={(o) => !o && setCertidao(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Emitir certidão de comparecimento · teste</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Emitir certidão de comparecimento</DialogTitle></DialogHeader>
           {certidao ? <FormCertidao dados={certidao} onFechar={() => setCertidao(null)} /> : null}
         </DialogContent>
       </Dialog>
@@ -392,7 +392,7 @@ function FormRegistro({
   const [cpf, setCpf] = useState(c.cpf ? formatarCpf(c.cpf) : "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const precisaCpf = !c.cpf?.replace(/\D/g, "");
+  const precisaCpf = c.cpf.replace(/\D/g, "").length !== 11;
 
   return (
     <form className="space-y-3" onSubmit={async (e) => {
@@ -438,7 +438,6 @@ function FormRegistro({
       </Campo>
 
       {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
-      <p className="rounded-md border border-alerta/30 bg-alerta-suave p-2 text-xs text-alerta">Versão de teste: após registrar, o sistema abrirá a etapa de emissão da certidão em duas vias.</p>
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
       <div className="flex justify-end"><button className={BOTAO} disabled={salvando}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
     </form>
