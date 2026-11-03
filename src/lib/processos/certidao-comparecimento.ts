@@ -18,6 +18,10 @@ export function formatarCpf(valor: string): string {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
 
+export function cpfTemOnzeDigitos(valor: string): boolean {
+  return valor.replace(/\D/g, "").length === 11;
+}
+
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
