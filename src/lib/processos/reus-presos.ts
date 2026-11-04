@@ -10,10 +10,12 @@ function normalizarDataReavaliacao(v?: string | null): string | null {
 }
 
 /**
- * A prisão preventiva nasce de uma decisão judicial que já examina a custódia.
- * Até existir reavaliação posterior, a data da prisão é o primeiro marco dos 90 dias.
+ * Mantém prisão e reavaliação como fatos distintos.
+ * - dataPrisao: data histórica da prisão, nunca é substituída por reavaliação.
+ * - ultimaReavaliacao: evento posterior registrado separadamente.
+ * - referenciaPrazo: somente a referência operacional para o próximo ciclo de 90 dias.
  */
-export function baseReavaliacaoPreventiva({
+export function referenciaPreventiva({
   dataPrisao,
   ultimaReavaliacaoHistorico,
   dadosPlanilha,
@@ -21,18 +23,22 @@ export function baseReavaliacaoPreventiva({
   dataPrisao?: string | null;
   ultimaReavaliacaoHistorico?: string | null;
   dadosPlanilha?: Record<string, string> | null;
-}): string | null {
+}) {
   const dp = dadosPlanilha ?? {};
-  const datas = [
-    normalizarDataReavaliacao(dataPrisao),
+  const prisao = normalizarDataReavaliacao(dataPrisao);
+  const reavaliacoes = [
     normalizarDataReavaliacao(ultimaReavaliacaoHistorico),
     normalizarDataReavaliacao(dp["Última reavaliação"]),
     normalizarDataReavaliacao(dp["Data da última reavaliação"]),
-    normalizarDataReavaliacao(dp["Data da decisão da preventiva"]),
-    normalizarDataReavaliacao(dp["Data da decisão preventiva"]),
   ].filter((d): d is string => Boolean(d)).sort();
+  const ultimaReavaliacao = reavaliacoes.at(-1) ?? null;
 
-  return datas.at(-1) ?? null;
+  return {
+    dataPrisao: prisao,
+    ultimaReavaliacao,
+    referenciaPrazo: ultimaReavaliacao ?? prisao,
+    origemReferencia: ultimaReavaliacao ? "reavaliacao" as const : prisao ? "prisao" as const : null,
+  };
 }
 
 /** Fonte única dos réus atualmente custodiados, compartilhada pelo módulo e pelo Dashboard. */
