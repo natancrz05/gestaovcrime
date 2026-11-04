@@ -18,7 +18,7 @@ import { tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
 import { normalizarCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
-import { baseReavaliacaoPreventiva, presosQuery } from "@/lib/processos/reus-presos";
+import { referenciaPreventiva, presosQuery } from "@/lib/processos/reus-presos";
 import { etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
@@ -136,15 +136,15 @@ function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: 
   }
 
   if (tipo === "Prisão preventiva") {
-    const base = baseReavaliacaoPreventiva({
+    const referencia = referenciaPreventiva({
       dataPrisao: p.data_prisao,
       ultimaReavaliacaoHistorico,
       dadosPlanilha: dp,
     });
-    if (!base) {
+    if (!referencia.referenciaPrazo) {
       return { principal: "Conferir reavaliação", detalhe: "Sem data da prisão ou reavaliação registrada", cls: "font-medium text-temporaria" };
     }
-    const limite = somarDiasISO(base, 90);
+    const limite = somarDiasISO(referencia.referenciaPrazo, 90);
     const dias = diasEntre(hoje, limite);
     if (dias < 0) return { principal: `Vencida há ${Math.abs(dias)}d`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-urgente" };
     if (dias === 0) return { principal: "Revisão hoje", detalhe: formatarData(limite), cls: "font-medium text-urgente" };
