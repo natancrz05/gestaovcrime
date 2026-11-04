@@ -185,17 +185,21 @@ function Pagina() {
       <Cabecalho
         titulo="Comparecimentos"
         subtitulo={`${ativos.length} cadastros ativos`}
-        acao={podeEditar ? (
+        acao={
           <div className="flex flex-wrap gap-2">
-          <Link to="/comparecimentos/encerrados" className={BOTAO_SEC + " h-9"}>
-            <Archive className="size-4" /> Encerrados ({encerrados.length})
-          </Link>
-          <button className={BOTAO_SEC + " h-9"} onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
-          <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1), observacao: "", situacao: "Ativo" } })}>
-            <Plus className="size-4" /> Novo comparecimento
-          </button>
+            <Link to="/comparecimentos/encerrados" className={BOTAO_SEC + " h-9"}>
+              <Archive className="size-4" /> Encerrados ({encerrados.length})
+            </Link>
+            {podeEditar ? (
+              <>
+                <button className={BOTAO_SEC + " h-9"} onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
+                <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1), observacao: "", situacao: "Ativo" } })}>
+                  <Plus className="size-4" /> Novo comparecimento
+                </button>
+              </>
+            ) : null}
           </div>
-        ) : undefined}
+        }
       />
 
       <section aria-label="Situações" className="grid gap-3 sm:grid-cols-3">
