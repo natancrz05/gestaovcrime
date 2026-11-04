@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import { lazy, Suspense, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
 const ImportarComparecimentos = lazy(() =>
   import("@/components/processos/ImportarComparecimentos").then((modulo) => ({
     default: modulo.ImportarComparecimentos,
@@ -66,6 +66,7 @@ function Pagina() {
   const hoje = hojeISO();
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
   const ativos = useMemo(() => lista.filter((c) => c.situacao !== "Encerrado"), [lista]);
+  const encerrados = useMemo(() => lista.filter((c) => c.situacao === "Encerrado"), [lista]);
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
   const processoPorNumero = useMemo(() => {
@@ -105,8 +106,8 @@ function Pagina() {
     processoIdEtiquetaPorComparecimento.get(comparecimento.id) ?? null;
 
   const porSituacao = useMemo(
-    () => (filtro ? ativos.filter((c) => c.status === filtro) : lista),
-    [filtro, ativos, lista],
+    () => (filtro ? ativos.filter((c) => c.status === filtro) : ativos),
+    [filtro, ativos],
   );
   const indiceBusca = useMemo(() => {
     const mapa = new Map<string, { texto: string; digitos: string }>();
@@ -166,7 +167,7 @@ function Pagina() {
     }
   };
 
-  const detalhe = lista.find((c) => c.id === busca.id) ?? null;
+  const detalhe = ativos.find((c) => c.id === busca.id) ?? null;
   const historicoDetalhe = useQuery(comparecimentoHistoricoQuery(detalhe?.id ?? null));
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
@@ -186,6 +187,9 @@ function Pagina() {
         subtitulo={`${ativos.length} cadastros ativos`}
         acao={podeEditar ? (
           <div className="flex flex-wrap gap-2">
+          <Link to="/comparecimentos/encerrados" className={BOTAO_SEC + " h-9"}>
+            <Archive className="size-4" /> Encerrados ({encerrados.length})
+          </Link>
           <button className={BOTAO_SEC + " h-9"} onClick={() => setImportar(true)}><Upload className="size-4" /> Importar planilha</button>
           <button className={BOTAO} onClick={() => setEdicao({ valores: { processo_id: "", pessoa: "", data_inicio: hoje, periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1), observacao: "", situacao: "Ativo" } })}>
             <Plus className="size-4" /> Novo comparecimento
@@ -214,7 +218,7 @@ function Pagina() {
         <input id="pesq-comp" type="search" className={CLASSE_CAMPO} placeholder="Nome, processo, CPF, IP ou ação penal..." value={termo} onChange={(e) => setTermo(e.target.value)} />
       </div>
 
-      <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Todos os comparecimentos"}>
+      <Secao titulo={filtro ? `Comparecimentos — ${SITUACOES_COMP.find((s) => s.chave === filtro)!.rotulo}` : "Comparecimentos ativos"}>
         {exibidos.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum comparecimento.</p> : (
           <div className="overflow-x-auto rounded-md border border-border">
             <table className="w-full min-w-[1100px] table-fixed text-sm">
