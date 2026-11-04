@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Archive } from "lucide-react";
+import { ArrowLeft, Archive, RotateCcw } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
+import { usePode } from "@/lib/sessao";
+import { toast } from "sonner";
 import {
   comparecimentosQuery,
   comparecimentoHistoricoQuery,
   preparar,
+  reativarComparecimento,
   type ComparecimentoListado,
 } from "@/lib/processos/comparecimentos";
 
@@ -30,6 +33,8 @@ export const Route = createFileRoute("/_authenticated/comparecimentos_/encerrado
 
 const BOTAO_SEC =
   "inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted";
+const BOTAO =
+  "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
 
 const normalizar = (valor: string) =>
   valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -44,6 +49,10 @@ function Pagina() {
   );
   const [termo, setTermo] = useState("");
   const [selecionado, setSelecionado] = useState<ComparecimentoListado | null>(null);
+  const [reativando, setReativando] = useState(false);
+  const podeEditar = usePode("editar");
+  const qc = useQueryClient();
+
 
   const indiceBusca = useMemo(() => {
     const mapa = new Map<string, { texto: string; digitos: string }>();
@@ -80,6 +89,23 @@ function Pagina() {
   }, [encerrados, indiceBusca, termo]);
 
   const historico = useQuery(comparecimentoHistoricoQuery(selecionado?.id ?? null));
+
+  const reativar = async () => {
+    if (!selecionado || reativando) return;
+    if (!window.confirm(`Reativar o comparecimento de "${selecionado.pessoa}"? O histórico será preservado e o cadastro voltará para a lista de ativos.`)) return;
+
+    setReativando(true);
+    try {
+      await reativarComparecimento(selecionado.id);
+      await qc.invalidateQueries({ queryKey: ["comparecimentos"] });
+      toast.success("Comparecimento reativado.");
+      setSelecionado(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reativar o comparecimento.");
+    } finally {
+      setReativando(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -209,6 +235,15 @@ function Pagina() {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">Observação do cadastro</p>
                   <p className="mt-1 whitespace-pre-wrap">{selecionado.observacao}</p>
+                </div>
+              ) : null}
+
+              {podeEditar ? (
+                <div className="flex justify-end border-t border-border pt-3">
+                  <button type="button" className={BOTAO} disabled={reativando} onClick={() => void reativar()}>
+                    <RotateCcw className="size-4" />
+                    {reativando ? "Reativando…" : "Reativar cadastro"}
+                  </button>
                 </div>
               ) : null}
 
