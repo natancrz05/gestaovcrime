@@ -221,7 +221,23 @@ export async function salvarComparecimento(v: ComparecimentoEntrada, id?: string
   if (error) throw new Error(error.message);
 }
 
+export function mensagemProcessoAusenteComparecimento(pessoa?: string) {
+  const nome = pessoa?.trim() ? ` de ${pessoa.trim()}` : "";
+  return `Não é possível registrar o comparecimento${nome}: este cadastro não está vinculado a um processo no sistema. Antes de registrar, edite o cadastro e vincule ou cadastre o processo em que o réu está cumprindo a medida cautelar.`;
+}
+
 export async function registrarComparecimento(id: string, data: string, obs: string, cpf?: string) {
+  const { data: cadastro, error: cadastroError } = await supabase
+    .from("comparecimentos")
+    .select("processo_id, pessoa")
+    .eq("id", id)
+    .single();
+
+  if (cadastroError) throw new Error(cadastroError.message);
+  if (!cadastro?.processo_id) {
+    throw new Error(mensagemProcessoAusenteComparecimento(cadastro?.pessoa));
+  }
+
   if (cpf) {
     const { error: cpfError } = await supabase
       .from("comparecimentos")
