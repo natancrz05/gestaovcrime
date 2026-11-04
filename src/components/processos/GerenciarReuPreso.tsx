@@ -30,7 +30,6 @@ function somarDiasISO(iso: string, dias: number): string {
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
   const queryClient = useQueryClient();
   const [proc, setProc] = useState("");
-  const [numeroProcesso, setNumeroProcesso] = useState("");
   const [reuId, setReuId] = useState<string>("novo");
   const [f, setF] = useState({ nome: "", rji: "", tipo_prisao: "Prisão preventiva", especie_cautelar: "", data_prisao: "", situacao: "", observacoes: "" });
   const [prazoTemporaria, setPrazoTemporaria] = useState("");
@@ -38,7 +37,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
 
   useEffect(() => {
     if (!aberto) return;
-    setProc(reu?.processo_id ?? ""); setNumeroProcesso(""); setReuId(reu?.id ?? "novo");
+    setProc(reu?.processo_id ?? ""); setReuId(reu?.id ?? "novo");
     setF({ nome: reu?.nome ?? "", rji: reu?.rji ?? "", tipo_prisao: reu && TIPOS_CUSTODIA.includes(reu.tipo_prisao) ? reu.tipo_prisao : "Prisão preventiva",
       especie_cautelar: reu?.especie_cautelar ?? "", data_prisao: reu?.data_prisao ?? "", situacao: reu?.situacao ?? "", observacoes: reu?.observacoes ?? "" });
     setPrazoTemporaria(reu?.dados_planilha?.[CHAVE_PRAZO_TEMPORARIA] ?? "");
@@ -60,44 +59,46 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
     }
   };
 
+  const criarProcessoAusente = async (numero: string) => {
+    const numeroLimpo = numero.trim();
+    const numeroNumerico = numeroLimpo.replace(/\D/g, "");
+    const { data: existente, error: buscaErro } = await supabase
+      .from("processos")
+      .select("id")
+      .or(`numero.eq.${numeroLimpo},numero.eq.${numeroNumerico}`)
+      .maybeSingle();
+    if (buscaErro) throw new Error(buscaErro.message);
+    if (existente?.id) return existente.id;
+
+    const { data: criado, error: criarErro } = await supabase
+      .from("processos")
+      .insert({ numero: numeroLimpo, classe: "Não informada", origem: "manual", conferir: true })
+      .select("id")
+      .single();
+    if (criarErro || !criado?.id) throw new Error(criarErro?.message ?? "Não foi possível cadastrar o processo.");
+
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["processos-seletor"] }),
+      queryClient.invalidateQueries({ queryKey: ["processos"] }),
+    ]);
+    return criado.id;
+  };
+
   const salvar = async () => {
     if (!f.nome.trim()) { toast.error("Informe o nome do réu"); return; }
     setSalvando(true);
 
-    let processoId = proc;
+    const processoId = proc;
     if (!processoId) {
-      const numero = numeroProcesso.trim();
-      if (!numero) {
-        setSalvando(false);
-        toast.error("Informe o número do processo");
-        return;
-      }
-      const numeroNumerico = numero.replace(/\D/g, "");
-      const { data: existente, error: buscaErro } = await supabase
-        .from("processos")
-        .select("id")
-        .or(`numero.eq.${numero},numero.eq.${numeroNumerico}`)
-        .maybeSingle();
-      if (buscaErro) {
-        setSalvando(false);
-        toast.error(buscaErro.message);
-        return;
-      }
-      if (existente?.id) {
-        processoId = existente.id;
-      } else {
-        const { data: criado, error: criarErro } = await supabase
-          .from("processos")
-          .insert({ numero, classe: "Não informada", origem: "manual", conferir: true })
-          .select("id")
-          .single();
-        if (criarErro || !criado?.id) {
-          setSalvando(false);
-          toast.error(criarErro?.message ?? "Não foi possível cadastrar o processo.");
-          return;
-        }
-        processoId = criado.id;
-      }
+      setSalvando(false);
+      toast.error("Selecione ou cadastre o processo.");
+      return;
+    }
+
+    if (f.tipo_prisao === "Prisão preventiva" && !f.data_prisao) {
+      setSalvando(false);
+      toast.error("Informe a data da prisão para iniciar o prazo de reavaliação de 90 dias.");
+      return;
     }
     const base = reu ?? vinculados.find((x) => x.id === reuId);
     const dados = { ...((base?.dados_planilha ?? {}) as Record<string, string>) };
@@ -152,21 +153,16 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>{reu ? "Editar preso provisório" : "Adicionar preso provisório"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          {proc ? (
-            <Campo rotulo="Processo"><SeletorProcesso value={proc} onChange={(v) => { setProc(v); setReuId("novo"); }} /></Campo>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm text-amber-700">Este réu não está vinculado a um processo. Informe o número para corrigir o cadastro.</p>
-              <Campo rotulo="Número do processo">
-                <input
-                  className={CLASSE_CAMPO}
-                  value={numeroProcesso}
-                  onChange={(e) => setNumeroProcesso(e.target.value)}
-                  placeholder="Ex.: 8000000-00.2026.8.05.0000"
-                />
-              </Campo>
-            </div>
-          )}
+          <Campo rotulo="Processo">
+            <SeletorProcesso
+              value={proc}
+              onChange={(v) => { setProc(v); setReuId("novo"); }}
+              onCriarProcesso={criarProcessoAusente}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pesquise no acervo por número ou nome. Se o processo não existir, informe o número completo para cadastrá-lo.
+            </p>
+          </Campo>
           {!reu && proc ? (
             <Campo rotulo="Réu">
               <select className={CLASSE_CAMPO} value={reuId} onChange={(e) => escolherReu(e.target.value)}>
@@ -183,7 +179,7 @@ export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEdita
                 {TIPOS_CUSTODIA.map((t) => <option key={t}>{t}</option>)}
               </select>
             </Campo>
-            <Campo rotulo="Data da prisão"><input type="date" className={CLASSE_CAMPO} value={f.data_prisao} onChange={set("data_prisao")} /></Campo>
+            <Campo rotulo={f.tipo_prisao === "Prisão preventiva" ? "Data da prisão *" : "Data da prisão"}><input type="date" className={CLASSE_CAMPO} value={f.data_prisao} onChange={set("data_prisao")} /></Campo>
             {f.tipo_prisao === "Prisão temporária" ? (
               <div className="sm:col-span-2 rounded-md border border-border bg-muted/30 p-3">
                 <div className="grid gap-3 sm:grid-cols-2">
