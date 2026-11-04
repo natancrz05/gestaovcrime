@@ -18,7 +18,7 @@ import { tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
 import { normalizarCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
-import { presosQuery } from "@/lib/processos/reus-presos";
+import { baseReavaliacaoPreventiva, presosQuery } from "@/lib/processos/reus-presos";
 import { etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
@@ -136,15 +136,13 @@ function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: 
   }
 
   if (tipo === "Prisão preventiva") {
-    const base = maiorData([
-      normalizarData(ultimaReavaliacaoHistorico),
-      normalizarData(dp["Última reavaliação"]),
-      normalizarData(dp["Data da última reavaliação"]),
-      normalizarData(dp["Data da decisão da preventiva"]),
-      normalizarData(dp["Data da decisão preventiva"]),
-    ]);
+    const base = baseReavaliacaoPreventiva({
+      dataPrisao: p.data_prisao,
+      ultimaReavaliacaoHistorico,
+      dadosPlanilha: dp,
+    });
     if (!base) {
-      return { principal: "Conferir reavaliação", detalhe: "Sem data-base confiável", cls: "font-medium text-temporaria" };
+      return { principal: "Conferir reavaliação", detalhe: "Sem data da prisão ou reavaliação registrada", cls: "font-medium text-temporaria" };
     }
     const limite = somarDiasISO(base, 90);
     const dias = diasEntre(hoje, limite);
