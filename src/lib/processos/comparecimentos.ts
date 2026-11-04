@@ -239,3 +239,11 @@ export async function encerrarComparecimento(id: string) {
   const { error } = await supabase.from("comparecimentos").update({ situacao: "Encerrado" }).eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+export async function reativarComparecimento(id: string) {
+  const { error } = await supabase
+    .from("comparecimentos")
+    .update({ situacao: "Ativo" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
