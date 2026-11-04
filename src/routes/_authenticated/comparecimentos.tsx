@@ -29,6 +29,7 @@ import {
   comparecimentoHistoricoQuery,
   preparar,
   registrarComparecimento,
+  mensagemProcessoAusenteComparecimento,
   salvarComparecimento,
   encerrarComparecimento,
   somarMeses,
@@ -405,6 +406,7 @@ function FormRegistro({
   return (
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
+      if (!c.processo_id) return setErro(mensagemProcessoAusenteComparecimento(c.pessoa));
       if (!data) return setErro("Informe a data do comparecimento.");
       if (precisaCpf && !cpfTemOnzeDigitos(cpf)) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
 
@@ -419,6 +421,21 @@ function FormRegistro({
       }
     }}>
       <p className="text-sm">{c.pessoa} · <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>
+
+      {!c.processo_id ? (
+        <div className="rounded-md border border-urgente/30 bg-urgente-suave p-3 text-sm text-urgente">
+          <p className="font-semibold">Não é possível registrar este comparecimento.</p>
+          <p className="mt-1">
+            O cadastro não está vinculado a um processo no sistema. Antes de registrar, edite o cadastro e
+            vincule ou cadastre o processo em que o réu está cumprindo a medida cautelar.
+          </p>
+          {c.numeros_informados?.length ? (
+            <p className="mt-2 text-xs">
+              Número(s) já informado(s) no cadastro: <span className="numero-processo font-medium">{c.numeros_informados.join(" / ")}</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <Campo rotulo="Data do comparecimento">
         <input type="date" className={CLASSE_CAMPO} value={data} onChange={(e) => setData(e.target.value)} />
@@ -447,7 +464,7 @@ function FormRegistro({
 
       {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
-      <div className="flex justify-end"><button className={BOTAO} disabled={salvando}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
+      <div className="flex justify-end"><button className={BOTAO} disabled={salvando || !c.processo_id}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
     </form>
   );
 }
