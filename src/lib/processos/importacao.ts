@@ -27,6 +27,29 @@ export const CAMPOS_IMPORTACAO: Record<string, string> = {
 };
 export const rotuloCampo = (c: string) => CAMPOS_IMPORTACAO[c] ?? c;
 
+/**
+ * Campos que representam o estado operacional atual do PJe.
+ * Se a coluna existir no arquivo e a célula vier vazia, o vazio é informação:
+ * o valor antigo deve ser removido para não manter tarefa/situação obsoleta.
+ *
+ * Dados estáveis (classe, assunto, autuação, última movimentação e partes) são
+ * preservados quando a célula vem vazia.
+ */
+export const CAMPOS_PJE_LIMPAM_QUANDO_VAZIOS = [
+  "pje_qtde_dias",
+  "pje_situacao",
+  "pje_tarefas",
+  "pje_prioridade",
+  "pje_descricao_prioridade",
+  "pje_concluso",
+  "pje_segredo",
+  "pje_localizacao",
+  "pje_sistema",
+] as const;
+
+export const campoPjeLimpaQuandoVazio = (campo: string) =>
+  (CAMPOS_PJE_LIMPAM_QUANDO_VAZIOS as readonly string[]).includes(campo);
+
 const COLUNAS: Record<string, string> = {
   PROCESSO: "numero",
   "NUMERO DO PROCESSO": "numero",
@@ -254,6 +277,8 @@ export interface LinhaValida {
   linha: number;
   numero: string;
   campos: Record<string, string>;
+  /** Colunas reconhecidas realmente presentes no arquivo, inclusive quando a célula está vazia. */
+  campos_presentes: string[];
   reusInferidos: string[];
   partesInstitucionaisIgnoradas: string[];
   avisos: string[];
@@ -405,6 +430,9 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
   const iCab = escolhida.iCab;
   const cab = (matrizTexto[iCab] ?? []).map((c) => limparTexto(c));
   const mapa: (string | null)[] = cab.map(resolverColuna);
+  const camposPresentes = [...new Set(
+    mapa.filter((campo): campo is string => Boolean(campo) && campo !== "numero"),
+  )];
   const reconhecidas = cab.filter((_, i) => mapa[i]);
   const contextuais = cab.filter((c, i) => c && !mapa[i] && COLUNAS_CONTEXTO.has(normCab(c)));
   const naoReconhecidas = cab.filter((c, i) => c && !mapa[i] && !COLUNAS_CONTEXTO.has(normCab(c)));
@@ -485,6 +513,7 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
       linha: nLinha,
       numero,
       campos,
+      campos_presentes: camposPresentes,
       reusInferidos: inferencia.nomes,
       partesInstitucionaisIgnoradas: inferencia.institucionaisIgnorados,
       avisos: linhaAvisos,
@@ -509,7 +538,7 @@ export async function lerPlanilha(arquivo: File): Promise<Analise> {
   };
 }
 
-export interface Mudanca { campo: string; antes: string | null; depois: string }
+export interface Mudanca { campo: string; antes: string | null; depois: string | null }
 export interface Conflito { numero: string; campo: string; atual: string; novo: string; motivo: string }
 export interface ResultadoSimulacao {
   analisados: number;
