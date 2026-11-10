@@ -119,7 +119,7 @@ function CalculadoraManual() {
   const [suspensaoFim, setSuspensaoFim] = useState("");
   const [resultado, setResultado] = useState<ReturnType<typeof calcularPrazoProcessual> | null>(null);
   const [erro, setErro] = useState("");
-  const contagem = materia === "penal" ? "Dias corridos" : "Dias úteis";
+  const contagem = materia === "penal" || materia === "jec_criminal" ? "Dias corridos" : "Dias úteis";
 
   const gerar = () => {
     setErro("");
@@ -152,7 +152,14 @@ function CalculadoraManual() {
       "Publicação efetiva: " + formatarData(resultado.publicacao),
       "Início da contagem: " + formatarData(resultado.primeiroDia),
       "Prazo: " + resultado.prazoDias + " dias (" + resultado.contagem + ")",
-      "Vencimento: " + formatarData(resultado.vencimento),
+      "Vencimento bruto: " + formatarData(resultado.vencimentoCalculado),
+      "Vencimento ajustado: " + formatarData(resultado.vencimento),
+      "Calendário: " + (resultado.calendarioCompleto ? "TJBA 2026 parametrizado para Coração de Maria (sujeito a alterações)" : "incompleto — conferir"),
+      "Memória de cálculo: ",
+      ...resultado.memoriaCalculo.map((dia) =>
+        formatarData(dia.data) + " — " + dia.situacao +
+        (dia.numeroDia ? " (" + dia.numeroDia + "º dia)" : "") + " — " + dia.motivo
+      ),
       "Fundamento: " + resultado.fundamento,
       "Observações: " + [...resultado.avisoCalendario, ...resultado.observacoes].join(" "),
     ].join("\n");
@@ -305,6 +312,11 @@ function CalculadoraManual() {
         {resultado ? (
           <section className="rounded-xl border border-primary/20 bg-card p-5 shadow-sm" aria-live="polite">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary"><CheckCircle2 className="size-4" /> Resultado estimado</span>
+            {!resultado.calendarioCompleto ? (
+              <p className="mt-3 rounded-lg border border-amber-300/40 p-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                Calendário não integralmente parametrizado para a UF, município ou ano selecionado. O vencimento exige conferência dos atos oficiais.
+              </p>
+            ) : null}
             <p className="mt-4 text-xs text-muted-foreground">Vencimento previsto</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{formatarData(resultado.vencimento)}</p>
             <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 text-sm">
@@ -312,8 +324,29 @@ function CalculadoraManual() {
               <div><dt className="text-xs text-muted-foreground">Prazo</dt><dd className="mt-1 font-medium">{resultado.prazoDias} dias {resultado.contagem}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Dias suspensos</dt><dd className="mt-1 font-medium">{resultado.diasSuspensos}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Vencimento ajustado</dt><dd className="mt-1 font-medium">{resultado.prorrogado ? "Sim" : "Não"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Vencimento bruto</dt><dd className="mt-1 font-medium">{formatarData(resultado.vencimentoCalculado)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Dias não computados</dt><dd className="mt-1 font-medium">{resultado.diasNaoContados}</dd></div>
             </dl>
             <p className="mt-4 text-xs font-medium">{resultado.fundamento}</p>
+            <details className="mt-4 rounded-lg border border-border bg-muted/10 p-3">
+              <summary className="cursor-pointer text-xs font-semibold">Memória de cálculo — {resultado.memoriaCalculo.length} registros</summary>
+              <p className="mt-2 text-[11px] text-muted-foreground">Contado, suspenso, não computado e prorrogação do vencimento. Para séries extensas, veja os primeiros e últimos registros ou copie a memória integral.</p>
+              <ol className="mt-2 max-h-[260px] space-y-1 overflow-y-auto text-[11px] leading-5">
+                {(resultado.memoriaCalculo.length > 65
+                  ? [...resultado.memoriaCalculo.slice(0, 35), ...resultado.memoriaCalculo.slice(-30)]
+                  : resultado.memoriaCalculo
+                ).map((dia, i) => (
+                  <li key={dia.data + "-" + i} className="flex gap-2 border-b border-border/40 py-1">
+                    <span className="w-[72px] shrink-0 tabular-nums font-medium">{formatarData(dia.data)}</span>
+                    <span>
+                      <strong>{dia.numeroDia ? dia.numeroDia + "º dia · " : ""}{dia.situacao === "contado" ? "Contado" : dia.situacao === "suspenso" ? "Suspenso" : dia.situacao === "prorrogado" ? "Prorrogação" : "Não computado"}</strong>
+                      {" — " + dia.motivo}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {resultado.memoriaCalculo.length > 65 ? <p className="mt-2 text-[11px] text-muted-foreground">Exibição resumida (35 primeiros e 30 últimos dias). O botão Copiar resultado inclui todas as datas.</p> : null}
+            </details>
             {resultado.avisoCalendario.map((aviso, i) => <p key={i} className="mt-3 text-xs leading-5 text-amber-700 dark:text-amber-400"><AlertTriangle className="mr-1 inline size-3.5" /> {aviso}</p>)}
             <button type="button" onClick={copiar} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">
               <ClipboardCopy className="size-4" /> Copiar resultado
