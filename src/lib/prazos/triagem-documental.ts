@@ -38,7 +38,7 @@ export function indexarReferenciasPdf(texto: string, maximoPorTipo = 60): Indice
       }
     }
 
-    for (const achado of conteudo.matchAll(/\bID\s*(?:n[º°o.]*)?\s*[:.\-]?\s*(\d{6,15})\b/gi)) {
+    for (const achado of conteudo.matchAll(/\bID\s*(?:n[º°o.]*)?\s*[:.-]?\s*(\d{6,15})\b/gi)) {
       if (ids.length >= maximoPorTipo) break;
       const valor = achado[1];
       if (!valor) continue;
