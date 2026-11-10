@@ -138,7 +138,7 @@ function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: 
   if (tipo === "Prisão preventiva") {
     const referencia = referenciaPreventiva({
       dataPrisao: p.data_prisao,
-      ultimaReavaliacaoHistorico,
+      ultimaReavaliacaoHistorico: ultimaReavaliacaoHistorico ?? null,
       dadosPlanilha: dp,
     });
     if (!referencia.referenciaPrazo) {
