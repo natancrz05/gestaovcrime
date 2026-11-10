@@ -1,3 +1,5 @@
+import { situacaoAudienciaPendente } from "./regras-audiencias";
+
 /**
  * Modelo de dados do módulo de Processos.
  * Apenas registra informações fornecidas pelo servidor — nenhuma conclusão
@@ -308,13 +310,10 @@ export function reuPrincipal(p: ProcessoCompleto): Reu | null {
 }
 
 export function proximaAudiencia(p: ProcessoCompleto, hoje = hojeISO()): AudienciaProcesso | null {
-  const pendente = (situacao: string) => {
-    const s = norm(situacao);
-    return /^(AGENDADA|DESIGNADA|REDESIGNADA)$/.test(s);
-  };
   return (
-    p.audiencias.filter((a) => a.data >= hoje && pendente(a.situacao)).sort((a, b) => a.data.localeCompare(b.data))[0] ??
-    null
+    p.audiencias
+      .filter((a) => a.data >= hoje && situacaoAudienciaPendente(a.situacao))
+      .sort((a, b) => a.data.localeCompare(b.data))[0] ?? null
   );
 }
 
