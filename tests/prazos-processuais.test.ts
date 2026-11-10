@@ -236,3 +236,24 @@ describe("Validação regressiva da regra do recesso (CPP 798-A)", () => {
     expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado")).toHaveLength(3);
   });
 });
+
+describe("Expediente extraordinário e calendário oficial", () => {
+  test("no CPP feriado informado no MEIO do prazo não suspende a contagem contínua", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 5, materia: "penal",
+      diasSemExpediente: ["2026-11-12"],
+    });
+    expect(r.primeiroDia).toBe("2026-11-11");
+    expect(r.vencimentoCalculado).toBe("2026-11-15");
+    expect(r.vencimento).toBe("2026-11-16");
+    expect(r.memoriaCalculo.some((d) => d.data === "2026-11-12" && d.situacao === "contado")).toBe(true);
+  });
+
+  test("no CPC feriado nacional de 20 de novembro altera os dias úteis", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-18", prazoDias: 2, materia: "civil",
+    });
+    expect(r.primeiroDia).toBe("2026-11-19");
+    expect(r.vencimento).toBe("2026-11-23");
+  });
+});
