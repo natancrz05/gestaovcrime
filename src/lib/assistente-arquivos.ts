@@ -6,6 +6,8 @@ export interface ArquivoExtraido {
   tipo: string;
   texto: string;
   paginas?: number;
+  paginasLidas?: number;
+  paginasSemTexto?: number[];
   truncado?: boolean;
 }
 
@@ -29,6 +31,8 @@ async function extrairPdf(file: File): Promise<Omit<ArquivoExtraido, "id">> {
   const partes: string[] = [];
   let caracteres = 0;
   let truncado = false;
+  let paginasLidas = 0;
+  const paginasSemTexto: number[] = [];
 
   for (let pagina = 1; pagina <= pdf.numPages; pagina += 1) {
     const p = await pdf.getPage(pagina);
@@ -50,6 +54,8 @@ async function extrairPdf(file: File): Promise<Omit<ArquivoExtraido, "id">> {
 
     partes.push(bloco);
     caracteres += bloco.length;
+    paginasLidas = pagina;
+    if (!linhas) paginasSemTexto.push(pagina);
   }
 
   const texto = partes.join("\n").trim();
@@ -64,6 +70,8 @@ async function extrairPdf(file: File): Promise<Omit<ArquivoExtraido, "id">> {
     tipo: file.type || "application/pdf",
     texto: truncado ? texto + "\n\n[CONTEÚDO TRUNCADO PELO LIMITE DO ASSISTENTE]" : texto,
     paginas: pdf.numPages,
+    paginasLidas,
+    paginasSemTexto,
     truncado,
   };
 }
