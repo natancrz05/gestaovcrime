@@ -40,6 +40,10 @@ const Entrada = z.object({
     .min(1)
     .max(20),
   arquivos: z.array(Arquivo).max(2).default([]),
+  conversaId: z.string().uuid().optional(),
+  respostaId: z.string().uuid().optional(),
+}).refine((data) => Boolean(data.conversaId) === Boolean(data.respostaId), {
+  message: "Identificação incompleta da conversa.",
 });
 
 export const perguntarAssistente = createServerFn({ method: "POST" })
@@ -47,21 +51,64 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Entrada.parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
+    const usuarioId = context.userId;
 
-    return {
-      resposta: await respostaLovable({
-        instructions: INSTRUCOES,
-        input: data.messages,
-        arquivos: data.arquivos.map((arquivo) => ({
-          nome: arquivo.nome,
-          tipo: arquivo.tipo,
-          texto: arquivo.texto,
-          ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
-          ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
-        })),
-        tools: FERRAMENTAS_ACERVO,
-        executarFerramenta: (nome, argumentos) =>
-          executarFerramentaAcervo(sb, nome, argumentos),
-      }),
-    };
+    if (data.conversaId && data.respostaId) {
+      const { data: conversa, error: erroConversa } = await sb
+        .from("assistente_conversas")
+        .select("id")
+        .eq("id", data.conversaId)
+        .eq("usuario_id", usuarioId)
+        .maybeSingle();
+      if (erroConversa) throw new Error("Não foi possível verificar a conversa.");
+      if (!conversa) throw new Error("Conversa indisponível ou sem permissão de acesso.");
+
+      // Caso o navegador perca a resposta após o servidor gravá-la,
+      // um reenvio com o mesmo ID recupera o resultado sem gastar créditos novamente.
+      const { data: existente, error: erroExistente } = await sb
+        .from("assistente_mensagens")
+        .select("conteudo")
+        .eq("id", data.respostaId)
+        .eq("conversa_id", data.conversaId)
+        .eq("usuario_id", usuarioId)
+        .eq("papel", "assistant")
+        .maybeSingle();
+      if (erroExistente) throw new Error("Não foi possível verificar a resposta anterior.");
+      if (existente) return { resposta: existente.conteudo, persistida: true };
+    }
+
+    const resposta = await respostaLovable({
+      instructions: INSTRUCOES,
+      input: data.messages,
+      arquivos: data.arquivos.map((arquivo) => ({
+        nome: arquivo.nome,
+        tipo: arquivo.tipo,
+        texto: arquivo.texto,
+        ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+        ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
+      })),
+      tools: FERRAMENTAS_ACERVO,
+      executarFerramenta: (nome, argumentos) =>
+        executarFerramentaAcervo(sb, nome, argumentos),
+    });
+
+    if (!data.conversaId || !data.respostaId) {
+      return { resposta, persistida: false };
+    }
+
+    const { error: erroSalvar } = await sb
+      .from("assistente_mensagens")
+      .insert({
+        id: data.respostaId,
+        conversa_id: data.conversaId,
+        usuario_id: usuarioId,
+        papel: "assistant",
+        conteudo: resposta,
+        anexos: [],
+      });
+    if (erroSalvar) {
+      console.error("Assistente: não foi possível persistir a resposta", erroSalvar.code);
+      return { resposta, persistida: false };
+    }
+    return { resposta, persistida: true };
   });
