@@ -1,9 +1,17 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, ArrowDown, Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, MessageSquarePlus, Paperclip, RotateCcw, Search, Send, ShieldCheck, Sparkles, User, X } from "lucide-react";
+import { AlertCircle, ArrowDown, Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, MessageSquare, MessageSquarePlus, Paperclip, Pencil, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { perguntarAoAssistente, type ArquivoAssistente, type MensagemAssistente } from "@/lib/assistente";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { cn } from "@/lib/utils";
+import { useSessao } from "@/lib/sessao";
+import {
+  criarConversaAssistente, excluirConversaAssistente,
+  listarConversasAssistente, listarMensagensAssistente,
+  renomearConversaAssistente, salvarMensagemUsuario,
+  salvarRespostaAssistenteLocal, tituloInicialDaConversa,
+  visualizarMensagemSalva, type ConversaAssistente,
+} from "@/lib/assistente-historico";
 
 function renderInlineMarkdown(texto: string): ReactNode[] {
   const partes = texto.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
@@ -152,6 +160,14 @@ type MensagemVisual = MensagemAssistente & {
 type EnvioPendente = {
   mensagens: MensagemAssistente[];
   arquivos: ArquivoAssistente[];
+  conversaId: string;
+  respostaId: string;
+};
+
+type RespostaNaoSalva = {
+  id: string;
+  conversaId: string;
+  conteudo: string;
 };
 
 function arquivosParaEnvio(arquivos: ArquivoExtraido[]): ArquivoAssistente[] {
@@ -169,7 +185,14 @@ function horaDaMensagem(timestamp: number) {
 }
 
 export function AssistenteChat() {
+  const sessao = useSessao();
   const [mensagens, setMensagens] = useState<MensagemVisual[]>([]);
+  const [conversas, setConversas] = useState<ConversaAssistente[]>([]);
+  const [conversaAtual, setConversaAtual] = useState<string | null>(null);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+  const [erroHistorico, setErroHistorico] = useState("");
+  const [alterandoHistorico, setAlterandoHistorico] = useState(false);
+  const [buscaChats, setBuscaChats] = useState("");
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [arquivos, setArquivos] = useState<ArquivoExtraido[]>([]);
@@ -182,77 +205,262 @@ export function AssistenteChat() {
   const arquivoRef = useRef<HTMLInputElement>(null);
   const autoScrollRef = useRef(true);
   const ocupadoRef = useRef(false);
+  const conversaAtualRef = useRef<string | null>(null);
+  const cargaRef = useRef(0);
   const ultimoEnvioRef = useRef<EnvioPendente | null>(null);
+  const respostaNaoSalvaRef = useRef<RespostaNaoSalva | null>(null);
 
-  const enviarAoModelo = async (pedido: EnvioPendente) => {
-    if (ocupadoRef.current) return;
-    ocupadoRef.current = true;
-    setCarregando(true);
-    setErro("");
+  const chaveSessao = "vara-crime-assistente:chat:" + sessao.id;
 
-    try {
-      const resposta = await perguntarAoAssistente(pedido.mensagens, pedido.arquivos);
-      setMensagens((atual) => [
-        ...atual,
-        { id: crypto.randomUUID(), role: "assistant", content: resposta.resposta, hora: Date.now() },
-      ]);
-      ultimoEnvioRef.current = null;
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não foi possível receber uma resposta.");
-    } finally {
-      ocupadoRef.current = false;
-      setCarregando(false);
+  useEffect(() => {
+    let ativo = true;
+    const numeroCarga = ++cargaRef.current;
+    async function iniciar() {
+      setCarregandoHistorico(true);
+      setErroHistorico("");
+      try {
+        const lista = await listarConversasAssistente(sessao.id);
+        const lembrado = window.sessionStorage.getItem(chaveSessao);
+        const escolhido = lista.find((item) => item.id === lembrado) ?? lista[0];
+        const historico = escolhido
+          ? await listarMensagensAssistente(escolhido.id, sessao.id)
+          : [];
+        if (!ativo || numeroCarga !== cargaRef.current) return;
+        setConversas(lista);
+        setConversaAtual(escolhido?.id ?? null);
+        conversaAtualRef.current = escolhido?.id ?? null;
+        setMensagens(historico.map(visualizarMensagemSalva));
+        setArquivos([]);
+        setErro("");
+        ultimoEnvioRef.current = null;
+        respostaNaoSalvaRef.current = null;
+        if (escolhido) window.sessionStorage.setItem(chaveSessao, escolhido.id);
+        else window.sessionStorage.removeItem(chaveSessao);
+      } catch (e) {
+        if (ativo && numeroCarga === cargaRef.current) {
+          setErroHistorico(e instanceof Error ? e.message : "Falha ao carregar o histórico.");
+        }
+      } finally {
+        if (ativo && numeroCarga === cargaRef.current) setCarregandoHistorico(false);
+      }
     }
+    void iniciar();
+    return () => { ativo = false; ++cargaRef.current; };
+  }, [sessao.id, chaveSessao]);
+
+  const atualizarLista = async () => {
+    const lista = await listarConversasAssistente(sessao.id);
+    setConversas(lista);
   };
 
-  const enviar = (conteudo = texto) => {
-    if (ocupadoRef.current || lendoArquivo) return;
-    const pergunta = conteudo.trim();
-    if (!pergunta && !arquivos.length) return;
-
-    const conteudoFinal = pergunta || "Analise os arquivos anexados, destacando os pontos relevantes e as páginas de origem.";
-    const nova: MensagemVisual = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: conteudoFinal,
-      hora: Date.now(),
-      ...(arquivos.length ? { anexos: arquivos.map((a) => a.nome) } : {}),
-    };
-    const proxima = [...mensagens, nova];
-    const pedido: EnvioPendente = {
-      mensagens: proxima.map(({ role, content }) => ({ role, content })).slice(-20),
-      arquivos: arquivosParaEnvio(arquivos),
-    };
-
-    ultimoEnvioRef.current = pedido;
-    setMensagens(proxima);
-    setTexto("");
-    autoScrollRef.current = true;
-    void enviarAoModelo(pedido);
-  };
-
-  const tentarNovamente = () => {
-    if (ultimoEnvioRef.current && !ocupadoRef.current) {
+  const selecionarConversa = async (id: string) => {
+    if (ocupadoRef.current || lendoArquivo || carregandoHistorico || alterandoHistorico || id === conversaAtualRef.current) return;
+    const numeroCarga = ++cargaRef.current;
+    setCarregandoHistorico(true);
+    setErroHistorico("");
+    try {
+      const historico = await listarMensagensAssistente(id, sessao.id);
+      if (numeroCarga !== cargaRef.current) return;
+      setConversaAtual(id);
+      conversaAtualRef.current = id;
+      window.sessionStorage.setItem(chaveSessao, id);
+      setMensagens(historico.map(visualizarMensagemSalva));
+      setTexto("");
+      setArquivos([]);
+      setErro("");
+      respostaNaoSalvaRef.current = null;
+      ultimoEnvioRef.current = null;
       autoScrollRef.current = true;
-      void enviarAoModelo(ultimoEnvioRef.current);
+    } catch (e) {
+      if (numeroCarga === cargaRef.current) {
+        setErroHistorico(e instanceof Error ? e.message : "Não foi possível abrir a conversa.");
+      }
+    } finally {
+      if (numeroCarga === cargaRef.current) setCarregandoHistorico(false);
     }
   };
 
   const novaConversa = () => {
-    if (ocupadoRef.current || lendoArquivo) return;
-    if (mensagens.length && !window.confirm("Iniciar uma nova conversa? As mensagens desta sessão serão descartadas.")) return;
+    if (ocupadoRef.current || lendoArquivo || carregandoHistorico || alterandoHistorico) return;
+    ++cargaRef.current;
+    setConversaAtual(null);
+    conversaAtualRef.current = null;
+    window.sessionStorage.removeItem(chaveSessao);
     setMensagens([]);
     setTexto("");
     setArquivos([]);
     setErro("");
+    setErroHistorico("");
     setMostrarFim(false);
     ultimoEnvioRef.current = null;
+    respostaNaoSalvaRef.current = null;
     autoScrollRef.current = true;
     editorRef.current?.focus();
   };
 
+  const renomear = async (conversa: ConversaAssistente) => {
+    if (ocupadoRef.current || carregandoHistorico || alterandoHistorico) return;
+    const titulo = window.prompt("Novo título desta conversa:", conversa.titulo);
+    if (titulo === null || !titulo.trim() || titulo.trim() === conversa.titulo) return;
+    setAlterandoHistorico(true);
+    try {
+      await renomearConversaAssistente(conversa.id, sessao.id, titulo);
+      await atualizarLista();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível renomear.");
+    } finally {
+      setAlterandoHistorico(false);
+    }
+  };
+
+  const excluir = async (conversa: ConversaAssistente) => {
+    if (ocupadoRef.current || carregandoHistorico || alterandoHistorico) return;
+    if (!window.confirm('Excluir definitivamente a conversa "' + conversa.titulo + '" e todas as mensagens?')) return;
+    setAlterandoHistorico(true);
+    try {
+      await excluirConversaAssistente(conversa.id, sessao.id);
+      const lista = await listarConversasAssistente(sessao.id);
+      setConversas(lista);
+      if (conversaAtualRef.current === conversa.id) {
+        const proxima = lista[0];
+        if (proxima) {
+          const historico = await listarMensagensAssistente(proxima.id, sessao.id);
+          setConversaAtual(proxima.id);
+          conversaAtualRef.current = proxima.id;
+          window.sessionStorage.setItem(chaveSessao, proxima.id);
+          setMensagens(historico.map(visualizarMensagemSalva));
+        } else {
+          setConversaAtual(null);
+          conversaAtualRef.current = null;
+          window.sessionStorage.removeItem(chaveSessao);
+          setMensagens([]);
+        }
+        setTexto("");
+        setArquivos([]);
+        setErro("");
+        ultimoEnvioRef.current = null;
+        respostaNaoSalvaRef.current = null;
+      }
+      toast.success("Conversa excluída.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível excluir a conversa.");
+    } finally {
+      setAlterandoHistorico(false);
+    }
+  };
+
+  const responder = async (pedido: EnvioPendente) => {
+    const resposta = await perguntarAoAssistente(pedido.mensagens, pedido.arquivos, {
+      conversaId: pedido.conversaId,
+      respostaId: pedido.respostaId,
+    });
+    setMensagens((atual) => [
+      ...atual,
+      { id: pedido.respostaId, role: "assistant", content: resposta.resposta, hora: Date.now() },
+    ]);
+    ultimoEnvioRef.current = null;
+    if (resposta.persistida) {
+      void atualizarLista().catch(() => {});
+    } else {
+      respostaNaoSalvaRef.current = {
+        id: pedido.respostaId,
+        conversaId: pedido.conversaId,
+        conteudo: resposta.resposta,
+      };
+      setErro("A resposta foi exibida, mas não foi salva no histórico. Use «Tentar salvar» antes de sair.");
+    }
+  };
+
+  const enviar = (conteudo = texto) => {
+    if (ocupadoRef.current || lendoArquivo || carregandoHistorico || erroHistorico || alterandoHistorico) return;
+    const pergunta = conteudo.trim();
+    if (!pergunta && !arquivos.length) return;
+    ocupadoRef.current = true;
+    setCarregando(true);
+    setErro("");
+    const anexos = arquivos.slice();
+    const conteudoFinal = pergunta || "Analise os arquivos anexados, destacando os pontos relevantes e as páginas de origem.";
+
+    void (async () => {
+      try {
+        let id = conversaAtualRef.current;
+        if (!id) {
+          const titulo = pergunta || ("Análise de " + (anexos[0]?.nome ?? "documento"));
+          const criada = await criarConversaAssistente(sessao.id, titulo);
+          id = criada.id;
+          conversaAtualRef.current = id;
+          setConversaAtual(id);
+          setConversas((atual) => [criada, ...atual]);
+          window.sessionStorage.setItem(chaveSessao, id);
+        }
+        const nova: MensagemVisual = {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: conteudoFinal,
+          hora: Date.now(),
+          ...(anexos.length ? { anexos: anexos.map((a) => a.nome) } : {}),
+        };
+        await salvarMensagemUsuario({
+          id: nova.id, conversaId: id, usuarioId: sessao.id,
+          conteudo: nova.content, anexos: nova.anexos ?? [],
+        });
+        const proxima = [...mensagens, nova];
+        setMensagens(proxima);
+        setTexto("");
+        autoScrollRef.current = true;
+        const pedido: EnvioPendente = {
+          conversaId: id,
+          respostaId: crypto.randomUUID(),
+          mensagens: proxima.map(({ role, content }) => ({ role, content })).slice(-20),
+          arquivos: arquivosParaEnvio(anexos),
+        };
+        ultimoEnvioRef.current = pedido;
+        void atualizarLista().catch(() => {});
+        await responder(pedido);
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Não foi possível receber a resposta.");
+      } finally {
+        ocupadoRef.current = false;
+        setCarregando(false);
+      }
+    })();
+  };
+
+  const tentarNovamente = () => {
+    if (ocupadoRef.current || carregandoHistorico) return;
+    const respostaPendente = respostaNaoSalvaRef.current;
+    const pedido = ultimoEnvioRef.current;
+    if (!respostaPendente && !pedido) return;
+
+    ocupadoRef.current = true;
+    setCarregando(true);
+    setErro("");
+    void (async () => {
+      try {
+        if (respostaPendente) {
+          await salvarRespostaAssistenteLocal({
+            id: respostaPendente.id,
+            conversaId: respostaPendente.conversaId,
+            usuarioId: sessao.id,
+            conteudo: respostaPendente.conteudo,
+          });
+          respostaNaoSalvaRef.current = null;
+          toast.success("Resposta salva no histórico.");
+          void atualizarLista().catch(() => {});
+        } else if (pedido) {
+          await responder(pedido);
+        }
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Não foi possível concluir a tentativa.");
+      } finally {
+        ocupadoRef.current = false;
+        setCarregando(false);
+      }
+    })();
+  };
+
   const anexar = async (lista: FileList | null) => {
-    if (!lista?.length || ocupadoRef.current || lendoArquivo) return;
+    if (!lista?.length || ocupadoRef.current || lendoArquivo || carregandoHistorico) return;
     const disponiveis = 2 - arquivos.length;
     if (disponiveis <= 0) {
       toast.error("É possível manter até 2 arquivos anexados.");
@@ -318,8 +526,14 @@ export function AssistenteChat() {
     setMostrarFim(false);
   };
 
-  const podeEnviar = (texto.trim().length > 0 || arquivos.length > 0) && !carregando && !lendoArquivo;
-  const podeNovaConversa = !carregando && !lendoArquivo && (mensagens.length > 0 || texto.length > 0 || arquivos.length > 0);
+  const podeEnviar =
+    (texto.trim().length > 0 || arquivos.length > 0) &&
+    !carregando && !lendoArquivo && !carregandoHistorico &&
+    !erroHistorico && !alterandoHistorico;
+  const podeNovaConversa = !carregando && !lendoArquivo && !carregandoHistorico && !alterandoHistorico;
+  const filtradas = conversas.filter((conversa) =>
+    conversa.titulo.toLocaleLowerCase("pt-BR").includes(buscaChats.trim().toLocaleLowerCase("pt-BR")),
+  );
 
   return (
     <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o Assistente da Vara">
