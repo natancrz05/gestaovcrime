@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, Search, Send, ShieldCheck, Sparkles, User } from "lucide-react";
+import { Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, Paperclip, Search, Send, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { perguntarAoAssistente, type MensagemAssistente } from "@/lib/assistente";
+import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { cn } from "@/lib/utils";
 
 function renderInlineMarkdown(texto: string): ReactNode[] {
@@ -102,7 +103,10 @@ export function AssistenteChat() {
   const [mensagens, setMensagens] = useState<MensagemAssistente[]>([]);
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [arquivos, setArquivos] = useState<ArquivoExtraido[]>([]);
+  const [lendoArquivo, setLendoArquivo] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
+  const arquivoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -118,12 +122,43 @@ export function AssistenteChat() {
     setCarregando(true);
 
     try {
-      const resposta = await perguntarAoAssistente(proxima);
+      const resposta = await perguntarAoAssistente(
+        proxima,
+        arquivos.map(({ nome, tipo, texto, paginas, truncado }) => ({ nome, tipo, texto, paginas, truncado })),
+      );
       setMensagens((atual) => [...atual, { role: "assistant", content: resposta.resposta }]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao consultar o assistente.");
     } finally {
       setCarregando(false);
+    }
+  };
+
+  const anexar = async (lista: FileList | null) => {
+    if (!lista?.length) return;
+    const disponiveis = Math.max(0, 2 - arquivos.length);
+    if (!disponiveis) {
+      toast.error("O Assistente aceita até 2 arquivos por conversa.");
+      return;
+    }
+
+    setLendoArquivo(true);
+    try {
+      const novos: ArquivoExtraido[] = [];
+      for (const file of Array.from(lista).slice(0, disponiveis)) {
+        const extraido = await extrairArquivoTexto(file);
+        novos.push(extraido);
+        if (extraido.truncado) {
+          toast.warning(`${file.name}: o texto excedeu o limite e foi parcialmente carregado.`);
+        }
+      }
+      setArquivos((atual) => [...atual, ...novos].slice(0, 2));
+      toast.success(novos.length === 1 ? "Arquivo anexado." : `${novos.length} arquivos anexados.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível ler o arquivo.");
+    } finally {
+      setLendoArquivo(false);
+      if (arquivoRef.current) arquivoRef.current.value = "";
     }
   };
 
@@ -158,7 +193,7 @@ export function AssistenteChat() {
           </div>
           <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
             <Bot className="size-3.5" />
-            Motor: ChatGPT
+            Motor: GPT via Lovable AI
           </div>
         </div>
       </div>
@@ -178,8 +213,8 @@ export function AssistenteChat() {
                   Como posso ajudar hoje?
                 </h3>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                  Escreva uma pergunta, cole uma minuta ou peça uma consulta. O assistente pode
-                  ajudar com redação, explicações e buscas controladas no acervo.
+                  Escreva uma pergunta, consulte o acervo ou anexe um PDF. O assistente pode
+                  cruzar dados internos com o conteúdo dos arquivos enviados.
                 </p>
               </div>
 
@@ -264,10 +299,51 @@ export function AssistenteChat() {
       </div>
 
       <div className="border-t border-border/80 bg-card p-4 sm:p-5">
+        <div className="mx-auto mb-2 max-w-4xl">
+          {arquivos.length ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {arquivos.map((arquivo) => (
+                <span key={arquivo.id} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
+                  <FileText className="size-3.5 shrink-0 text-primary" />
+                  <span className="truncate">{arquivo.nome}</span>
+                  {arquivo.paginas ? <span className="text-muted-foreground">{arquivo.paginas} pág.</span> : null}
+                  {arquivo.truncado ? <span className="font-medium text-amber-600">parcial</span> : null}
+                  <button
+                    type="button"
+                    aria-label={`Remover ${arquivo.nome}`}
+                    className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                    onClick={() => setArquivos((atual) => atual.filter((a) => a.id !== arquivo.id))}
+                    disabled={carregando}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <form
           className="mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-input bg-background p-1.5 shadow-sm transition-shadow focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10"
           onSubmit={(e) => { e.preventDefault(); void enviar(); }}
         >
+          <input
+            ref={arquivoRef}
+            type="file"
+            accept=".pdf,.txt,.md,.csv,application/pdf,text/plain,text/markdown,text/csv"
+            multiple
+            className="hidden"
+            onChange={(e) => void anexar(e.target.files)}
+          />
+          <button
+            type="button"
+            aria-label="Anexar arquivo"
+            title="Anexar PDF ou arquivo de texto"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+            onClick={() => arquivoRef.current?.click()}
+            disabled={carregando || lendoArquivo || arquivos.length >= 2}
+          >
+            {lendoArquivo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+          </button>
           <textarea
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
@@ -292,7 +368,7 @@ export function AssistenteChat() {
           </button>
         </form>
         <div className="mx-auto mt-2 flex max-w-4xl items-center justify-between gap-3 px-1 text-[11px] text-muted-foreground">
-          <span>Enter envia · Shift + Enter cria nova linha</span>
+          <span>Enter envia · Shift + Enter cria nova linha · PDF/TXT/MD/CSV</span>
           <span className="hidden sm:inline">Ferramenta de apoio interno</span>
         </div>
       </div>
