@@ -3,8 +3,7 @@
  * excesso de prazo, irregularidade ou qualquer conclusão jurídica.
  */
 import {
-  diasSemMovimentacao,
-  estadoContagem100Dias,
+  estadoAlertaSemMovimentacao,
   hojeISO,
   type PrioridadeProcesso,
   type ProcessoCompleto,
@@ -65,10 +64,17 @@ export function alertasDoProcesso(p: ProcessoCompleto, hoje = hojeISO(), etiquet
   if (p.reus.some((r) => r.preso)) a.push({ categoria: "reu-preso", rotulo: "Réu preso", cor: "urgente" });
   if (p.reus.some((r) => r.preso && r.tipo_prisao === "Prisão temporária"))
     a.push({ categoria: "prisao-temporaria", rotulo: "Prisão temporária", cor: "temporaria" });
-  const dias = diasSemMovimentacao(p, hoje);
-  const contagem100 = estadoContagem100Dias(p);
-  if (!contagem100.pausada && dias !== null && dias > CONFIG_PRIORIDADES.limiteDiasSemMovimentacao)
-    a.push({ categoria: "sem-movimentacao", rotulo: `${dias} dias sem movimentação`, cor: "atencao" });
+  const semMovimentacao = estadoAlertaSemMovimentacao(
+    p,
+    hoje,
+    CONFIG_PRIORIDADES.limiteDiasSemMovimentacao,
+  );
+  if (semMovimentacao.emAlerta)
+    a.push({
+      categoria: "sem-movimentacao",
+      rotulo: `${semMovimentacao.dias} dias sem movimentação`,
+      cor: "atencao",
+    });
   const etiquetasUrgentes = (etiquetasPorProcesso[p.id] ?? []).filter((e) => e.cor === "urgente");
   if (etiquetasUrgentes.length)
     a.push({ categoria: "etiqueta-urgente", rotulo: `Alerta urgente — ${etiquetasUrgentes.map((e) => e.nome).join(", ")}`, cor: "urgente" });
