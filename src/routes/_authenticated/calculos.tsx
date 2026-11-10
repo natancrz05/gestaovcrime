@@ -1,8 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, CheckCircle2, ClipboardCopy, FileText, Gavel, Hourglass, Loader2, LockKeyhole, Scale, ShieldCheck, UploadCloud } from "lucide-react";
+import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, Check, CheckCircle2, ChevronsUpDown, ClipboardCopy, FileText, Gavel, Hourglass, Loader2, LockKeyhole, Scale, ShieldCheck, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
-import { calcularPrazoProcessual, type DadosPrazo, type ExcecaoRecesso, type MateriaPrazo } from "@/lib/prazos/calculo";
+import { calcularPrazoProcessual, type DadosPrazo, type MateriaPrazo } from "@/lib/prazos/calculo";
+import { ESTADOS_BRASIL, municipiosDaUf } from "@/lib/prazos/localidades-brasil";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
 import { criarConversaAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
@@ -27,12 +31,18 @@ function formatarData(iso: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
 }
-function datasAdicionais(valor: string) {
-  return [...new Set(valor.split(/[\s,;]+/).map((d) => {
-    const data = d.trim();
-    const br = data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    return br ? br[3] + "-" + br[2] + "-" + br[1] : data;
-  }).filter(Boolean))];
+function normalizarPesquisa(texto: string) {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+function deIsoParaDataLocal(iso: string): Date {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  return new Date(ano, mes - 1, dia, 12);
+}
+function deDataLocalParaIso(data: Date): string {
+  return [String(data.getFullYear()), String(data.getMonth() + 1).padStart(2, "0"), String(data.getDate()).padStart(2, "0")].join("-");
+}
+function CampoFixo({ valor }: { valor: string }) {
+  return <div className={cn(CAMPO, "flex items-center bg-muted/35 font-medium text-foreground")} aria-readonly="true">{valor}</div>;
 }
 
 const OPCOES_IA = [
@@ -88,15 +98,27 @@ const OPCOES_IA = [
 
 function CalculadoraManual() {
   const [materia, setMateria] = useState<MateriaPrazo>("penal");
+  const [estado, setEstado] = useState("BA");
+  const [municipio, setMunicipio] = useState("Coração de Maria");
+  const [estadoAberto, setEstadoAberto] = useState(false);
+  const [municipioAberto, setMunicipioAberto] = useState(false);
+  const [buscaEstado, setBuscaEstado] = useState("");
+  const [buscaMunicipio, setBuscaMunicipio] = useState("");
+  const [calendarioAberto, setCalendarioAberto] = useState(false);
+  const municipiosDisponiveis = useMemo(() => municipiosDaUf(estado), [estado]);
+  const estadosFiltrados = useMemo(() => ESTADOS_BRASIL.filter((uf) =>
+    normalizarPesquisa(uf.nome + " " + uf.sigla).includes(normalizarPesquisa(buscaEstado))
+  ), [buscaEstado]);
+  const municipiosFiltrados = useMemo(() => municipiosDisponiveis.filter((nome) =>
+    normalizarPesquisa(nome).includes(normalizarPesquisa(buscaMunicipio))
+  ), [municipiosDisponiveis, buscaMunicipio]);
   const [publicacao, setPublicacao] = useState("");
   const [dias, setDias] = useState("");
-  const [excecao, setExcecao] = useState<ExcecaoRecesso>("nenhuma");
-  const [extras, setExtras] = useState("");
+  const [extras, setExtras] = useState<string[]>([]);
   const [suspensaoInicio, setSuspensaoInicio] = useState("");
   const [suspensaoFim, setSuspensaoFim] = useState("");
   const [resultado, setResultado] = useState<ReturnType<typeof calcularPrazoProcessual> | null>(null);
   const [erro, setErro] = useState("");
-  const penal = materia === "penal" || materia === "jec_criminal";
   const contagem = materia === "penal" ? "Dias corridos" : "Dias úteis";
 
   const gerar = () => {
@@ -105,13 +127,15 @@ function CalculadoraManual() {
     try {
       if (!publicacao) throw new Error("Informe a data efetiva da publicação.");
       if (!dias.trim()) throw new Error("Informe o prazo em dias.");
+      if (!municipio) throw new Error("Selecione o município para calcular.");
       if (Boolean(suspensaoInicio) !== Boolean(suspensaoFim)) throw new Error("Informe as duas datas da suspensão específica.");
       const dados: DadosPrazo = {
         publicacao,
         prazoDias: Number(dias),
         materia,
-        excecaoRecesso: excecao,
-        diasSemExpediente: datasAdicionais(extras),
+        uf: estado,
+        municipio,
+        diasSemExpediente: extras,
         suspensoesEspecificas: suspensaoInicio && suspensaoFim ? [{ inicio: suspensaoInicio, fim: suspensaoFim }] : [],
       };
       setResultado(calcularPrazoProcessual(dados));
@@ -124,7 +148,7 @@ function CalculadoraManual() {
     if (!resultado) return;
     const texto = [
       "CÁLCULO DE PRAZO — VARA CRIME",
-      "Local: Coração de Maria/BA — TJBA",
+      "Local: " + municipio + "/" + estado + " — TJBA (1º grau)",
       "Publicação efetiva: " + formatarData(resultado.publicacao),
       "Início da contagem: " + formatarData(resultado.primeiroDia),
       "Prazo: " + resultado.prazoDias + " dias (" + resultado.contagem + ")",
@@ -144,43 +168,124 @@ function CalculadoraManual() {
         </div>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); gerar(); }}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label><span className={TITULO}>Estado</span><input readOnly aria-readonly="true" className={cn(CAMPO, "bg-muted/35")} value="Bahia (BA)" /></label>
-            <label><span className={TITULO}>Município</span><input readOnly aria-readonly="true" className={cn(CAMPO, "bg-muted/35")} value="Coração de Maria" /></label>
+            <div>
+              <span className={TITULO}>Estado</span>
+              <Popover open={estadoAberto} onOpenChange={(open) => { setEstadoAberto(open); if (!open) setBuscaEstado(""); }}>
+                <PopoverTrigger asChild>
+                  <button type="button" aria-label="Selecionar estado" aria-expanded={estadoAberto} className={cn(CAMPO, "flex items-center justify-between gap-2 text-left")}>
+                    <span className="truncate">{ESTADOS_BRASIL.find((uf) => uf.sigla === estado)?.nome ?? estado} ({estado})</span>
+                    <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(90vw,370px)] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput placeholder="Digite o nome ou sigla do estado…" value={buscaEstado} onValueChange={setBuscaEstado} />
+                    <CommandList>
+                      {estadosFiltrados.length === 0 ? <CommandEmpty>Nenhum estado encontrado.</CommandEmpty> : null}
+                      <CommandGroup>
+                        {estadosFiltrados.map((uf) => (
+                          <CommandItem key={uf.sigla} value={uf.sigla} onSelect={() => {
+                            setEstado(uf.sigla);
+                            setMunicipio(uf.sigla === "BA" ? "Coração de Maria" : "");
+                            setBuscaMunicipio("");
+                            setResultado(null);
+                            setEstadoAberto(false);
+                          }}>
+                            <Check className={cn("size-4", estado === uf.sigla ? "opacity-100" : "opacity-0")} />
+                            {uf.nome} ({uf.sigla})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <span className={TITULO}>Município</span>
+              <Popover open={municipioAberto} onOpenChange={(open) => { setMunicipioAberto(open); if (!open) setBuscaMunicipio(""); }}>
+                <PopoverTrigger asChild>
+                  <button type="button" aria-label="Selecionar município" aria-expanded={municipioAberto} className={cn(CAMPO, "flex items-center justify-between gap-2 text-left")}>
+                    <span className={cn("truncate", !municipio && "text-muted-foreground")}>{municipio || "Selecione o município…"}</span>
+                    <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(90vw,400px)] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput placeholder="Pesquise digitando o nome da cidade…" value={buscaMunicipio} onValueChange={setBuscaMunicipio} />
+                    <CommandList>
+                      {municipiosFiltrados.length === 0 ? <CommandEmpty>Nenhum município encontrado nesta UF.</CommandEmpty> : null}
+                      <CommandGroup>
+                        {municipiosFiltrados.map((nome) => (
+                          <CommandItem key={nome} value={nome} onSelect={() => {
+                            setMunicipio(nome);
+                            setResultado(null);
+                            setMunicipioAberto(false);
+                          }}>
+                            <Check className={cn("size-4", municipio === nome ? "opacity-100" : "opacity-0")} />
+                            {nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label>
               <span className={TITULO}>Matéria</span>
-              <select className={CAMPO} value={materia} onChange={(e) => { setMateria(e.target.value as MateriaPrazo); setResultado(null); setExcecao("nenhuma"); }}>
+              <select className={CAMPO} value={materia} onChange={(e) => { setMateria(e.target.value as MateriaPrazo); setResultado(null); }}>
                 <option value="penal">Processual penal (CPP)</option>
                 <option value="civil">Processual civil (CPC)</option>
                 <option value="jec_criminal">Juizado Especial Criminal</option>
                 <option value="jec_civil">Juizado Especial Cível</option>
               </select>
             </label>
-            <label><span className={TITULO}>Tribunal</span><input readOnly aria-readonly="true" className={cn(CAMPO, "bg-muted/35")} value="TJBA — 1º grau" /></label>
+            <div><span className={TITULO}>Tribunal</span><CampoFixo valor="TJBA — 1º grau" /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label><span className={TITULO}>Data da publicação efetiva</span><input required type="date" className={CAMPO} value={publicacao} onChange={(e) => { setPublicacao(e.target.value); setResultado(null); }} /></label>
             <label><span className={TITULO}>Prazo (dias)</span><input required type="number" min={1} max={3650} step={1} placeholder="Ex.: 15" className={CAMPO} value={dias} onChange={(e) => { setDias(e.target.value); setResultado(null); }} /></label>
           </div>
-          <label><span className={TITULO}>Tipo de contagem (automático)</span><input readOnly aria-readonly="true" className={cn(CAMPO, "bg-muted/35 font-medium")} value={contagem} /></label>
-          {penal ? (
-            <label>
-              <span className={TITULO}>Exceção à suspensão do recesso — CPP, art. 798-A</span>
-              <select className={CAMPO} value={excecao} onChange={(e) => { setExcecao(e.target.value as ExcecaoRecesso); setResultado(null); }}>
-                <option value="nenhuma">Nenhuma — suspensão de 20/12 a 20/01</option>
-                <option value="reu_preso">Réu preso — processo vinculado à prisão</option>
-                <option value="maria_penha">Lei Maria da Penha</option>
-                <option value="urgente">Medida urgente com despacho fundamentado</option>
-              </select>
-            </label>
-          ) : null}
+          <div><span className={TITULO}>Tipo de contagem (automático)</span><CampoFixo valor={contagem} /></div>
           <details className="rounded-lg border border-border bg-muted/15 px-4 py-3">
             <summary className="cursor-pointer text-sm font-medium">Feriados adicionais e suspensão específica</summary>
             <div className="mt-3 space-y-3">
-              <label><span className={TITULO}>Datas sem expediente não contempladas</span>
-                <textarea rows={2} className={cn(CAMPO, "h-auto min-h-[60px] py-2")} placeholder="Ex.: 15/11/2026, 2026-11-16" value={extras} onChange={(e) => { setExtras(e.target.value); setResultado(null); }} />
-              </label>
+              <div className="space-y-2">
+                <span className={TITULO}>Datas sem expediente não contempladas</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Popover open={calendarioAberto} onOpenChange={setCalendarioAberto}>
+                    <PopoverTrigger asChild>
+                      <button type="button" className={cn(CAMPO, "flex min-w-[190px] flex-1 items-center justify-between gap-2 text-left")}>
+                        <span>{extras.length === 0 ? "Nenhuma data selecionada" : extras.length + (extras.length === 1 ? " data selecionada" : " datas selecionadas")}</span>
+                        <CalendarDays className="size-4 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto max-w-[95vw] p-3">
+                      <p className="mb-2 text-xs text-muted-foreground">Clique nos dias sem expediente para selecionar ou retirar.</p>
+                      <Calendar mode="multiple" selected={extras.map(deIsoParaDataLocal)} onSelect={(datas) => {
+                        setExtras((datas ?? []).map(deDataLocalParaIso).sort());
+                        setResultado(null);
+                      }} />
+                      <button type="button" onClick={() => setCalendarioAberto(false)} className="mt-2 w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">Concluir seleção</button>
+                    </PopoverContent>
+                  </Popover>
+                  <button type="button" disabled={extras.length === 0} onClick={() => { setExtras([]); setResultado(null); }} className="h-10 rounded-lg border border-border px-3 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40">
+                    Limpar
+                  </button>
+                </div>
+                {extras.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {extras.map((data) => (
+                      <button key={data} type="button" title="Remover esta data" onClick={() => { setExtras((atuais) => atuais.filter((item) => item !== data)); setResultado(null); }} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] hover:bg-muted">
+                        {formatarData(data)} <X className="size-3" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label><span className={TITULO}>Suspensão específica — início</span><input type="date" className={CAMPO} value={suspensaoInicio} onChange={(e) => { setSuspensaoInicio(e.target.value); setResultado(null); }} /></label>
                 <label><span className={TITULO}>Suspensão específica — fim</span><input type="date" className={CAMPO} value={suspensaoFim} onChange={(e) => { setSuspensaoFim(e.target.value); setResultado(null); }} /></label>
@@ -228,9 +333,9 @@ function CalculadoraManual() {
                 Informe a data efetiva de publicação no DJE, não a disponibilização. Ciência no portal, intimação pessoal, vista e regras especiais podem alterar o termo inicial.
               </p>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                O calendário oficial automatizado é o do TJBA em 2026, incluindo os feriados locais de Coração de Maria. Para outros exercícios, adicione as datas oficiais antes de utilizar o resultado.
+                O calendário automatizado do TJBA está parametrizado para 2026; os feriados municipais automáticos referem-se a Coração de Maria. Ao selecionar outra cidade ou UF, confira e inclua os feriados próprios do local. O tribunal permanece TJBA — 1º grau.
               </p>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Prescrição, execução penal e outros prazos materiais exigem análise própria na calculadora por IA.</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Prescrição, execução penal e outros prazos materiais exigem análise própria na calculadora por IA. O art. 798-A do CPP prevê exceções legais à suspensão para processos de réu preso, procedimentos da Lei Maria da Penha e medidas urgentes fundamentadas; confira o caso concreto.</p>
             </div>
           </div>
         </section>
