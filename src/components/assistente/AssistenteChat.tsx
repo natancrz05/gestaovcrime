@@ -536,7 +536,95 @@ export function AssistenteChat() {
   );
 
   return (
-    <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o Assistente da Vara">
+    <div className="grid min-w-0 gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <aside className="flex h-48 min-h-0 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm lg:h-[calc(100dvh-13rem)] lg:min-h-[540px] lg:max-h-[960px]" aria-label="Suas conversas">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/70 px-3 py-3">
+          <h3 className="text-sm font-semibold">Suas conversas</h3>
+          <button
+            type="button"
+            onClick={novaConversa}
+            disabled={!podeNovaConversa}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:brightness-95 disabled:opacity-40"
+          >
+            <MessageSquarePlus className="size-3.5" /> Nova
+          </button>
+        </div>
+        <div className="shrink-0 border-b border-border/70 px-3 py-2">
+          <input
+            type="search"
+            aria-label="Pesquisar conversas"
+            placeholder="Pesquisar conversas…"
+            className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary/50"
+            value={buscaChats}
+            onChange={(e) => setBuscaChats(e.target.value)}
+          />
+        </div>
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
+          {erroHistorico ? (
+            <p role="alert" className="rounded-lg border border-destructive/20 p-2 text-xs text-destructive">{erroHistorico}</p>
+          ) : null}
+          {carregandoHistorico ? (
+            <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" /> Carregando histórico…
+            </div>
+          ) : filtradas.length === 0 ? (
+            <p className="px-2 py-3 text-xs leading-5 text-muted-foreground">
+              {conversas.length ? "Nenhuma conversa encontrada." : "Suas conversas aparecerão aqui após a primeira mensagem."}
+            </p>
+          ) : filtradas.map((conversa) => (
+            <div key={conversa.id} className={cn(
+              "group flex min-w-0 items-center gap-1 rounded-xl border transition-colors",
+              conversaAtual === conversa.id
+                ? "border-primary/20 bg-primary/10"
+                : "border-transparent hover:bg-muted/70",
+            )}>
+              <button
+                type="button"
+                onClick={() => void selecionarConversa(conversa.id)}
+                disabled={carregando || carregandoHistorico || alterandoHistorico}
+                className="flex min-w-0 flex-1 items-start gap-2 px-2 py-2.5 text-left disabled:opacity-60"
+                aria-current={conversaAtual === conversa.id ? "page" : undefined}
+                title={conversa.titulo}
+              >
+                <MessageSquare className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium">{conversa.titulo}</span>
+                  <span className="mt-1 block text-[10px] text-muted-foreground">
+                    {new Date(conversa.atualizado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                  </span>
+                </span>
+              </button>
+              <div className="flex shrink-0 items-center pr-1">
+                <button
+                  type="button"
+                  title="Renomear conversa"
+                  aria-label={"Renomear " + conversa.titulo}
+                  disabled={carregando || carregandoHistorico || alterandoHistorico}
+                  onClick={() => void renomear(conversa)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-40"
+                >
+                  <Pencil className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  title="Excluir conversa"
+                  aria-label={"Excluir " + conversa.titulo}
+                  disabled={carregando || carregandoHistorico || alterandoHistorico}
+                  onClick={() => void excluir(conversa)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-destructive disabled:opacity-40"
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden shrink-0 border-t border-border/70 p-3 text-[11px] leading-5 text-muted-foreground lg:block">
+          <span className="inline-flex items-center gap-1"><ShieldCheck className="size-3.5" /> Histórico privado por usuário.</span>
+          <p>Os arquivos PDF não ficam armazenados; reanexe-os para novas análises.</p>
+        </div>
+      </aside>
+      <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o Assistente da Vara">
       <header className="flex items-center justify-between gap-3 border-b border-border/70 bg-card px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -571,7 +659,11 @@ export function AssistenteChat() {
           aria-live="polite"
           aria-relevant="additions"
         >
-          {mensagens.length === 0 ? (
+          {carregandoHistorico ? (
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Carregando conversa…
+            </div>
+          ) : mensagens.length === 0 ? (
             <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center py-6">
               <div className="mx-auto max-w-xl text-center">
                 <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -673,9 +765,9 @@ export function AssistenteChat() {
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
                     onClick={tentarNovamente}
-                    disabled={carregando || !ultimoEnvioRef.current}
+                    disabled={carregando || (!ultimoEnvioRef.current && !respostaNaoSalvaRef.current)}
                   >
-                    <RotateCcw className="size-3.5" /> Tentar novamente
+                    <RotateCcw className="size-3.5" /> {respostaNaoSalvaRef.current ? "Tentar salvar" : "Tentar novamente"}
                   </button>
                 </div>
               ) : null}
@@ -739,7 +831,7 @@ export function AssistenteChat() {
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Anexos ativos nesta conversa: o texto será reenviado ao modelo em cada nova pergunta enquanto permanecerem aqui.
+                Anexos temporários: o texto será reenviado ao modelo enquanto estiverem anexados. Após F5, reanexe os arquivos.
               </p>
             </div>
           ) : null}
@@ -761,7 +853,7 @@ export function AssistenteChat() {
             <button
               type="button"
               onClick={() => arquivoRef.current?.click()}
-              disabled={carregando || lendoArquivo || arquivos.length >= 2}
+              disabled={carregando || lendoArquivo || carregandoHistorico || !!erroHistorico || arquivos.length >= 2}
               aria-label="Anexar PDF ou arquivo de texto"
               title="Anexar PDF, TXT, MD ou CSV"
               className="mb-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
@@ -782,7 +874,7 @@ export function AssistenteChat() {
               rows={1}
               placeholder="Digite sua mensagem ou anexe os autos para análise…"
               aria-label="Mensagem para o Assistente"
-              disabled={carregando || lendoArquivo}
+              disabled={carregando || lendoArquivo || carregandoHistorico || !!erroHistorico}
               className="max-h-[180px] min-h-10 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground"
             />
             <button
@@ -797,10 +889,11 @@ export function AssistenteChat() {
           </form>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
             <span>Enter envia · Shift + Enter quebra linha · arraste PDFs para anexar</span>
-            <span>{texto.length > 18_000 ? texto.length.toLocaleString("pt-BR") + "/20.000" : "Revisão humana necessária"}</span>
+            <span>{texto.length > 18_000 ? texto.length.toLocaleString("pt-BR") + "/20.000" : "Conversa salva para seu usuário"}</span>
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </div>
   );
 }
