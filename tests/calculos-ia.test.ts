@@ -126,9 +126,10 @@ describe("Revisão de prisão provisória", () => {
   test("temporária conta o cumprimento como primeiro dia (art. 2º, § 8º)", () => {
     const r = conferirPrazoTemporaria({
       dataCumprimento: "2026-11-10", prazoDiasMandado: 5, dataReferencia: "2026-11-13",
-      dataLibertacaoMandado: "2026-11-14",
+      dataLibertacaoMandado: "2026-11-15",
     });
     expect(r.dataLimitePorContagemInclusiva).toBe("2026-11-14");
+    expect(r.primeiroDiaAposPrazo).toBe("2026-11-15");
     expect(r.diasDeCumprimentoAteReferencia).toBe(4);
     expect(r.divergenciaComDataDoMandado).toBe(false);
     expect(r.diasAteDataLimiteCalculada).toBe(1);
@@ -138,9 +139,10 @@ describe("Revisão de prisão provisória", () => {
     const r = executarPrazoTemporaria({
       modalidadePrisao: "temporaria", dataCumprimento: "2026-11-10",
       prazoDiasMandado: 30, dataReferencia: "2026-11-15",
-      dataLibertacaoMandado: "2026-12-10",
+      dataLibertacaoMandado: "2026-12-11",
     });
     expect(r.dataLimitePorContagemInclusiva).toBe("2026-12-09");
+    expect(r.primeiroDiaAposPrazo).toBe("2026-12-10");
     expect(r.divergenciaComDataDoMandado).toBe(true);
   });
 
@@ -155,5 +157,8 @@ describe("Revisão de prisão provisória", () => {
     expect(() => conferirPrazoTemporaria({
       dataCumprimento: "2026-11-31", prazoDiasMandado: 5, dataReferencia: "2026-12-03",
     })).toThrow();
+    expect(() => conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-10", prazoDiasMandado: 5, dataReferencia: "2026-11-09",
+    })).toThrow(/anterior ao cumprimento/);
   });
 });
