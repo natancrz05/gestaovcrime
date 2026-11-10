@@ -32,6 +32,68 @@ export type Database = {
         }
         Relationships: []
       }
+      assistente_conversas: {
+        Row: {
+          id: string
+          usuario_id: string
+          titulo: string
+          criado_em: string
+          atualizado_em: string
+        }
+        Insert: {
+          id?: string
+          usuario_id: string
+          titulo?: string
+          criado_em?: string
+          atualizado_em?: string
+        }
+        Update: {
+          id?: string
+          usuario_id?: string
+          titulo?: string
+          criado_em?: string
+          atualizado_em?: string
+        }
+        Relationships: []
+      }
+      assistente_mensagens: {
+        Row: {
+          id: string
+          conversa_id: string
+          usuario_id: string
+          papel: string
+          conteudo: string
+          anexos: string[]
+          criado_em: string
+        }
+        Insert: {
+          id?: string
+          conversa_id: string
+          usuario_id: string
+          papel: string
+          conteudo: string
+          anexos?: string[]
+          criado_em?: string
+        }
+        Update: {
+          id?: string
+          conversa_id?: string
+          usuario_id?: string
+          papel?: string
+          conteudo?: string
+          anexos?: string[]
+          criado_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_mensagens_conversa_dono_fkey"
+            columns: ["conversa_id", "usuario_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_conversas"
+            referencedColumns: ["id", "usuario_id"]
+          },
+        ]
+      }
       audiencias: {
         Row: {
           aguardando_nova_data: boolean
