@@ -4,6 +4,7 @@ import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, Check, CheckC
 import { toast } from "sonner";
 import { calcularPrazoProcessual, type DadosPrazo, type MateriaPrazo } from "@/lib/prazos/calculo";
 import { indexarReferenciasPdf } from "@/lib/prazos/triagem-documental";
+import { MODALIDADES_PRISAO, ORIENTACAO_REVISAO_PRISAO, orientacaoPorModalidade, type ModalidadePrisao } from "@/lib/prazos/revisao-prisao";
 import { ESTADOS_BRASIL, municipiosDaUf } from "@/lib/prazos/localidades-brasil";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
@@ -63,12 +64,12 @@ const OPCOES_IA = [
     orientacao: "Reconstrua a linha do tempo dos marcos interruptivos e suspensivos com indicação precisa de datas, IDs documentais e páginas. Distinga prescrição da pretensão punitiva, retroativa, intercorrente e executória conforme o caso. Não trate inclusão em pauta, mera movimentação administrativa ou agendamento como interrupção legal sem fundamento. Confira pena cominada/aplicada, majorantes e causas legais (CP, arts. 109 a 119), a legislação vigente na data dos fatos, a idade e as exceções do art. 115 do CP, bem como recebimento da denúncia, publicação de sentença e trânsito em julgado. Quando houver art. 366 do CPP, exija decisão expressa e observe a Súmula 415/STJ para o limite da suspensão prescricional; não presuma suspensão perpétua nem automática. Sem documentos suficientes, não declare prescrição consumada.",
   },
   {
-    id: "preventiva",
+    id: "prisao_provisoria",
     numero: "02",
-    titulo: "Revisão da prisão preventiva",
-    descricao: "Alertas de 90 dias e identificação da última decisão de revisão",
+    titulo: "Revisão de prisão provisória",
+    descricao: "Preventiva, temporária, flagrante e demais hipóteses de custódia previstas em lei",
     icone: ShieldCheck,
-    orientacao: "Identifique a data da prisão, decisão de decretação e última decisão fundamentada de revisão. Diferencie a prisão de última reavaliação. Calcule com ferramenta cronológica os dias decorridos desde a última decisão judicial de reavaliação efetivamente comprovada, ou desde a decretação caso seja o único marco comprovado, e a referência de 90 dias. Registros administrativos de reavaliação não substituem decisão fundamentada. Explique art. 316, parágrafo único, do CPP; não afirme soltura automática.",
+    orientacao: ORIENTACAO_REVISAO_PRISAO,
   },
   {
     id: "manifestacoes",
@@ -390,6 +391,7 @@ function CalculadoraManual() {
 function CalculadoraIA() {
   const sessao = useSessao();
   const [tipo, setTipo] = useState<(typeof OPCOES_IA)[number]["id"]>("prescricao");
+  const [modalidadePrisao, setModalidadePrisao] = useState<ModalidadePrisao>("identificar");
   const [processo, setProcesso] = useState("");
   const [dataReferencia, setDataReferencia] = useState(hojeBahiaIso);
   const [arquivo, setArquivo] = useState<ArquivoExtraido | null>(null);
@@ -445,6 +447,10 @@ function CalculadoraIA() {
         "Examine o PDF anexado como fonte primária. Consulte o acervo interno através das ferramentas do Assistente caso o número do processo esteja informado e exista cadastro correspondente.",
         "OBJETIVO: " + opcao.descricao + ".",
         "CRITÉRIOS ESPECÍFICOS: " + opcao.orientacao,
+        ...(tipo === "prisao_provisoria"
+          ? ["MODALIDADE DE CUSTÓDIA INFORMADA: " + modalidadePrisao + ".",
+             "ORIENTAÇÃO DA MODALIDADE: " + orientacaoPorModalidade(modalidadePrisao)]
+          : []),
         "Indique cada marco com data, página do PDF, ID do documento quando efetivamente encontrado e fundamento legal. Separe fatos localizados, dados administrativos e inferências.",
         "Use cronologia e cálculos auditáveis. Nunca invente documentos ou datas. Não trate ausência de informação como prova de inexistência.",
         "Quando existirem marcos suficientes, use as ferramentas de cálculo para medir lapsos, e apresente os resultados com a convenção de contagem. Datas e IDs encontrados no texto são apenas indicadores até que o ato seja identificado.",
@@ -471,7 +477,8 @@ function CalculadoraIA() {
           ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
         }],
         { conversaId: chat.id, respostaId: crypto.randomUUID() },
-        { tipoAnalise: tipo, dataReferencia, ...(numero ? { numeroProcesso: numero } : {}) },
+        { tipoAnalise: tipo, dataReferencia, ...(numero ? { numeroProcesso: numero } : {}),
+          ...(tipo === "prisao_provisoria" ? { modalidadePrisao } : {}) },
       );
       setResposta(gerada.resposta);
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
@@ -508,6 +515,21 @@ function CalculadoraIA() {
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
           <h3 className="text-base font-semibold">Autos para análise</h3>
+          {tipo === "prisao_provisoria" ? (
+            <label>
+              <span className={TITULO}>Modalidade de prisão provisória</span>
+              <select className={CAMPO} value={modalidadePrisao}
+                onChange={(e) => { setModalidadePrisao(e.target.value as ModalidadePrisao); setResposta(""); }}
+                disabled={analisando}>
+                {MODALIDADES_PRISAO.map((item) => (
+                  <option key={item.valor} value={item.valor}>{item.rotulo}</option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
+                A escolha orienta a pesquisa; a natureza atual da prisão deve ser confirmada nos autos. A referência de 90 dias é específica da preventiva.
+              </span>
+            </label>
+          ) : null}
           <label><span className={TITULO}>Número do processo (opcional, para buscar no acervo)</span>
             <input className={CAMPO} value={processo} onChange={(e) => setProcesso(e.target.value)} placeholder="Ex.: 8000000-00.2026.8.05.0067" maxLength={40} disabled={analisando} />
           </label>
