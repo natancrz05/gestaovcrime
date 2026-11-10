@@ -61,6 +61,7 @@ describe("Central de Audiências", () => {
 
   test("processo sem audiência cadastrada ainda entra quando a tarefa do PJe indica audiência", () => {
     const p = processoComAudiencia("Realizada", "Audiência - manipular");
+    p.audiencias = [];
     expect(itemCentral(p, "2026-10-27")).not.toBeNull();
   });
 });
