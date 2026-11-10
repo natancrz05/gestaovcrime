@@ -14,7 +14,7 @@ import { FormReuPreso, RegistrarReavaliacao, RetirarPrisao, TIPOS_CUSTODIA, type
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { diasEntre, hojeISO } from "@/lib/processos/modelo";
-import { tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
+import { type ProcRel } from "@/lib/processos/importacao-reus";
 import { normalizarCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
