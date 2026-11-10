@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, Paperclip, Search, Send, ShieldCheck, Sparkles, User, X } from "lucide-react";
+import { AlertCircle, ArrowDown, Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, MessageSquarePlus, Paperclip, RotateCcw, Search, Send, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import { toast } from "sonner";
-import { perguntarAoAssistente, type MensagemAssistente } from "@/lib/assistente";
+import { perguntarAoAssistente, type ArquivoAssistente, type MensagemAssistente } from "@/lib/assistente";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +19,8 @@ function renderInlineMarkdown(texto: string): ReactNode[] {
       return <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground">{parte.slice(1, -1)}</code>;
     }
     const link = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (link) {
-      return <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">{link[1]}</a>;
+    if (link && /^https?:\/\//i.test(link[2] ?? "")) {
+      return <a key={index} href={link[2]} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">{link[1]}</a>;
     }
     return <Fragment key={index}>{parte}</Fragment>;
   });
@@ -99,52 +99,120 @@ const SUGESTOES = [
   },
 ];
 
+
+type MensagemVisual = MensagemAssistente & {
+  id: string;
+  hora: number;
+  anexos?: string[];
+};
+
+type EnvioPendente = {
+  mensagens: MensagemAssistente[];
+  arquivos: ArquivoAssistente[];
+};
+
+function arquivosParaEnvio(arquivos: ArquivoExtraido[]): ArquivoAssistente[] {
+  return arquivos.map((arquivo) => ({
+    nome: arquivo.nome,
+    tipo: arquivo.tipo,
+    texto: arquivo.texto,
+    ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+    ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
+  }));
+}
+
+function horaDaMensagem(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function AssistenteChat() {
-  const [mensagens, setMensagens] = useState<MensagemAssistente[]>([]);
+  const [mensagens, setMensagens] = useState<MensagemVisual[]>([]);
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [arquivos, setArquivos] = useState<ArquivoExtraido[]>([]);
   const [lendoArquivo, setLendoArquivo] = useState(false);
-  const fimRef = useRef<HTMLDivElement>(null);
+  const [erro, setErro] = useState("");
+  const [arrastando, setArrastando] = useState(false);
+  const [mostrarFim, setMostrarFim] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const arquivoRef = useRef<HTMLInputElement>(null);
+  const autoScrollRef = useRef(true);
+  const ocupadoRef = useRef(false);
+  const ultimoEnvioRef = useRef<EnvioPendente | null>(null);
 
-  useEffect(() => {
-    fimRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mensagens, carregando]);
-
-  const enviar = async (conteudo = texto) => {
-    const pergunta = conteudo.trim();
-    if (!pergunta || carregando) return;
-
-    const proxima = [...mensagens, { role: "user" as const, content: pergunta }];
-    setMensagens(proxima);
-    setTexto("");
+  const enviarAoModelo = async (pedido: EnvioPendente) => {
+    if (ocupadoRef.current) return;
+    ocupadoRef.current = true;
     setCarregando(true);
+    setErro("");
 
     try {
-      const resposta = await perguntarAoAssistente(
-        proxima,
-        arquivos.map((arquivo) => ({
-          nome: arquivo.nome,
-          tipo: arquivo.tipo,
-          texto: arquivo.texto,
-          ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
-          ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
-        })),
-      );
-      setMensagens((atual) => [...atual, { role: "assistant", content: resposta.resposta }]);
+      const resposta = await perguntarAoAssistente(pedido.mensagens, pedido.arquivos);
+      setMensagens((atual) => [
+        ...atual,
+        { id: crypto.randomUUID(), role: "assistant", content: resposta.resposta, hora: Date.now() },
+      ]);
+      ultimoEnvioRef.current = null;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao consultar o assistente.");
+      setErro(e instanceof Error ? e.message : "Não foi possível receber uma resposta.");
     } finally {
+      ocupadoRef.current = false;
       setCarregando(false);
     }
   };
 
+  const enviar = (conteudo = texto) => {
+    if (ocupadoRef.current || lendoArquivo) return;
+    const pergunta = conteudo.trim();
+    if (!pergunta && !arquivos.length) return;
+
+    const conteudoFinal = pergunta || "Analise os arquivos anexados, destacando os pontos relevantes e as páginas de origem.";
+    const nova: MensagemVisual = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: conteudoFinal,
+      hora: Date.now(),
+      ...(arquivos.length ? { anexos: arquivos.map((a) => a.nome) } : {}),
+    };
+    const proxima = [...mensagens, nova];
+    const pedido: EnvioPendente = {
+      mensagens: proxima.map(({ role, content }) => ({ role, content })).slice(-20),
+      arquivos: arquivosParaEnvio(arquivos),
+    };
+
+    ultimoEnvioRef.current = pedido;
+    setMensagens(proxima);
+    setTexto("");
+    autoScrollRef.current = true;
+    void enviarAoModelo(pedido);
+  };
+
+  const tentarNovamente = () => {
+    if (ultimoEnvioRef.current && !ocupadoRef.current) {
+      autoScrollRef.current = true;
+      void enviarAoModelo(ultimoEnvioRef.current);
+    }
+  };
+
+  const novaConversa = () => {
+    if (ocupadoRef.current || lendoArquivo) return;
+    if (mensagens.length && !window.confirm("Iniciar uma nova conversa? As mensagens desta sessão serão descartadas.")) return;
+    setMensagens([]);
+    setTexto("");
+    setArquivos([]);
+    setErro("");
+    setMostrarFim(false);
+    ultimoEnvioRef.current = null;
+    autoScrollRef.current = true;
+    editorRef.current?.focus();
+  };
+
   const anexar = async (lista: FileList | null) => {
-    if (!lista?.length) return;
-    const disponiveis = Math.max(0, 2 - arquivos.length);
-    if (!disponiveis) {
-      toast.error("O Assistente aceita até 2 arquivos por conversa.");
+    if (!lista?.length || ocupadoRef.current || lendoArquivo) return;
+    const disponiveis = 2 - arquivos.length;
+    if (disponiveis <= 0) {
+      toast.error("É possível manter até 2 arquivos anexados.");
       return;
     }
 
@@ -152,232 +220,330 @@ export function AssistenteChat() {
     try {
       const novos: ArquivoExtraido[] = [];
       for (const file of Array.from(lista).slice(0, disponiveis)) {
-        const extraido = await extrairArquivoTexto(file);
-        novos.push(extraido);
-        if (extraido.truncado) {
-          toast.warning(`${file.name}: o texto excedeu o limite e foi parcialmente carregado.`);
+        try {
+          const extraido = await extrairArquivoTexto(file);
+          novos.push(extraido);
+          if (extraido.truncado) toast.warning(file.name + ": leitura parcial. Confira o limite antes de uma análise conclusiva.");
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Não foi possível ler " + file.name);
         }
       }
-      setArquivos((atual) => [...atual, ...novos].slice(0, 2));
-      toast.success(novos.length === 1 ? "Arquivo anexado." : `${novos.length} arquivos anexados.`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível ler o arquivo.");
+      if (novos.length) {
+        setArquivos((atual) => [...atual, ...novos].slice(0, 2));
+        toast.success(novos.length === 1 ? "Arquivo pronto para análise." : "Arquivos prontos para análise.");
+      }
     } finally {
       setLendoArquivo(false);
+      setArrastando(false);
       if (arquivoRef.current) arquivoRef.current.value = "";
     }
   };
 
-  const copiar = async (texto: string) => {
-    await navigator.clipboard.writeText(texto);
-    toast.success("Texto copiado.");
+  const copiar = async (conteudo: string) => {
+    try {
+      await navigator.clipboard.writeText(conteudo);
+      toast.success("Mensagem copiada.");
+    } catch {
+      toast.error("Não foi possível copiar a mensagem.");
+    }
   };
 
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.style.height = "auto";
+    editor.style.height = Math.min(editor.scrollHeight, 180) + "px";
+  }, [texto]);
+
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (scroll && autoScrollRef.current) scroll.scrollTop = scroll.scrollHeight;
+  }, [mensagens, carregando, erro]);
+
+  const atualizarPosicao = () => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const pertoDoFim = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 120;
+    autoScrollRef.current = pertoDoFim;
+    setMostrarFim(!pertoDoFim);
+  };
+
+  const irParaFim = () => {
+    const scroll = scrollRef.current;
+    if (scroll) scroll.scrollTo({ top: scroll.scrollHeight, behavior: "smooth" });
+    autoScrollRef.current = true;
+    setMostrarFim(false);
+  };
+
+  const podeEnviar = (texto.trim().length > 0 || arquivos.length > 0) && !carregando && !lendoArquivo;
+  const podeNovaConversa = !carregando && !lendoArquivo && (mensagens.length > 0 || texto.length > 0 || arquivos.length > 0);
+
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
-      <div className="border-b border-border/80 bg-gradient-to-r from-card via-card to-muted/20 px-5 py-4 sm:px-6">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3.5">
-            <span className="relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/20">
-              <Sparkles className="size-5" strokeWidth={1.8} />
-              <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-semibold tracking-tight">Assistente da Vara</h2>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  <ShieldCheck className="size-3" /> Uso interno
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-                  Beta
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                Apoio à redação, consulta e organização das atividades da serventia.
-              </p>
-            </div>
-          </div>
-          <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
-            <Bot className="size-3.5" />
-            Motor: GPT via Lovable AI
+    <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o Assistente da Vara">
+      <header className="flex items-center justify-between gap-3 border-b border-border/70 bg-card px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Sparkles className="size-5" strokeWidth={1.8} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold">Assistente da Vara</h2>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              GPT via Lovable AI · consultas e leitura de documentos
+            </p>
           </div>
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={novaConversa}
+          disabled={!podeNovaConversa}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          title="Iniciar uma nova conversa"
+        >
+          <MessageSquarePlus className="size-4" />
+          <span className="hidden sm:inline">Nova conversa</span>
+        </button>
+      </header>
 
-      <div className="flex-1 overflow-y-auto bg-muted/[0.14] p-4 sm:p-6">
-        {mensagens.length === 0 ? (
-          <div className="mx-auto max-w-4xl py-4 sm:py-8">
-            <div className="rounded-2xl border border-border/80 bg-background/90 p-6 shadow-sm sm:p-8">
-              <div className="mx-auto max-w-2xl text-center">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10">
-                  <Bot className="size-7" strokeWidth={1.5} />
-                </div>
-                <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-                  Apoio inteligente à serventia
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-                  Como posso ajudar hoje?
-                </h3>
-                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                  Escreva uma pergunta, consulte o acervo ou anexe um PDF. O assistente pode
-                  cruzar dados internos com o conteúdo dos arquivos enviados.
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={atualizarPosicao}
+          className="h-full overflow-y-auto overscroll-contain bg-muted/[0.10] px-4 py-5 sm:px-6 sm:py-6"
+          role="log"
+          aria-label="Histórico da conversa"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
+          {mensagens.length === 0 ? (
+            <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center py-6">
+              <div className="mx-auto max-w-xl text-center">
+                <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Bot className="size-6" />
+                </span>
+                <h3 className="mt-4 text-xl font-semibold tracking-tight">Como posso ajudar?</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Consulte o acervo, peça uma minuta ou anexe um documento para análise. As respostas exigem revisão antes do uso oficial.
                 </p>
               </div>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="mt-7 grid gap-2.5 sm:grid-cols-2">
                 {SUGESTOES.map(({ icon: Icone, titulo, texto: sugestao }) => (
                   <button
-                    key={sugestao}
+                    key={titulo}
                     type="button"
-                    onClick={() => void enviar(sugestao)}
-                    className="group rounded-xl border border-border/80 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.025] hover:shadow-sm"
+                    onClick={() => enviar(sugestao)}
+                    disabled={carregando || lendoArquivo}
+                    className="group flex items-start gap-3 rounded-xl border border-border/70 bg-background p-3.5 text-left transition-colors hover:border-primary/30 hover:bg-primary/[0.025] disabled:opacity-50"
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                        <Icone className="size-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium">{titulo}</span>
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          {sugestao}
-                        </span>
-                      </span>
-                    </div>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-primary">
+                      <Icone className="size-4" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium">{titulo}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">{sugestao}</span>
+                    </span>
                   </button>
                 ))}
               </div>
-
-              <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span>Use o assistente como apoio. Revise o conteúdo antes de utilizá-lo em atividade oficial.</span>
-                </div>
-                <span className="shrink-0 font-medium text-foreground/70">Revisão humana necessária</span>
-              </div>
             </div>
-          </div>
-        ) : (
-          <div className="mx-auto max-w-4xl space-y-6">
-            {mensagens.map((m, i) => (
-              <div key={i} className={cn("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}>
-                {m.role === "assistant" && (
-                  <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          ) : (
+            <div className="mx-auto max-w-4xl space-y-6">
+              {mensagens.map((mensagem) => (
+                <article key={mensagem.id} className={cn("flex gap-3", mensagem.role === "user" ? "justify-end" : "justify-start")}>
+                  {mensagem.role === "assistant" && (
+                    <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Bot className="size-4" />
+                    </span>
+                  )}
+                  <div className={cn("min-w-0", mensagem.role === "user" ? "max-w-[88%] sm:max-w-[78%]" : "max-w-[calc(100%-2.75rem)] flex-1")}>
+                    <div className={cn("mb-1.5 flex items-center gap-2 text-[11px] text-muted-foreground", mensagem.role === "user" && "justify-end")}>
+                      <span className="font-medium text-foreground/80">{mensagem.role === "user" ? "Você" : "Assistente"}</span>
+                      <time dateTime={new Date(mensagem.hora).toISOString()}>{horaDaMensagem(mensagem.hora)}</time>
+                    </div>
+                    <div className={cn(
+                      "min-w-0 break-words text-sm leading-6",
+                      mensagem.role === "user"
+                        ? "rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-primary-foreground"
+                        : "rounded-2xl rounded-tl-md border border-border/70 bg-background px-4 py-3.5 shadow-sm",
+                    )}>
+                      <MarkdownResposta texto={mensagem.content} />
+                      {mensagem.anexos?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-current/15 pt-2.5">
+                          {mensagem.anexos.map((nome) => (
+                            <span key={nome} className="inline-flex max-w-full items-center gap-1 rounded-md border border-current/20 px-2 py-1 text-xs">
+                              <FileText className="size-3 shrink-0" />
+                              <span className="truncate">{nome}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className={cn("mt-1 flex items-center gap-2", mensagem.role === "user" && "justify-end")}>
+                      <button
+                        type="button"
+                        onClick={() => void copiar(mensagem.content)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={mensagem.role === "user" ? "Copiar sua mensagem" : "Copiar resposta"}
+                      >
+                        <Copy className="size-3" /> Copiar
+                      </button>
+                    </div>
+                  </div>
+                  {mensagem.role === "user" && (
+                    <span className="mt-1 hidden size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground sm:flex">
+                      <User className="size-4" />
+                    </span>
+                  )}
+                </article>
+              ))}
+              {carregando ? (
+                <div className="flex items-start gap-3" role="status">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Bot className="size-4" />
                   </span>
-                )}
-                <div className={cn(
-                  "max-w-[88%] rounded-2xl px-4 py-3.5 text-sm leading-6 shadow-sm",
-                  m.role === "user"
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md border border-border/80 bg-background",
-                )}>
-                  <MarkdownResposta texto={m.content} />
-                  {m.role === "assistant" && (
-                    <button
-                      type="button"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      onClick={() => void copiar(m.content)}
-                    >
-                      <Copy className="size-3" /> Copiar resposta
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-background px-3.5 py-3 text-xs text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin text-primary" />
+                    Consultando o assistente…
+                  </div>
                 </div>
-                {m.role === "user" && (
-                  <span className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                    <User className="size-4" />
+              ) : null}
+              {erro ? (
+                <div className="ml-11 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-background px-3.5 py-3 text-xs" role="alert">
+                  <span className="flex items-start gap-2 text-destructive">
+                    <AlertCircle className="size-4 shrink-0" />
+                    <span>{erro}</span>
                   </span>
-                )}
-              </div>
-            ))}
-            {carregando && (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex size-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                  <Bot className="size-4" />
-                </span>
-                <span className="flex items-center gap-2 rounded-xl border border-border/70 bg-background px-3 py-2.5 shadow-sm">
-                  <Loader2 className="size-4 animate-spin text-primary" /> Consultando o assistente…
-                </span>
-              </div>
-            )}
-            <div ref={fimRef} />
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-border/80 bg-card p-4 sm:p-5">
-        <div className="mx-auto mb-2 max-w-4xl">
-          {arquivos.length ? (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {arquivos.map((arquivo) => (
-                <span key={arquivo.id} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
-                  <FileText className="size-3.5 shrink-0 text-primary" />
-                  <span className="truncate">{arquivo.nome}</span>
-                  {arquivo.paginas ? <span className="text-muted-foreground">{arquivo.paginas} pág.</span> : null}
-                  {arquivo.truncado ? <span className="font-medium text-amber-600">parcial</span> : null}
                   <button
                     type="button"
-                    aria-label={`Remover ${arquivo.nome}`}
-                    className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
-                    onClick={() => setArquivos((atual) => atual.filter((a) => a.id !== arquivo.id))}
-                    disabled={carregando}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+                    onClick={tentarNovamente}
+                    disabled={carregando || !ultimoEnvioRef.current}
                   >
-                    <X className="size-3.5" />
+                    <RotateCcw className="size-3.5" /> Tentar novamente
                   </button>
-                </span>
-              ))}
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          )}
         </div>
-        <form
-          className="mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-input bg-background p-1.5 shadow-sm transition-shadow focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10"
-          onSubmit={(e) => { e.preventDefault(); void enviar(); }}
-        >
-          <input
-            ref={arquivoRef}
-            type="file"
-            accept=".pdf,.txt,.md,.csv,application/pdf,text/plain,text/markdown,text/csv"
-            multiple
-            className="hidden"
-            onChange={(e) => void anexar(e.target.files)}
-          />
+        {mostrarFim && mensagens.length > 0 ? (
           <button
             type="button"
-            aria-label="Anexar arquivo"
-            title="Anexar PDF ou arquivo de texto"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
-            onClick={() => arquivoRef.current?.click()}
-            disabled={carregando || lendoArquivo || arquivos.length >= 2}
+            onClick={irParaFim}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-md hover:bg-muted"
           >
-            {lendoArquivo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+            <ArrowDown className="size-3.5" /> Últimas mensagens
           </button>
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void enviar();
-              }
-            }}
-            placeholder="Digite sua pergunta ou cole a minuta que deseja melhorar…"
-            rows={2}
-            className="min-h-12 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
-            disabled={carregando}
-          />
-          <button
-            type="submit"
-            disabled={!texto.trim() || carregando}
-            aria-label="Enviar mensagem"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+        ) : null}
+      </div>
+
+      <div
+        className={cn("relative shrink-0 border-t border-border/70 bg-card px-3 pb-3 pt-3 sm:px-5", arrastando && "bg-primary/[0.05]")}
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("Files")) {
+            event.preventDefault();
+            setArrastando(true);
+          }
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) setArrastando(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setArrastando(false);
+          void anexar(event.dataTransfer.files);
+        }}
+      >
+        {arrastando ? (
+          <div className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/95 text-sm font-medium text-primary">
+            Solte aqui para anexar o arquivo
+          </div>
+        ) : null}
+
+        <div className="mx-auto max-w-4xl">
+          {arquivos.length > 0 ? (
+            <div className="mb-2.5 space-y-1.5">
+              <div className="flex flex-wrap gap-2">
+                {arquivos.map((arquivo) => (
+                  <span key={arquivo.id} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
+                    <FileText className="size-3.5 shrink-0 text-primary" />
+                    <span className="max-w-48 truncate" title={arquivo.nome}>{arquivo.nome}</span>
+                    {arquivo.paginas ? <span className="whitespace-nowrap text-muted-foreground">{arquivo.paginas} pág.</span> : null}
+                    {arquivo.truncado ? <span className="font-medium text-amber-600">Parcial</span> : null}
+                    <button
+                      type="button"
+                      aria-label={"Remover " + arquivo.nome}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                      disabled={carregando || lendoArquivo}
+                      onClick={() => setArquivos((atual) => atual.filter((a) => a.id !== arquivo.id))}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Anexos ativos nesta conversa: o texto será reenviado ao modelo em cada nova pergunta enquanto permanecerem aqui.
+              </p>
+            </div>
+          ) : null}
+
+          <form
+            onSubmit={(event) => { event.preventDefault(); enviar(); }}
+            className="flex items-end gap-2 rounded-2xl border border-input bg-background p-1.5 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10"
           >
-            <Send className="size-4" />
-          </button>
-        </form>
-        <div className="mx-auto mt-2 flex max-w-4xl items-center justify-between gap-3 px-1 text-[11px] text-muted-foreground">
-          <span>Enter envia · Shift + Enter cria nova linha · PDF/TXT/MD/CSV</span>
-          <span className="hidden sm:inline">Ferramenta de apoio interno</span>
+            <input
+              ref={arquivoRef}
+              type="file"
+              accept=".pdf,.txt,.md,.csv,application/pdf,text/plain,text/markdown,text/csv"
+              multiple
+              className="sr-only"
+              tabIndex={-1}
+              onChange={(event) => void anexar(event.target.files)}
+              aria-label="Selecionar arquivos"
+            />
+            <button
+              type="button"
+              onClick={() => arquivoRef.current?.click()}
+              disabled={carregando || lendoArquivo || arquivos.length >= 2}
+              aria-label="Anexar PDF ou arquivo de texto"
+              title="Anexar PDF, TXT, MD ou CSV"
+              className="mb-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {lendoArquivo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+            </button>
+            <textarea
+              ref={editorRef}
+              value={texto}
+              onChange={(event) => setTexto(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  enviar();
+                }
+              }}
+              maxLength={20_000}
+              rows={1}
+              placeholder="Digite sua mensagem ou anexe os autos para análise…"
+              aria-label="Mensagem para o Assistente"
+              disabled={carregando || lendoArquivo}
+              className="max-h-[180px] min-h-10 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              disabled={!podeEnviar}
+              aria-label="Enviar mensagem"
+              title="Enviar"
+              className="mb-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Send className="size-4" />
+            </button>
+          </form>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+            <span>Enter envia · Shift + Enter quebra linha · arraste PDFs para anexar</span>
+            <span>{texto.length > 18_000 ? texto.length.toLocaleString("pt-BR") + "/20.000" : "Revisão humana necessária"}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
