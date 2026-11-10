@@ -61,6 +61,35 @@ export function tipoPrisaoDe(especie: string): string {
   return "Outra";
 }
 
+/**
+ * Regra da reimportação: uma classificação manual do servidor não é revertida
+ * pela espécie antiga da planilha. A planilha só pode atualizar o tipo quando
+ * o valor atual ainda corresponde à classificação derivada da importação anterior.
+ */
+export function tipoPrisaoAposReimportacao({
+  tipoAtual,
+  especieAtual,
+  tipoImportado,
+}: {
+  tipoAtual: string;
+  especieAtual: string;
+  tipoImportado: string;
+}) {
+  if (!tipoAtual.trim()) return tipoImportado;
+  if (!especieAtual.trim()) return tipoAtual;
+  return tipoAtual === tipoPrisaoDe(especieAtual) ? tipoImportado : tipoAtual;
+}
+
+export const CHAVES_DADOS_PLANILHA_REUS = [
+  "Andamento do último procedimento",
+  "Término de eventual prazo",
+  "Última reavaliação",
+  "Prazo de reavaliação",
+  "Data de reavaliação",
+  "Dias preso (planilha)",
+  "Sistema",
+] as const;
+
 function dataPlanilhaValida(valor: unknown): string | null {
   const d = paraData(valor);
   if (!d) return null;
