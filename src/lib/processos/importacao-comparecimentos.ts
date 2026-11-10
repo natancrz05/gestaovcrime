@@ -178,7 +178,7 @@ export function proximoComparecimentoAposImportacao({
   const referencia = referencias.at(-1) ?? null;
   if (!referencia) return proximoAtual;
 
-  const [ano, mes, dia] = referencia.split("-").map(Number);
+  const [ano, mes, dia] = referencia.split("-").map(Number) as [number, number, number];
   const total = ano * 12 + (mes - 1) + intervaloMeses;
   const novoAno = Math.floor(total / 12);
   const novoMes = (total % 12) + 1;
