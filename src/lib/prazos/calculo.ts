@@ -2,7 +2,7 @@
  * Calculadora de PRAZOS PROCESSUAIS em dias — não calcula prescrição penal,
  * prazo de direito material ou data de intimação eletrônica presumida.
  * Fontes: CPC arts. 219, 220 e 224; CPP arts. 798 e 798-A;
- * Lei 9.099/95 art. 12-A; Lei 11.419/2006 art. 4º, §§ 3º e 4º.
+ * Lei 9.099/95 arts. 12-A (Juizado Cível) e 92 (Juizado Criminal); Lei 11.419/2006 art. 4º, §§ 3º e 4º.
  * Calendário TJBA 2026: Decreto Judiciário 1.050/2025;
  * feriados locais: Decreto Judiciário 09/2026 (Coração de Maria).
  */
@@ -23,6 +23,13 @@ export interface DadosPrazo {
   suspensoesEspecificas?: { inicio: string; fim: string }[];
 }
 
+export interface DiaDaMemoria {
+  data: string;
+  situacao: "contado" | "nao_contado" | "suspenso" | "prorrogado";
+  motivo: string;
+  numeroDia?: number;
+}
+
 export interface ResultadoPrazo {
   uf: string;
   municipio: string;
@@ -37,6 +44,8 @@ export interface ResultadoPrazo {
   diasSuspensos: number;
   diasNaoContados: number;
   diasAteVencimento: number;
+  calendarioCompleto: boolean;
+  memoriaCalculo: DiaDaMemoria[];
   avisoCalendario: string[];
   observacoes: string[];
 }
@@ -140,16 +149,27 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   if (!materias.includes(dados.materia)) throw new Error("Matéria processual inválida.");
 
   const penal = dados.materia === "penal" || dados.materia === "jec_criminal";
-  const contagem: TipoContagem = dados.materia === "penal" ? "corridos" : "uteis";
+  const contagem: TipoContagem = penal ? "corridos" : "uteis";
   const excecao = penal && (dados.excecaoRecesso ?? "nenhuma") !== "nenhuma";
   const aplicaSuspensao = !excecao;
   const fundamento = dados.materia === "penal"
     ? "CPP, arts. 798 e 798-A"
-    : dados.materia === "jec_criminal" || dados.materia === "jec_civil"
-      ? "Lei 9.099/1995, art. 12-A" + (penal ? "; CPP, art. 798-A" : "; CPC, art. 220")
-      : "CPC, arts. 219, 220 e 224";
+    : dados.materia === "jec_criminal"
+      ? "Lei 9.099/1995, art. 92; CPP, arts. 798 e 798-A"
+      : dados.materia === "jec_civil"
+        ? "Lei 9.099/1995, art. 12-A; CPC, arts. 220 e 224"
+        : "CPC, arts. 219, 220 e 224";
 
   const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes, uf, municipio);
+  const memoriaCalculo: DiaDaMemoria[] = [];
+  for (let inicio = proximoDia(dados.publicacao), i = 0; inicio < primeiroDia && i < 2000; inicio = proximoDia(inicio), i++) {
+    const suspenso = (aplicaSuspensao && emSuspensaoGeral(inicio)) || emSuspensaoEspecifica(inicio, suspensoes);
+    memoriaCalculo.push({
+      data: inicio,
+      situacao: suspenso ? "suspenso" : "nao_contado",
+      motivo: suspenso ? "Prazo não iniciado durante suspensão processual." : "Termo inicial: dia não útil ou sem expediente.",
+    });
+  }
   let dia = primeiroDia;
   let contados = 0;
   let suspensos = 0;
@@ -161,24 +181,41 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
     const contabiliza = !parado && (contagem === "corridos" || ehUtil);
     if (contabiliza) {
       contados++;
+      memoriaCalculo.push({
+        data: dia, situacao: "contado", numeroDia: contados,
+        motivo: contagem === "corridos" ? "Dia computado: contagem contínua conforme CPP." : "Dia útil computado.",
+      });
       if (contados === prazo) { dataBruta = dia; break; }
     } else {
       ignorados++;
       if (parado) suspensos++;
+      memoriaCalculo.push({
+        data: dia, situacao: parado ? "suspenso" : "nao_contado",
+        motivo: parado
+          ? (emSuspensaoEspecifica(dia, suspensoes) ? "Suspensão específica informada." : "Suspensão legal de 20/12 a 20/01.")
+          : (eFimDeSemana(dia) ? "Fim de semana: não computado na contagem em dias úteis." : "Feriado ou dia sem expediente: não computado."),
+      });
     }
     if (i === 11999) throw new Error("O intervalo solicitado ultrapassou o limite de cálculo.");
     dia = proximoDia(dia);
   }
   let vencimento = dataBruta;
+  let vencimentoEncontrado = false;
   for (let i = 0; i < 2000; i++) {
     if (!feriadoOuRecesso(vencimento, feriados, uf, municipio) &&
         !(aplicaSuspensao && emSuspensaoGeral(vencimento)) &&
-        !emSuspensaoEspecifica(vencimento, suspensoes)) break;
+        !emSuspensaoEspecifica(vencimento, suspensoes)) {
+      vencimentoEncontrado = true;
+      break;
+    }
+    memoriaCalculo.push({ data: vencimento, situacao: "prorrogado", motivo: "Vencimento em dia sem expediente ou de suspensão: prorrogação até dia útil." });
     vencimento = proximoDia(vencimento);
   }
+  if (!vencimentoEncontrado) throw new Error("Não foi encontrado dia de expediente para o vencimento.");
 
   const inicioAno = Number(dados.publicacao.slice(0, 4));
   const fimAno = Number(vencimento.slice(0, 4));
+  const calendarioCompleto = uf === "BA" && municipio === "Coração de Maria" && inicioAno === 2026 && fimAno === 2026;
   const avisoCalendario: string[] = [];
   if (inicioAno !== 2026 || fimAno !== 2026) {
     avisoCalendario.push("O calendário oficial de feriados locais e do TJBA está parametrizado somente para 2026. Verifique outros anos e inclua datas de suspensão adicionais.");
@@ -187,6 +224,9 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
     avisoCalendario.push("O tribunal configurado é o TJBA (1º grau), mas a localidade escolhida é de outra UF. O calendário próprio desse estado e seus feriados móveis ou municipais NÃO foram carregados; foram considerados somente os feriados nacionais fixos e os dias extras informados. Confira a jurisdição e as datas oficiais antes de utilizar o resultado.");
   } else if (municipio !== "Coração de Maria") {
     avisoCalendario.push("Os feriados específicos de " + municipio + " não estão cadastrados. O calendário base TJBA 2026 e feriados nacionais são considerados; inclua feriados municipais e suspensões locais em Datas sem expediente.");
+  }
+  if (dados.materia === "jec_criminal") {
+    avisoCalendario.push("Juizado Especial Criminal: dias corridos (Lei 9.099/1995, art. 92, e CPP, art. 798). O art. 12-A está no capítulo dos Juizados Cíveis; confirme a jurisprudência aplicável ao ato específico.");
   }
   if (penal) {
     avisoCalendario.push("O art. 798-A do CPP excepciona a suspensão do recesso para processos vinculados à prisão de réus presos, procedimentos da Lei Maria da Penha e medidas urgentes fundamentadas. Sem identificação do tipo concreto nos autos, a calculadora aplica a suspensão como padrão.");
@@ -212,6 +252,8 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
     diasSuspensos: suspensos,
     diasNaoContados: ignorados,
     diasAteVencimento: Math.round((dataUTC(vencimento).getTime() - dataUTC(dados.publicacao).getTime()) / 86400000),
+    calendarioCompleto,
+    memoriaCalculo,
     avisoCalendario,
     observacoes,
   };
