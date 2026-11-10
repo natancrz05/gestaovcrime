@@ -157,6 +157,37 @@ export function separarNumeros(celula: string): string[] {
   return [...new Set(out)];
 }
 
+/**
+ * A importação pode avançar o próximo comparecimento, mas nunca retroceder um
+ * cadastro que já recebeu comparecimento manual posterior.
+ */
+export function proximoComparecimentoAposImportacao({
+  referenciaImportada,
+  ultimaRealizadaLocal,
+  proximoAtual,
+  intervaloMeses,
+}: {
+  referenciaImportada: string | null;
+  ultimaRealizadaLocal: string | null;
+  proximoAtual: string;
+  intervaloMeses: number;
+}) {
+  const referencias = [referenciaImportada, ultimaRealizadaLocal]
+    .filter((d): d is string => Boolean(d))
+    .sort();
+  const referencia = referencias.at(-1) ?? null;
+  if (!referencia) return proximoAtual;
+
+  const [ano, mes, dia] = referencia.split("-").map(Number);
+  const total = ano * 12 + (mes - 1) + intervaloMeses;
+  const novoAno = Math.floor(total / 12);
+  const novoMes = (total % 12) + 1;
+  const ultimoDia = new Date(novoAno, novoMes, 0).getDate();
+  const calculado = `${novoAno}-${String(novoMes).padStart(2, "0")}-${String(Math.min(dia, ultimoDia)).padStart(2, "0")}`;
+
+  return calculado > proximoAtual ? calculado : proximoAtual;
+}
+
 export interface ItemResultado extends LinhaComp { numero?: string; proximo?: string; proximo_antes?: string; vinculo?: string; motivo?: string; sugestoes?: string[] }
 export interface ResultadoComp {
   total: number; novos: ItemResultado[]; atualizados: ItemResultado[]; sem_alteracao: number; nao_vinculados: ItemResultado[];
