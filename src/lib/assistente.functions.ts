@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { executarFerramentaAcervo, FERRAMENTAS_ACERVO } from "./assistente-acervo";
 import { respostaLovable } from "./assistente-lovable";
+import { executarCalculoPrazo, FERRAMENTA_CALCULO_PRAZO } from "./assistente-prazos";
 
 const INSTRUCOES = `Você é o Assistente da Vara, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
 
@@ -10,7 +11,8 @@ CAPACIDADES:
 - responder perguntas gerais e explicar conceitos jurídicos de forma prática;
 - melhorar, revisar e estruturar minutas, certidões, despachos administrativos e comunicações;
 - analisar arquivos anexados pelo usuário;
-- consultar o acervo interno por meio das ferramentas disponibilizadas, sempre em modo somente leitura.
+- consultar o acervo interno por meio das ferramentas disponibilizadas, sempre em modo somente leitura;
+- calcular prazos processuais em dias pela ferramenta determinística calcular_prazo_processual, quando houver data efetiva da publicação, matéria e prazo suficientes.
 
 REGRAS DE FONTE:
 1. Nunca invente dados de processos, nomes, datas, IDs, atos ou conteúdos de documentos.
@@ -23,6 +25,8 @@ REGRAS DE FONTE:
 8. As ferramentas são somente leitura. Não prometa nem tente alterar registros.
 9. Não trate sugestão de redação como decisão judicial e não substitua a análise do servidor ou do magistrado.
 10. Se pedirem apenas para melhorar um texto, entregue diretamente a versão melhorada.
+11. Não utilize a ferramenta de prazo processual para calcular prescrição penal: ela exige marcos, causas específicas e regra de direito material próprios.
+12. Em análise de prazo processual, use a ferramenta de cálculo e apresente seus avisos de calendário e condições de início da contagem.
 
 Use linguagem formal, objetiva e útil. Em análises processuais, organize cronologia, fontes e pontos que exigem conferência humana.`;
 
@@ -52,6 +56,14 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
     const usuarioId = context.userId;
+    const [{ data: usuario, error: erroUsuario }, { data: papeis, error: erroPapeis }] = await Promise.all([
+      sb.from("usuarios").select("ativo,status_cadastro").eq("id", usuarioId).maybeSingle(),
+      sb.from("user_roles").select("role").eq("user_id", usuarioId),
+    ]);
+    if (erroUsuario || erroPapeis || !usuario?.ativo || usuario.status_cadastro !== "aprovado" ||
+        !(papeis ?? []).some((p) => p.role === "administrador" || p.role === "servidor")) {
+      throw new Error("Acesso ao Assistente não autorizado para este usuário.");
+    }
 
     if (data.conversaId && data.respostaId) {
       const { data: conversa, error: erroConversa } = await sb
@@ -87,9 +99,11 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
         ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
         ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
       })),
-      tools: FERRAMENTAS_ACERVO,
+      tools: [...FERRAMENTAS_ACERVO, FERRAMENTA_CALCULO_PRAZO],
       executarFerramenta: (nome, argumentos) =>
-        executarFerramentaAcervo(sb, nome, argumentos),
+        nome === "calcular_prazo_processual"
+          ? Promise.resolve(executarCalculoPrazo(argumentos))
+          : executarFerramentaAcervo(sb, nome, argumentos),
     });
 
     if (!data.conversaId || !data.respostaId) {
