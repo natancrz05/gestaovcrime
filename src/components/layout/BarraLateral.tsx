@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Lock,
   CalendarDays,
+  CalendarRange,
   Bell,
   FileBarChart2,
   Settings,
@@ -29,6 +30,7 @@ export const ITENS_NAV = [
   { para: "/", rotulo: "Dashboard", icone: LayoutDashboard, exato: true },
   { para: "/processos", rotulo: "Processos", icone: FolderOpen, exato: false },
   { para: "/assistente", rotulo: "Assistente da Vara", icone: Sparkles, exato: false },
+  { para: "/calculos", rotulo: "Cálculos Processuais", icone: CalendarRange, exato: false },
   { para: "/reus-presos", rotulo: "Presos Provisórios", icone: Lock, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
   { para: "/comparecimentos", rotulo: "Comparecimentos", icone: UserCheck, exato: false },
@@ -40,7 +42,7 @@ export const ITENS_NAV = [
 ] as const;
 
 const GRUPOS: { titulo: string; rotas: string[] }[] = [
-  { titulo: "Visão geral", rotas: ["/", "/processos", "/assistente"] },
+  { titulo: "Visão geral", rotas: ["/", "/processos", "/assistente", "/calculos"] },
   { titulo: "Acompanhamento", rotas: ["/reus-presos", "/audiencias", "/comparecimentos", "/oficios", "/prioridades"] },
   { titulo: "Administração", rotas: ["/relatorios", "/sugestoes", "/configuracoes"] },
 ];
