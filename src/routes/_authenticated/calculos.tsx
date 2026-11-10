@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, Check, CheckCircle2, ChevronsUpDown, ClipboardCopy, FileText, Gavel, Hourglass, Loader2, LockKeyhole, Scale, ShieldCheck, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { calcularPrazoProcessual, type DadosPrazo, type MateriaPrazo } from "@/lib/prazos/calculo";
+import { indexarReferenciasPdf } from "@/lib/prazos/triagem-documental";
 import { ESTADOS_BRASIL, municipiosDaUf } from "@/lib/prazos/localidades-brasil";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
@@ -30,6 +31,13 @@ const TITULO = "mb-1.5 block text-xs font-medium text-foreground";
 function formatarData(iso: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   return iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4);
+}
+function hojeBahiaIso(): string {
+  const partes = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Bahia", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const parte = (nome: string) => partes.find((p) => p.type === nome)?.value ?? "";
+  return parte("year") + "-" + parte("month") + "-" + parte("day");
 }
 function normalizarPesquisa(texto: string) {
   return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -383,6 +391,7 @@ function CalculadoraIA() {
   const sessao = useSessao();
   const [tipo, setTipo] = useState<(typeof OPCOES_IA)[number]["id"]>("prescricao");
   const [processo, setProcesso] = useState("");
+  const [dataReferencia, setDataReferencia] = useState(hojeBahiaIso);
   const [arquivo, setArquivo] = useState<ArquivoExtraido | null>(null);
   const [lendo, setLendo] = useState(false);
   const [analisando, setAnalisando] = useState(false);
@@ -390,6 +399,8 @@ function CalculadoraIA() {
   const [conversaCriada, setConversaCriada] = useState("");
   const [erro, setErro] = useState("");
   const opcao = useMemo(() => OPCOES_IA.find((o) => o.id === tipo) ?? OPCOES_IA[0], [tipo]);
+  const indice = useMemo(() => arquivo ? indexarReferenciasPdf(arquivo.texto) : null, [arquivo]);
+  const textoParcial = Boolean(arquivo?.truncado || arquivo?.paginasSemTexto?.length);
 
   const carregar = async (files: FileList | null) => {
     const file = files?.[0];
@@ -412,6 +423,15 @@ function CalculadoraIA() {
 
   const analisar = async () => {
     if (!arquivo || analisando) return;
+    const numero = processo.trim();
+    if (numero && !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(numero)) {
+      setErro("Informe o número CNJ completo ou deixe o campo do processo em branco.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataReferencia)) {
+      setErro("Informe uma data de referência válida.");
+      return;
+    }
     setErro("");
     setResposta("");
     setConversaCriada("");
@@ -419,17 +439,22 @@ function CalculadoraIA() {
     try {
       const prompt = [
         "ANÁLISE JURÍDICA — " + opcao.titulo.toUpperCase(),
-        processo.trim() ? "PROCESSO: " + processo.trim() : "PROCESSO: identificar exclusivamente se constar nos autos.",
+        numero ? "PROCESSO: " + numero : "PROCESSO: identificar exclusivamente se constar nos autos.",
+        "DATA DE REFERÊNCIA (BA): " + dataReferencia + ". Não use outra data para dizer se o prazo decorreu.",
         "Unidade: Vara Plena da Comarca de Coração de Maria/BA — TJBA.",
         "Examine o PDF anexado como fonte primária. Consulte o acervo interno através das ferramentas do Assistente caso o número do processo esteja informado e exista cadastro correspondente.",
         "OBJETIVO: " + opcao.descricao + ".",
         "CRITÉRIOS ESPECÍFICOS: " + opcao.orientacao,
         "Indique cada marco com data, página do PDF, ID do documento quando efetivamente encontrado e fundamento legal. Separe fatos localizados, dados administrativos e inferências.",
         "Use cronologia e cálculos auditáveis. Nunca invente documentos ou datas. Não trate ausência de informação como prova de inexistência.",
+        "Quando existirem marcos suficientes, use as ferramentas de cálculo para medir lapsos, e apresente os resultados com a convenção de contagem. Datas e IDs encontrados no texto são apenas indicadores até que o ato seja identificado.",
+        "Se houver número CNJ, consulte também dados do sistema. A ausência de evento no acervo administrativo não prova a inexistência do respectivo ato nos autos.",
         arquivo.truncado ? "ATENÇÃO: O PDF foi TRUNCADO NA EXTRAÇÃO. É PROIBIDO CONCLUIR DE MODO DEFINITIVO; informe o que falta e recomende nova análise integral." : "Verifique lacunas dos autos antes de qualquer conclusão.",
+        arquivo.paginasSemTexto?.length ? "ATENÇÃO: PÁGINAS SEM TEXTO EXTRAÍVEL: " + arquivo.paginasSemTexto.join(", ") + ". Não foram lidas por OCR. Nunca trate o PDF como integralmente legível; indique limitações e solicite conferência visual." : "",
+        numero && !arquivo.texto.includes(numero) ? "ATENÇÃO: o número CNJ informado não foi localizado literalmente no texto extraído. Confira se o PDF corresponde ao processo e se há páginas digitalizadas." : "",
         "O resultado é subsídio para avaliação técnica humana, não decisão judicial.",
       ].join("\n");
-      const chat = await criarConversaAssistente(sessao.id, opcao.titulo + (processo.trim() ? " — " + processo.trim() : ""));
+      const chat = await criarConversaAssistente(sessao.id, opcao.titulo + (numero ? " — " + numero : ""));
       setConversaCriada(chat.id);
       const msgId = crypto.randomUUID();
       await salvarMensagemUsuario({
@@ -438,8 +463,15 @@ function CalculadoraIA() {
       });
       const gerada = await perguntarAoAssistente(
         [{ role: "user", content: prompt }],
-        [{ nome: arquivo.nome, tipo: arquivo.tipo, texto: arquivo.texto, ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}), ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}) }],
+        [{
+          nome: arquivo.nome, tipo: arquivo.tipo, texto: arquivo.texto,
+          ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+          ...(arquivo.paginasLidas !== undefined ? { paginasLidas: arquivo.paginasLidas } : {}),
+          ...(arquivo.paginasSemTexto !== undefined ? { paginasSemTexto: arquivo.paginasSemTexto } : {}),
+          ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
+        }],
         { conversaId: chat.id, respostaId: crypto.randomUUID() },
+        { tipoAnalise: tipo, dataReferencia, ...(numero ? { numeroProcesso: numero } : {}) },
       );
       setResposta(gerada.resposta);
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
@@ -479,13 +511,36 @@ function CalculadoraIA() {
           <label><span className={TITULO}>Número do processo (opcional, para buscar no acervo)</span>
             <input className={CAMPO} value={processo} onChange={(e) => setProcesso(e.target.value)} placeholder="Ex.: 8000000-00.2026.8.05.0067" maxLength={40} disabled={analisando} />
           </label>
+          <label>
+            <span className={TITULO}>Data de referência da análise</span>
+            <input type="date" required value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} disabled={analisando} className={CAMPO} />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Utilizada para calcular os lapsos e avaliar a situação na data selecionada.</span>
+          </label>
           <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-muted/15 px-5 py-6 text-center hover:border-primary/40">
             {lendo ? <Loader2 className="mx-auto size-6 animate-spin text-primary" /> : <UploadCloud className="mx-auto size-6 text-primary" />}
             <span className="mt-2 block text-sm font-medium">{lendo ? "Lendo o documento…" : arquivo ? arquivo.nome : "Selecione o PDF dos autos"}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">{arquivo ? String(arquivo.paginas ?? "?") + " páginas" + (arquivo.truncado ? " · Extração parcial" : " · Texto extraído") : "PDF com texto selecionável, até 60 MB"}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{arquivo
+              ? String(arquivo.paginas ?? "?") + " páginas · " + String(arquivo.paginasLidas ?? "?") + " lidas integralmente" + (textoParcial ? " · Leitura parcial" : " · Texto extraído")
+              : "PDF com texto selecionável, até 60 MB"}</span>
             <input type="file" className="sr-only" accept=".pdf,application/pdf" disabled={lendo || analisando} onChange={(e) => void carregar(e.target.files)} />
           </label>
           {arquivo?.truncado ? <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">O arquivo ultrapassa o limite de texto analisável por requisição. O resultado será parcial e não deve fundamentar uma conclusão definitiva.</p> : null}
+          {arquivo?.paginasSemTexto?.length ? (
+            <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
+              {arquivo.paginasSemTexto.length} página(s) sem texto selecionável: {arquivo.paginasSemTexto.slice(0, 15).join(", ")}
+              {arquivo.paginasSemTexto.length > 15 ? " e outras" : ""}. Essas páginas não passaram por OCR. Confira visualmente e não trate a análise como integral.
+            </p>
+          ) : null}
+          {arquivo && indice ? (
+            <details className="rounded-lg border border-border p-3 text-xs">
+              <summary className="cursor-pointer font-medium">Referências literais localizadas: {indice.datas.length} datas e {indice.ids.length} IDs candidatos</summary>
+              <p className="mt-2 text-muted-foreground">Apenas ocorrências no texto, não representam marcos processuais confirmados.</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <p><strong>Datas:</strong> {indice.datas.slice(0, 12).map((x) => x.valor + " (p. " + x.pagina + ")").join("; ") || "Nenhuma"}</p>
+                <p><strong>IDs:</strong> {indice.ids.slice(0, 12).map((x) => x.valor + " (p. " + x.pagina + ")").join("; ") || "Nenhum"}</p>
+              </div>
+            </details>
+          ) : null}
           {erro ? <p role="alert" className="rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">{erro}</p> : null}
           <button type="button" onClick={() => void analisar()} disabled={!arquivo || lendo || analisando}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
@@ -506,6 +561,10 @@ function CalculadoraIA() {
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-live="polite">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
             <h3 className="font-semibold">Resultado da análise — {opcao.titulo}</h3>
+            <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
+              onClick={() => void navigator.clipboard.writeText(resposta).then(() => toast.success("Análise copiada."), () => toast.error("Não foi possível copiar."))}>
+              <ClipboardCopy className="mr-1 inline size-3.5" /> Copiar análise
+            </button>
             {conversaCriada ? <Link to="/assistente" className="text-xs font-medium text-primary underline underline-offset-2">Abrir histórico no Assistente</Link> : null}
           </div>
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7">{resposta}</pre>
