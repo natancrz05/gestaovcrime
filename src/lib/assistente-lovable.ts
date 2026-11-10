@@ -16,6 +16,8 @@ export interface ArquivoAssistente {
   tipo: string;
   texto: string;
   paginas?: number;
+  paginasLidas?: number;
+  paginasSemTexto?: number[];
   truncado?: boolean;
 }
 
@@ -64,7 +66,9 @@ function inputComArquivos(input: Mensagem[], arquivos: ArquivoAssistente[] = [])
     .map((arquivo) => {
       const cabecalho = [
         `ARQUIVO: ${arquivo.nome}`,
-        arquivo.paginas ? `PÁGINAS EXTRAÍDAS: ${arquivo.paginas}` : "",
+        arquivo.paginas ? `PÁGINAS DO PDF: ${arquivo.paginas}` : "",
+        arquivo.paginasLidas !== undefined ? `PÁGINAS LIDAS INTEGRALMENTE: ${arquivo.paginasLidas}` : "",
+        arquivo.paginasSemTexto?.length ? `PÁGINAS SEM TEXTO EXTRAÍVEL (POSSÍVEIS IMAGENS): ${arquivo.paginasSemTexto.join(", ")}. O documento é PARCIAL para fins de análise.` : "",
         arquivo.truncado ? "AVISO: a extração foi truncada; não trate o arquivo como integral." : "",
       ]
         .filter(Boolean)
