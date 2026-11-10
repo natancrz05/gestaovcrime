@@ -17,6 +17,7 @@ export interface EntradaTemporaria {
 export function conferirPrazoTemporaria(dados: EntradaTemporaria) {
   const inicio = dataUTC(dados.dataCumprimento).getTime();
   const referencia = dataUTC(dados.dataReferencia).getTime();
+  if (referencia < inicio) throw new Error("A data de referência é anterior ao cumprimento do mandado; confira o período selecionado.");
   if (!Number.isInteger(dados.prazoDiasMandado) || dados.prazoDiasMandado < 1 || dados.prazoDiasMandado > 120) {
     throw new Error("Informe prazo do mandado entre 1 e 120 dias, confirmado nos autos.");
   }
