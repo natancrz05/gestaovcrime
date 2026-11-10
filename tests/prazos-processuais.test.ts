@@ -22,12 +22,14 @@ describe("Contagem de prazos TJBA — Coração de Maria", () => {
     expect(r.prorrogado).toBe(true);
   });
 
-  test("Juizado Especial Criminal aplica dias úteis", () => {
+  test("Juizado Especial Criminal conta dias corridos conforme CPP e art. 92 da Lei 9.099", () => {
     const r = calcularPrazoProcessual({
       publicacao: "2026-11-10", prazoDias: 5, materia: "jec_criminal",
     });
-    expect(r.contagem).toBe("uteis");
-    expect(r.vencimento).toBe("2026-11-17");
+    expect(r.contagem).toBe("corridos");
+    expect(r.vencimentoCalculado).toBe("2026-11-15");
+    expect(r.vencimento).toBe("2026-11-16");
+    expect(r.fundamento).toContain("art. 92");
   });
 
   test("feriado municipal de Coração de Maria em 29/06/2026", () => {
@@ -128,5 +130,61 @@ describe("Localidades e feriados específicos", () => {
     expect(r.primeiroDia).toBe("2027-01-21");
     expect(r.vencimento).toBe("2027-01-22");
     expect(r.avisoCalendario.some((msg) => msg.includes("798-A"))).toBe(true);
+  });
+});
+
+describe("Memória e confiabilidade do cálculo", () => {
+  test("registra individualmente dias corridos, incluindo o sábado e o domingo", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-12", prazoDias: 4, materia: "penal",
+    });
+    expect(r.primeiroDia).toBe("2026-11-13");
+    expect(r.vencimento).toBe("2026-11-16");
+    expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado").map((dia) => dia.data))
+      .toEqual(["2026-11-13", "2026-11-14", "2026-11-15", "2026-11-16"]);
+    expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado")).toHaveLength(4);
+  });
+
+  test("civil desconsidera fim de semana e apresenta datas da contagem", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-12", prazoDias: 2, materia: "civil",
+    });
+    expect(r.vencimento).toBe("2026-11-16");
+    expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado").map((dia) => dia.data))
+      .toEqual(["2026-11-13", "2026-11-16"]);
+    expect(r.memoriaCalculo.filter((dia) => dia.situacao === "nao_contado")).toHaveLength(2);
+  });
+
+  test("explica o vencimento penal prorrogado em domingo", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 5, materia: "penal",
+    });
+    expect(r.prorrogado).toBe(true);
+    expect(r.memoriaCalculo.some((dia) => dia.data === "2026-11-15" && dia.situacao === "prorrogado")).toBe(true);
+  });
+
+  test("memória inclui suspensões legais anteriores ao início da contagem", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-12-18", prazoDias: 1, materia: "penal",
+    });
+    expect(r.primeiroDia).toBe("2027-01-21");
+    expect(r.diasSuspensos).toBe(32);
+    expect(r.memoriaCalculo.some((dia) => dia.data === "2027-01-20" && dia.situacao === "suspenso")).toBe(true);
+  });
+
+  test("sinaliza que o calendário de outro município ou exercício não é completo", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 5, materia: "civil",
+      municipio: "Feira de Santana", uf: "BA",
+    });
+    const futuro = calcularPrazoProcessual({
+      publicacao: "2027-04-10", prazoDias: 5, materia: "civil",
+    });
+    expect(r.calendarioCompleto).toBe(false);
+    expect(futuro.calendarioCompleto).toBe(false);
+    const padrao = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 5, materia: "civil",
+    });
+    expect(padrao.calendarioCompleto).toBe(true);
   });
 });
