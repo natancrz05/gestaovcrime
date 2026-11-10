@@ -49,12 +49,15 @@ describe("Contagem de prazos TJBA — Coração de Maria", () => {
     expect(r.avisoCalendario.length).toBeGreaterThan(0);
   });
 
-  test("exceção de réu preso dispensa suspensão de 20/12 a 20/01", () => {
+  test("exceção de réu preso: prazo corre no recesso e vencimento é prorrogado", () => {
     const r = calcularPrazoProcessual({
       publicacao: "2026-12-18", prazoDias: 1, materia: "penal", excecaoRecesso: "reu_preso",
     });
-    expect(r.primeiroDia).toBe("2027-01-07");
+    expect(r.primeiroDia).toBe("2026-12-21");
+    expect(r.vencimentoCalculado).toBe("2026-12-21");
     expect(r.vencimento).toBe("2027-01-07");
+    expect(r.prorrogado).toBe(true);
+    expect(r.diasSuspensos).toBe(0);
   });
 
   test("permite feriado manual sem depender do gateway IA", () => {
@@ -186,5 +189,50 @@ describe("Memória e confiabilidade do cálculo", () => {
       publicacao: "2026-11-10", prazoDias: 5, materia: "civil",
     });
     expect(padrao.calendarioCompleto).toBe(true);
+  });
+});
+
+describe("Validação regressiva da regra do recesso (CPP 798-A)", () => {
+  test("exceções seguem contagem contínua inclusive na suspensão geral", () => {
+    for (const excecaoRecesso of ["reu_preso", "maria_penha", "urgente"] as const) {
+      const r = calcularPrazoProcessual({
+        publicacao: "2026-12-18", prazoDias: 20, materia: "penal", excecaoRecesso,
+      });
+      expect(r.primeiroDia).toBe("2026-12-21");
+      expect(r.vencimentoCalculado).toBe("2027-01-09");
+      expect(r.vencimento).toBe("2027-01-11");
+      expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado")).toHaveLength(20);
+      expect(r.diasSuspensos).toBe(0);
+    }
+  });
+
+  test("sem exceção mantém suspensão CPP até 20 de janeiro", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-12-18", prazoDias: 1, materia: "jec_criminal",
+    });
+    expect(r.primeiroDia).toBe("2027-01-21");
+    expect(r.vencimento).toBe("2027-01-21");
+  });
+
+  test("publicação penal na sexta inicia na segunda; fins de semana internos contam", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-13", prazoDias: 5, materia: "penal",
+    });
+    expect(r.primeiroDia).toBe("2026-11-16");
+    expect(r.vencimentoCalculado).toBe("2026-11-20");
+    // Dia 20/11 é feriado nacional: prazo corrido conta, mas termo final prorroga.
+    expect(r.vencimento).toBe("2026-11-23");
+  });
+
+  test("suspensão específica com início e término sobreposto não infla dias contados", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 3, materia: "civil",
+      suspensoesEspecificas: [
+        { inicio: "2026-11-12", fim: "2026-11-13" },
+        { inicio: "2026-11-13", fim: "2026-11-16" },
+      ],
+    });
+    expect(r.vencimento).toBe("2026-11-18");
+    expect(r.memoriaCalculo.filter((dia) => dia.situacao === "contado")).toHaveLength(3);
   });
 });
