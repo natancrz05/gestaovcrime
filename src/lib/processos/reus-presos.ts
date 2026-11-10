@@ -117,9 +117,9 @@ export function estadoPrazoPreventiva({
   hoje: string;
 }) {
   const referencia = referenciaPreventiva({
-    dataPrisao,
-    ultimaReavaliacaoHistorico,
-    dadosPlanilha,
+    dataPrisao: dataPrisao ?? null,
+    ultimaReavaliacaoHistorico: ultimaReavaliacaoHistorico ?? null,
+    dadosPlanilha: dadosPlanilha ?? null,
   });
   if (!referencia.referenciaPrazo) {
     return {
