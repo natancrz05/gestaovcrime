@@ -45,6 +45,9 @@ function normalizarPesquisa(texto: string) {
 }
 function deIsoParaDataLocal(iso: string): Date {
   const [ano, mes, dia] = iso.split("-").map(Number);
+  if (ano === undefined || mes === undefined || dia === undefined) {
+    throw new Error("Data ISO incompleta ao selecionar feriado no calendário.");
+  }
   return new Date(ano, mes - 1, dia, 12);
 }
 function deDataLocalParaIso(data: Date): string {
