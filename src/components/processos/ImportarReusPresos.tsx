@@ -106,7 +106,7 @@ export function ImportarReusPresos({ aberto, onFechar, onConcluir }: { aberto: b
               <button className={BOTAO_SEC} disabled={!arquivo || ocupado} onClick={analisar}>Analisar arquivo</button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Colunas reconhecidas pelo nome, em qualquer ordem. O preso é identificado pelo RJI ou, na falta dele, pelo nome junto com os processos informados. Processos cautelar, IP e ação penal são guardados separadamente; processo não cadastrado é criado só com o número e sinalizado para conferência. Presos ausentes da planilha e dados manuais não são alterados.
+              Colunas reconhecidas pelo nome, em qualquer ordem. O preso é identificado pelo RJI ou, na falta dele, pelo nome junto com os processos informados. Processos cautelar, IP e ação penal são guardados separadamente; processo não cadastrado é criado só com o número e sinalizado para conferência. Reimportações preservam tipo de prisão alterado manualmente e não reabrem prisão já encerrada sem uma nova data de prisão posterior ao encerramento. Dados de outros módulos e presos ausentes da planilha são preservados.
             </p>
             {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
 
