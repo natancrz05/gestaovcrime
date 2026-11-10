@@ -305,6 +305,21 @@ export function diasSemMovimentacao(p: ProcessoCompleto, hoje = hojeISO()): numb
   return u ? diasEntre(u.data, hoje) : null;
 }
 
+export function estadoAlertaSemMovimentacao(
+  p: ProcessoCompleto,
+  hoje = hojeISO(),
+  limiteDias = 100,
+) {
+  const contagem = estadoContagem100Dias(p);
+  const dias = diasSemMovimentacao(p, hoje);
+  return {
+    dias,
+    pausada: contagem.pausada,
+    motivoPausa: contagem.motivo,
+    emAlerta: !contagem.pausada && dias !== null && dias > limiteDias,
+  };
+}
+
 export function reuPrincipal(p: ProcessoCompleto): Reu | null {
   return [...p.reus].sort((a, b) => a.ordem - b.ordem)[0] ?? null;
 }
