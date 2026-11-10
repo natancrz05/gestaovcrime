@@ -162,8 +162,12 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
 
   const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes, uf, municipio);
   const memoriaCalculo: DiaDaMemoria[] = [];
+  let suspensos = 0;
+  let ignorados = 0;
   for (let inicio = proximoDia(dados.publicacao), i = 0; inicio < primeiroDia && i < 2000; inicio = proximoDia(inicio), i++) {
     const suspenso = (aplicaSuspensao && emSuspensaoGeral(inicio)) || emSuspensaoEspecifica(inicio, suspensoes);
+    ignorados++;
+    if (suspenso) suspensos++;
     memoriaCalculo.push({
       data: inicio,
       situacao: suspenso ? "suspenso" : "nao_contado",
@@ -172,8 +176,6 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   }
   let dia = primeiroDia;
   let contados = 0;
-  let suspensos = 0;
-  let ignorados = 0;
   let dataBruta = dia;
   for (let i = 0; i < 12000; i++) {
     const parado = (aplicaSuspensao && emSuspensaoGeral(dia)) || emSuspensaoEspecifica(dia, suspensoes);
