@@ -157,8 +157,8 @@ export function AssistenteChat() {
             </div>
           </div>
           <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            Disponível
+            <Bot className="size-3.5" />
+            Motor: ChatGPT
           </div>
         </div>
       </div>
