@@ -78,6 +78,27 @@ export async function salvarMensagemUsuario({
   erroHistorico(error);
 }
 
+export async function salvarRespostaAssistenteLocal({
+  id, conversaId, usuarioId, conteudo,
+}: {
+  id: string;
+  conversaId: string;
+  usuarioId: string;
+  conteudo: string;
+}) {
+  const { error } = await supabase
+    .from("assistente_mensagens")
+    .upsert({
+      id,
+      conversa_id: conversaId,
+      usuario_id: usuarioId,
+      papel: "assistant",
+      conteudo,
+      anexos: [],
+    }, { onConflict: "id", ignoreDuplicates: true });
+  erroHistorico(error);
+}
+
 export async function renomearConversaAssistente(conversaId: string, usuarioId: string, titulo: string) {
   const nome = titulo.trim().replace(/\s+/g, " ").slice(0, 120);
   if (!nome) throw new Error("Informe um título para a conversa.");
