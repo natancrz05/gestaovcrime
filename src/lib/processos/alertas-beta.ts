@@ -1,8 +1,8 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { diasEntre, hojeISO, type ProcessoCompleto } from "./modelo";
-import { somarMeses, type Comparecimento } from "./comparecimentos";
-import { tipoPrisaoDe } from "./importacao-reus";
+import { inadimplenciaCriticaComparecimento, type Comparecimento } from "./comparecimentos";
+import { estadoPrazoPreventiva, terminoPrisaoTemporaria, tipoPrisaoOperacional } from "./reus-presos";
 import { normalizarCorEtiqueta } from "./etiquetas-niveis";
 import { alertasDoProcesso, type EtiquetasPorProcesso } from "./prioridades";
 
@@ -203,31 +203,9 @@ function normalizarData(v: unknown): string | null {
   return iso;
 }
 
-function somarDiasISO(iso: string, dias: number): string {
-  const partes = iso.split("-").map(Number);
-  const a = partes[0];
-  const m = partes[1];
-  const d = partes[2];
-  if (a === undefined || m === undefined || d === undefined) {
-    throw new Error("Data ISO inválida.");
-  }
-  const dt = new Date(Date.UTC(a, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + dias);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-}
-
 function dataLocalDeTimestamp(timestamp: string): string {
   const d = new Date(timestamp);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function maiorData(datas: Array<string | null | undefined>): string | null {
-  const validas = datas.filter((d): d is string => Boolean(d)).sort();
-  return validas.length ? validas[validas.length - 1] ?? null : null;
-}
-
-function tipoCustodia(p: ReuPresoBeta) {
-  return p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
 }
 
 function origemDoAlerta(categoria: string): OrigemAtencaoBeta {
@@ -422,7 +400,13 @@ export function montarItensAtencaoBeta(params: {
     if (!preso.preso) continue;
     const numero = preso.processos?.numero ?? null;
     const dados = objeto(preso.dados_planilha);
-    const tipo = tipoCustodia(preso);
+    const dadosTexto = Object.fromEntries(
+      Object.entries(dados).filter((entrada): entrada is [string, string] => typeof entrada[1] === "string"),
+    );
+    const tipo = tipoPrisaoOperacional({
+      tipoPrisao: preso.tipo_prisao,
+      especieCautelar: preso.especie_cautelar,
+    });
 
     if (!preso.processo_id || !numero) {
       itens.push(
@@ -472,17 +456,14 @@ export function montarItensAtencaoBeta(params: {
     }
 
     if (tipo === "Prisão preventiva") {
-      const chavesBase = [
-        "Última reavaliação",
-        "Data da última reavaliação",
-        "Data da decisão da preventiva",
-        "Data da decisão preventiva",
-      ];
-      const dataPlanilha = maiorData(chavesBase.map((k) => normalizarData(dados[k])));
-      const dataHistorico = reavaliacoesPorReu.get(preso.id) ?? null;
-      const base = maiorData([dataHistorico, dataPlanilha]);
+      const estado = estadoPrazoPreventiva({
+        dataPrisao: preso.data_prisao,
+        ultimaReavaliacaoHistorico: reavaliacoesPorReu.get(preso.id) ?? null,
+        dadosPlanilha: dadosTexto,
+        hoje,
+      });
 
-      if (!base) {
+      if (!estado.limite || estado.diasRestantes === null) {
         itens.push(
           item({
             id: `preventiva-sem-base:${preso.id}`,
@@ -490,22 +471,25 @@ export function montarItensAtencaoBeta(params: {
             processoNumero: numero,
             pessoa: preso.nome,
             categoria: "Revisão da preventiva",
-            titulo: "Preventiva sem data-base confiável",
+            titulo: "Preventiva sem data da prisão ou reavaliação",
             descricao: auxiliares.reavaliacoesDisponiveis
-              ? "Não há decisão/reavaliação registrada que permita calcular com segurança o controle de 90 dias."
-              : "O histórico de reavaliações não pôde ser consultado e não há data-base confiável nos dados disponíveis.",
+              ? "Não há data da prisão nem reavaliação registrada para calcular o controle de 90 dias."
+              : "O histórico de reavaliações não pôde ser consultado e não há data da prisão disponível.",
             nivel: "conferir",
             origem: "Automático",
             modulo: "Presos Provisórios",
           }),
         );
       } else {
-        const limite = somarDiasISO(base, 90);
-        const dias = diasEntre(hoje, limite);
-        let nivel: NivelAtencaoBeta | null = null;
-        if (dias <= 0) nivel = "critico";
-        else if (dias <= 5) nivel = "urgente";
-        else if (dias <= 15) nivel = "atencao";
+        const dias = estado.diasRestantes;
+        const nivel: NivelAtencaoBeta | null =
+          estado.faixa === "vencida" || estado.faixa === "hoje"
+            ? "critico"
+            : estado.faixa === "ate-5"
+              ? "urgente"
+              : estado.faixa === "ate-15"
+                ? "atencao"
+                : null;
 
         if (nivel) {
           const descricao =
@@ -522,11 +506,11 @@ export function montarItensAtencaoBeta(params: {
               pessoa: preso.nome,
               categoria: "Revisão da preventiva",
               titulo: "Revisão da prisão preventiva",
-              descricao: `${descricao} Data-base utilizada: ${base}.`,
+              descricao: `${descricao} Referência operacional: ${estado.referenciaPrazo}.`,
               nivel,
               origem: "Automático",
               modulo: "Presos Provisórios",
-              dataLimite: limite,
+              dataLimite: estado.limite,
               diasRestantes: dias,
             }),
           );
@@ -535,12 +519,7 @@ export function montarItensAtencaoBeta(params: {
     }
 
     if (tipo === "Prisão temporária") {
-      const termino = maiorData([
-        normalizarData(dados["Término de eventual prazo"]),
-        normalizarData(dados["Termino de eventual prazo"]),
-        normalizarData(dados["Término do prazo"]),
-        normalizarData(dados["Termino do prazo"]),
-      ]);
+      const termino = terminoPrisaoTemporaria(dadosTexto);
       if (termino) {
         const dias = diasEntre(hoje, termino);
         let nivel: NivelAtencaoBeta | null = null;
@@ -612,18 +591,8 @@ export function montarItensAtencaoBeta(params: {
   }
 
   for (const comparecimento of comparecimentos) {
-    if (comparecimento.situacao === "Encerrado") continue;
-    const proximo = normalizarData(comparecimento.proximo);
-    if (!proximo || proximo >= hoje) continue;
-    const houveRegistroPosterior = comparecimento.comparecimento_registros.some((r) => {
-      const realizada = normalizarData(r.data_realizada);
-      return Boolean(realizada && realizada >= proximo);
-    });
-    if (houveRegistroPosterior) continue;
-
-    const disparo = somarMeses(proximo, 1);
-    if (hoje < disparo) continue;
-    const atraso = diasEntre(proximo, hoje);
+    const inadimplencia = inadimplenciaCriticaComparecimento(comparecimento, hoje);
+    if (!inadimplencia) continue;
 
     itens.push(
       item({
@@ -633,12 +602,12 @@ export function montarItensAtencaoBeta(params: {
         pessoa: comparecimento.pessoa,
         categoria: "Comparecimento não registrado",
         titulo: "Comparecimento sem registro após 1 mês de inadimplência",
-        descricao: `Comparecimento previsto para ${proximo}; não há registro posterior nem encerramento do acompanhamento.`,
+        descricao: `Comparecimento previsto para ${inadimplencia.proximo}; não há registro posterior nem encerramento do acompanhamento.`,
         nivel: "critico",
         origem: "Automático",
         modulo: "Comparecimentos",
-        dataLimite: proximo,
-        diasRestantes: -atraso,
+        dataLimite: inadimplencia.proximo,
+        diasRestantes: -inadimplencia.atraso,
       }),
     );
   }
