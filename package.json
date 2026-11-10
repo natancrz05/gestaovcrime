@@ -11,8 +11,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test:alertas": "bun test tests/agrupamento-alertas.test.ts tests/prioridades-manuais.test.ts tests/colisoes-audiencias.test.ts tests/central-audiencias.test.ts tests/certidao-comparecimento.test.ts tests/presos-provisorios.test.ts tests/comparecimentos-processo.test.ts",
-    "check": "bun run test:alertas && bun run build && bun run typecheck && bun run lint"
+    "test": "bun test tests",
+    "test:alertas": "bun test tests",
+    "check": "bun run test && bun run build && bun run typecheck && bun run lint"
   },
   "overrides": {
     "rolldown": "1.2.1"
