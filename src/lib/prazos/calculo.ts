@@ -6,6 +6,8 @@
  * Calendário TJBA 2026: Decreto Judiciário 1.050/2025;
  * feriados locais: Decreto Judiciário 09/2026 (Coração de Maria).
  */
+import { ESTADOS_BRASIL, municipiosDaUf } from "./localidades-brasil";
+
 export type MateriaPrazo = "civil" | "penal" | "jec_civil" | "jec_criminal";
 export type ExcecaoRecesso = "nenhuma" | "reu_preso" | "maria_penha" | "urgente";
 export type TipoContagem = "uteis" | "corridos";
@@ -14,12 +16,16 @@ export interface DadosPrazo {
   publicacao: string; // Data efetiva de publicação (YYYY-MM-DD), não disponibilização.
   prazoDias: number;
   materia: MateriaPrazo;
+  uf?: string;
+  municipio?: string;
   excecaoRecesso?: ExcecaoRecesso;
   diasSemExpediente?: string[];
   suspensoesEspecificas?: { inicio: string; fim: string }[];
 }
 
 export interface ResultadoPrazo {
+  uf: string;
+  municipio: string;
   publicacao: string;
   primeiroDia: string;
   vencimentoCalculado: string;
@@ -49,6 +55,12 @@ const FERIADOS_TJBA_2026 = new Set([
   "2026-12-30", "2026-12-31",
 ]);
 
+// Datas nacionais fixas; feriados móveis e atos locais precisam do calendário do tribunal.
+const FERIADOS_NACIONAIS_FIXOS = new Set([
+  "01-01", "04-21", "05-01", "09-07", "10-12", "11-02",
+  "11-15", "11-20", "12-25",
+]);
+
 const FERIADOS_CORACAO_DE_MARIA_2026 = new Set([
   "2026-06-01", "2026-06-29", "2026-08-22",
 ]);
@@ -76,14 +88,15 @@ function eFimDeSemana(iso: string) {
 function dentro(iso: string, inicio: string, fim: string) {
   return iso >= inicio && iso <= fim;
 }
-function feriadoOuRecesso(iso: string, adicionais: Set<string>) {
+function feriadoOuRecesso(iso: string, adicionais: Set<string>, uf: string, municipio: string) {
   const mesDia = iso.slice(5);
   // Período tradicional de recesso judiciário (20/12 a 06/01).
   // O calendário anual deve ser conferido com os decretos do exercício.
   return (
     eFimDeSemana(iso) ||
-    FERIADOS_TJBA_2026.has(iso) ||
-    FERIADOS_CORACAO_DE_MARIA_2026.has(iso) ||
+    FERIADOS_NACIONAIS_FIXOS.has(mesDia) ||
+    (uf === "BA" && FERIADOS_TJBA_2026.has(iso)) ||
+    (uf === "BA" && municipio === "Coração de Maria" && FERIADOS_CORACAO_DE_MARIA_2026.has(iso)) ||
     adicionais.has(iso) ||
     mesDia >= "12-20" ||
     mesDia <= "01-06"
@@ -96,10 +109,10 @@ function emSuspensaoGeral(iso: string) {
 function emSuspensaoEspecifica(iso: string, periodos: { inicio: string; fim: string }[]) {
   return periodos.some(({ inicio, fim }) => dentro(iso, inicio, fim));
 }
-function primeiroUtilApos(iso: string, feriados: Set<string>, aplicaSuspensao: boolean, suspensoes: {inicio:string;fim:string}[]) {
+function primeiroUtilApos(iso: string, feriados: Set<string>, aplicaSuspensao: boolean, suspensoes: {inicio:string;fim:string}[], uf: string, municipio: string) {
   let dia = proximoDia(iso);
   for (let i = 0; i < 2000; i++) {
-    if (!feriadoOuRecesso(dia, feriados) &&
+    if (!feriadoOuRecesso(dia, feriados, uf, municipio) &&
         !(aplicaSuspensao && emSuspensaoGeral(dia)) &&
         !emSuspensaoEspecifica(dia, suspensoes)) return dia;
     dia = proximoDia(dia);
@@ -109,6 +122,10 @@ function primeiroUtilApos(iso: string, feriados: Set<string>, aplicaSuspensao: b
 
 export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   dataUTC(dados.publicacao);
+  const uf = dados.uf ?? "BA";
+  const municipio = dados.municipio ?? "Coração de Maria";
+  if (!ESTADOS_BRASIL.some((estado) => estado.sigla === uf)) throw new Error("Estado inválido.");
+  if (!municipiosDaUf(uf).includes(municipio)) throw new Error("Selecione um município válido para o estado.");
   const prazo = dados.prazoDias;
   if (!Number.isInteger(prazo) || prazo < 1 || prazo > 3650)
     throw new Error("O prazo deve ter entre 1 e 3.650 dias.");
@@ -132,7 +149,7 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
       ? "Lei 9.099/1995, art. 12-A" + (penal ? "; CPP, art. 798-A" : "; CPC, art. 220")
       : "CPC, arts. 219, 220 e 224";
 
-  const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes);
+  const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes, uf, municipio);
   let dia = primeiroDia;
   let contados = 0;
   let suspensos = 0;
@@ -140,7 +157,7 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   let dataBruta = dia;
   for (let i = 0; i < 12000; i++) {
     const parado = (aplicaSuspensao && emSuspensaoGeral(dia)) || emSuspensaoEspecifica(dia, suspensoes);
-    const ehUtil = !feriadoOuRecesso(dia, feriados);
+    const ehUtil = !feriadoOuRecesso(dia, feriados, uf, municipio);
     const contabiliza = !parado && (contagem === "corridos" || ehUtil);
     if (contabiliza) {
       contados++;
@@ -154,7 +171,7 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   }
   let vencimento = dataBruta;
   for (let i = 0; i < 2000; i++) {
-    if (!feriadoOuRecesso(vencimento, feriados) &&
+    if (!feriadoOuRecesso(vencimento, feriados, uf, municipio) &&
         !(aplicaSuspensao && emSuspensaoGeral(vencimento)) &&
         !emSuspensaoEspecifica(vencimento, suspensoes)) break;
     vencimento = proximoDia(vencimento);
@@ -166,13 +183,24 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
   if (inicioAno !== 2026 || fimAno !== 2026) {
     avisoCalendario.push("O calendário oficial de feriados locais e do TJBA está parametrizado somente para 2026. Verifique outros anos e inclua datas de suspensão adicionais.");
   }
-  if (penal && excecao)
-    avisoCalendario.push("Exceção ao recesso do art. 798-A do CPP selecionada. Confirme no caso concreto que se trata de réu preso vinculado à prisão, Lei Maria da Penha ou medida urgente fundamentada.");
+  if (uf !== "BA") {
+    avisoCalendario.push("O tribunal configurado é o TJBA (1º grau), mas a localidade escolhida é de outra UF. O calendário próprio desse estado e seus feriados móveis ou municipais NÃO foram carregados; foram considerados somente os feriados nacionais fixos e os dias extras informados. Confira a jurisdição e as datas oficiais antes de utilizar o resultado.");
+  } else if (municipio !== "Coração de Maria") {
+    avisoCalendario.push("Os feriados específicos de " + municipio + " não estão cadastrados. O calendário base TJBA 2026 e feriados nacionais são considerados; inclua feriados municipais e suspensões locais em Datas sem expediente.");
+  }
+  if (penal) {
+    avisoCalendario.push("O art. 798-A do CPP excepciona a suspensão do recesso para processos vinculados à prisão de réus presos, procedimentos da Lei Maria da Penha e medidas urgentes fundamentadas. Sem identificação do tipo concreto nos autos, a calculadora aplica a suspensão como padrão.");
+  }
+  if (penal && excecao) {
+    avisoCalendario.push("Exceção legal do art. 798-A considerada mediante parâmetro técnico; confirme nos autos o enquadramento e o fundamento.");
+  }
   const observacoes = [
     "A data indicada deve ser a PUBLICAÇÃO EFETIVA, não a disponibilização do DJE. Para consulta de intimação eletrônica, vista pessoal e outros atos, confirme a data legal de ciência.",
     "O vencimento calculado é uma previsão administrativa; confira movimentações, decisões de suspensão e eventuais alterações no calendário oficial da unidade.",
   ];
   return {
+    uf,
+    municipio,
     publicacao: dados.publicacao,
     primeiroDia,
     vencimentoCalculado: dataBruta,
