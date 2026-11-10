@@ -45,8 +45,8 @@ jobs:
         run: bun run test
       - name: Compilar e regenerar tipos das rotas TanStack
         run: bun run build
-      - name: Diagnóstico da árvore de rotas gerada
-        run: git diff -- src/routeTree.gen.ts
+      - name: Confirmar árvore de rotas sincronizada
+        run: git diff --exit-code -- src/routeTree.gen.ts
       - name: Verificar tipagem TypeScript
         run: bun run typecheck
       - name: Lint
