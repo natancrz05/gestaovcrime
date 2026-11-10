@@ -30,52 +30,95 @@ function MarkdownResposta({ texto }: { texto: string }) {
   const linhas = texto.replace(/\r\n/g, "\n").split("\n");
   const blocos: ReactNode[] = [];
   let listaAtual: { texto: string; numerada: boolean }[] = [];
+  let codigo: string[] | null = null;
+  let linguagem = "";
 
   const descarregarLista = () => {
-    const primeiroItem = listaAtual[0];
-    if (!primeiroItem) return;
-    const numerada = primeiroItem.numerada;
-    const Tag = numerada ? "ol" : "ul";
+    const primeiro = listaAtual[0];
+    if (!primeiro) return;
+    const Tag = primeiro.numerada ? "ol" : "ul";
     blocos.push(
-      <Tag key={"lista-" + blocos.length} className={cn("my-2 space-y-1.5 pl-5", numerada ? "list-decimal" : "list-disc")}>
-        {listaAtual.map((item, index) => <li key={index} className="pl-1">{renderInlineMarkdown(item.texto)}</li>)}
+      <Tag key={"lista-" + blocos.length} className={cn("my-2 space-y-1 pl-5", primeiro.numerada ? "list-decimal" : "list-disc")}>
+        {listaAtual.map((item, index) => <li key={index} className="pl-0.5">{renderInlineMarkdown(item.texto)}</li>)}
       </Tag>,
     );
     listaAtual = [];
   };
 
-  linhas.forEach((linha, index) => {
+  const descarregarCodigo = () => {
+    if (codigo === null) return;
+    blocos.push(
+      <div key={"codigo-" + blocos.length} className="my-3 min-w-0 overflow-hidden rounded-lg border border-border bg-muted/40">
+        {linguagem ? <div className="border-b border-border px-3 py-1 text-[11px] text-muted-foreground">{linguagem}</div> : null}
+        <pre className="overflow-x-auto p-3 text-xs leading-5"><code>{codigo.join("\n")}</code></pre>
+      </div>,
+    );
+    codigo = null;
+    linguagem = "";
+  };
+
+  for (const [index, linha] of linhas.entries()) {
+    const cerca = linha.match(/^\s*\x60{3}(.*)$/);
+    if (cerca) {
+      if (codigo !== null) descarregarCodigo();
+      else {
+        descarregarLista();
+        codigo = [];
+        linguagem = (cerca[1] ?? "").trim().slice(0, 30);
+      }
+      continue;
+    }
+    if (codigo !== null) {
+      codigo.push(linha);
+      continue;
+    }
+
     const lista = linha.match(/^\s*(?:[-*•])\s+(.+)$/);
     const numerada = linha.match(/^\s*\d+[.)]\s+(.+)$/);
     if (lista || numerada) {
-      const item = lista ?? numerada;
-      const isNumerada = Boolean(numerada);
-      if (listaAtual[0] && listaAtual[0].numerada !== isNumerada) descarregarLista();
-      const textoItem = item?.[1];
-      if (!textoItem) return;
-      listaAtual.push({ texto: textoItem, numerada: isNumerada });
-      return;
+      const atual = lista ?? numerada;
+      const numero = Boolean(numerada);
+      if (listaAtual[0] && listaAtual[0].numerada !== numero) descarregarLista();
+      if (atual?.[1]) listaAtual.push({ texto: atual[1], numerada: numero });
+      continue;
     }
     descarregarLista();
+
     if (!linha.trim()) {
       blocos.push(<div key={"espaco-" + index} className="h-2" />);
-      return;
+      continue;
     }
+
     const titulo = linha.match(/^\s*(#{1,3})\s+(.+)$/);
-    if (titulo) {
-      const marcadores = titulo[1];
-      const textoTitulo = titulo[2];
-      if (!marcadores || !textoTitulo) return;
-      const nivel = marcadores.length;
-      const classes = nivel === 1 ? "mt-4 text-base font-semibold tracking-tight" : nivel === 2 ? "mt-3 text-[15px] font-semibold tracking-tight" : "mt-2 text-sm font-semibold";
-      blocos.push(<div key={"titulo-" + index} className={classes}>{renderInlineMarkdown(textoTitulo)}</div>);
-      return;
+    if (titulo?.[1] && titulo[2]) {
+      const nivel = titulo[1].length;
+      const classe = nivel === 1 ? "mt-3 text-base font-semibold" : nivel === 2 ? "mt-2.5 text-sm font-semibold" : "mt-2 text-sm font-medium";
+      blocos.push(<div key={"titulo-" + index} className={classe}>{renderInlineMarkdown(titulo[2])}</div>);
+      continue;
     }
-    blocos.push(<p key={"paragrafo-" + index} className="leading-6">{renderInlineMarkdown(linha)}</p>);
-  });
+
+    const citado = linha.match(/^\s*>\s?(.+)$/);
+    if (citado?.[1]) {
+      blocos.push(
+        <blockquote key={"citacao-" + index} className="my-2 border-l-2 border-primary/40 pl-3 text-muted-foreground">
+          {renderInlineMarkdown(citado[1])}
+        </blockquote>,
+      );
+      continue;
+    }
+
+    blocos.push(
+      <p key={"paragrafo-" + index} className="whitespace-pre-wrap break-words leading-6">
+        {renderInlineMarkdown(linha)}
+      </p>,
+    );
+  }
+
   descarregarLista();
-  return <div className="space-y-1">{blocos}</div>;
+  descarregarCodigo();
+  return <div className="min-w-0 space-y-1">{blocos}</div>;
 }
+
 const SUGESTOES = [
   {
     icon: FileText,
