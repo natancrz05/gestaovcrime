@@ -108,9 +108,9 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
       : null;
     const mensagensContextualizadas = data.messages.map((mensagem) => ({ ...mensagem }));
     if (data.tipoAnalise) {
-      const indice = mensagensContextualizadas.findLastIndex((mensagem) => mensagem.role === "user");
+      const indice = mensagensContextualizadas.length - 1 - [...mensagensContextualizadas].reverse().findIndex((mensagem) => mensagem.role === "user");
       const mensagem = mensagensContextualizadas[indice];
-      if (mensagem) {
+      if (indice >= 0 && indice < mensagensContextualizadas.length && mensagem) {
         mensagensContextualizadas[indice] = {
           ...mensagem,
           content: [
