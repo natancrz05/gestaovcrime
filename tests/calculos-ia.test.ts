@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { medirIntervalo } from "../src/lib/prazos/intervalos";
 import { executarMedicaoIntervalo } from "../src/lib/assistente-intervalos";
 import { indexarReferenciasPdf } from "../src/lib/prazos/triagem-documental";
+import { conferirPrazoTemporaria } from "../src/lib/prazos/temporaria";
+import { executarPrazoTemporaria } from "../src/lib/assistente-temporaria";
+import { ORIENTACAO_REVISAO_PRISAO, MODALIDADES_PRISAO, orientacaoPorModalidade } from "../src/lib/prazos/revisao-prisao";
 
 describe("Medição determinística de intervalos", () => {
   test("mede período de dias sem converter em prescrição", () => {
@@ -42,7 +45,7 @@ describe("Medição determinística de intervalos", () => {
 
   test("marco de 90 dias é referência, não soltura automática", () => {
     const result = executarMedicaoIntervalo({
-      inicio: "2026-08-12", fim: "2026-11-10", calcularMarco90: true,
+      inicio: "2026-08-12", fim: "2026-11-10", calcularMarco90: true, modalidadePrisao: "preventiva",
     });
     expect(result.marco90Dias).toBe("2026-11-10");
     expect(result.diasAteMarco90).toBe(0);
@@ -86,5 +89,71 @@ describe("Triagem de PDF e IDs", () => {
     const indice = indexarReferenciasPdf("[Página 1]\nTexto jurídico sem data e sem identificadores.");
     expect(indice.ids).toHaveLength(0);
     expect(indice.datas).toHaveLength(0);
+  });
+});
+
+describe("Revisão de prisão provisória", () => {
+  test("oferece identificação por documentos, preventiva, temporária, flagrante e outra modalidade", () => {
+    expect(MODALIDADES_PRISAO.map((m) => m.valor))
+      .toEqual(["identificar", "preventiva", "temporaria", "flagrante", "outra"]);
+    expect(ORIENTACAO_REVISAO_PRISAO).toContain("FLAGRANTE");
+    expect(ORIENTACAO_REVISAO_PRISAO).toContain("TEMPORÁRIA");
+    expect(ORIENTACAO_REVISAO_PRISAO).toContain("PREVENTIVA");
+    expect(orientacaoPorModalidade("identificar")).toContain("Não calcule automaticamente a revisão de 90 dias");
+    expect(orientacaoPorModalidade("temporaria")).toContain("Não aplique a revisão de 90 dias");
+    expect(orientacaoPorModalidade("flagrante")).toContain("Não aplique 90 dias");
+  });
+
+  test("marco de 90 dias não é calculado para temporária e flagrante", () => {
+    for (const modalidadePrisao of ["temporaria", "flagrante", "outra", "indefinida"] as const) {
+      expect(() => executarMedicaoIntervalo({
+        inicio: "2026-08-12", fim: "2026-11-10", calcularMarco90: true, modalidadePrisao,
+      })).toThrow(/exclusiva de prisão preventiva/);
+    }
+    expect(() => executarMedicaoIntervalo({
+      inicio: "2026-08-12", fim: "2026-11-10", calcularMarco90: true,
+    })).toThrow(/exclusiva de prisão preventiva/);
+  });
+
+  test("intervalos comuns podem ser medidos sem disparar alerta de 90 dias", () => {
+    const r = executarMedicaoIntervalo({
+      inicio: "2026-11-04", fim: "2026-11-10", modalidadePrisao: "flagrante",
+    });
+    expect(r.diasCorridos).toBe(6);
+    expect(r.marco90Dias).toBeUndefined();
+  });
+
+  test("temporária conta o cumprimento como primeiro dia (art. 2º, § 8º)", () => {
+    const r = conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-10", prazoDiasMandado: 5, dataReferencia: "2026-11-13",
+      dataLibertacaoMandado: "2026-11-14",
+    });
+    expect(r.dataLimitePorContagemInclusiva).toBe("2026-11-14");
+    expect(r.diasDeCumprimentoAteReferencia).toBe(4);
+    expect(r.divergenciaComDataDoMandado).toBe(false);
+    expect(r.diasAteDataLimiteCalculada).toBe(1);
+  });
+
+  test("compara data de libertação informada no mandado sem alterar a data legal", () => {
+    const r = executarPrazoTemporaria({
+      modalidadePrisao: "temporaria", dataCumprimento: "2026-11-10",
+      prazoDiasMandado: 30, dataReferencia: "2026-11-15",
+      dataLibertacaoMandado: "2026-12-10",
+    });
+    expect(r.dataLimitePorContagemInclusiva).toBe("2026-12-09");
+    expect(r.divergenciaComDataDoMandado).toBe(true);
+  });
+
+  test("cálculo de temporária bloqueia tipo incorreto, prazo e datas inválidos", () => {
+    expect(() => executarPrazoTemporaria({
+      modalidadePrisao: "flagrante", dataCumprimento: "2026-11-10",
+      prazoDiasMandado: 5, dataReferencia: "2026-11-11",
+    })).toThrow();
+    expect(() => conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-10", prazoDiasMandado: 0, dataReferencia: "2026-11-11",
+    })).toThrow();
+    expect(() => conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-31", prazoDiasMandado: 5, dataReferencia: "2026-12-03",
+    })).toThrow();
   });
 });
