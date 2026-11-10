@@ -97,7 +97,7 @@ function eFimDeSemana(iso: string) {
 function dentro(iso: string, inicio: string, fim: string) {
   return iso >= inicio && iso <= fim;
 }
-function feriadoOuRecesso(iso: string, adicionais: Set<string>, uf: string, municipio: string) {
+function feriadoOuRecesso(iso: string, adicionais: Set<string>, uf: string, municipio: string, ignorarRecesso = false) {
   const mesDia = iso.slice(5);
   // Período tradicional de recesso judiciário (20/12 a 06/01).
   // O calendário anual deve ser conferido com os decretos do exercício.
@@ -107,8 +107,7 @@ function feriadoOuRecesso(iso: string, adicionais: Set<string>, uf: string, muni
     (uf === "BA" && FERIADOS_TJBA_2026.has(iso)) ||
     (uf === "BA" && municipio === "Coração de Maria" && FERIADOS_CORACAO_DE_MARIA_2026.has(iso)) ||
     adicionais.has(iso) ||
-    mesDia >= "12-20" ||
-    mesDia <= "01-06"
+    (!ignorarRecesso && (mesDia >= "12-20" || mesDia <= "01-06"))
   );
 }
 function emSuspensaoGeral(iso: string) {
@@ -118,10 +117,10 @@ function emSuspensaoGeral(iso: string) {
 function emSuspensaoEspecifica(iso: string, periodos: { inicio: string; fim: string }[]) {
   return periodos.some(({ inicio, fim }) => dentro(iso, inicio, fim));
 }
-function primeiroUtilApos(iso: string, feriados: Set<string>, aplicaSuspensao: boolean, suspensoes: {inicio:string;fim:string}[], uf: string, municipio: string) {
+function primeiroUtilApos(iso: string, feriados: Set<string>, aplicaSuspensao: boolean, suspensoes: {inicio:string;fim:string}[], uf: string, municipio: string, ignorarRecessoNoInicio = false) {
   let dia = proximoDia(iso);
   for (let i = 0; i < 2000; i++) {
-    if (!feriadoOuRecesso(dia, feriados, uf, municipio) &&
+    if (!feriadoOuRecesso(dia, feriados, uf, municipio, ignorarRecessoNoInicio) &&
         !(aplicaSuspensao && emSuspensaoGeral(dia)) &&
         !emSuspensaoEspecifica(dia, suspensoes)) return dia;
     dia = proximoDia(dia);
@@ -160,7 +159,10 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
         ? "Lei 9.099/1995, art. 12-A; CPC, arts. 220 e 224"
         : "CPC, arts. 219, 220 e 224";
 
-  const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes, uf, municipio);
+  // Art. 798-A CPP: nas exceções legais o recesso não impede o curso do prazo.
+  // Contudo, o vencimento em dia sem expediente continua sujeito à prorrogação
+  // (CPP art. 798, § 3º). Distinguimos o TERMO INICIAL da DATA FINAL.
+  const primeiroDia = primeiroUtilApos(dados.publicacao, feriados, aplicaSuspensao, suspensoes, uf, municipio, excecao);
   const memoriaCalculo: DiaDaMemoria[] = [];
   let suspensos = 0;
   let ignorados = 0;
@@ -234,7 +236,7 @@ export function calcularPrazoProcessual(dados: DadosPrazo): ResultadoPrazo {
     avisoCalendario.push("O art. 798-A do CPP excepciona a suspensão do recesso para processos vinculados à prisão de réus presos, procedimentos da Lei Maria da Penha e medidas urgentes fundamentadas. Sem identificação do tipo concreto nos autos, a calculadora aplica a suspensão como padrão.");
   }
   if (penal && excecao) {
-    avisoCalendario.push("Exceção legal do art. 798-A considerada mediante parâmetro técnico; confirme nos autos o enquadramento e o fundamento.");
+    avisoCalendario.push("Exceção legal do art. 798-A considerada mediante parâmetro técnico: o curso do prazo NÃO é suspenso pelo recesso, mas eventual vencimento em dia sem expediente é prorrogado até o primeiro dia útil, observado o calendário do juízo. Confira enquadramento e intimação no caso concreto.");
   }
   const observacoes = [
     "A data indicada deve ser a PUBLICAÇÃO EFETIVA, não a disponibilização do DJE. Para consulta de intimação eletrônica, vista pessoal e outros atos, confirme a data legal de ciência.",
