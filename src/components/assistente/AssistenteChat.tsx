@@ -10,17 +10,17 @@ function renderInlineMarkdown(texto: string): ReactNode[] {
 
   return partes.map((parte, index) => {
     if ((parte.startsWith("**") && parte.endsWith("**")) || (parte.startsWith("__") && parte.endsWith("__"))) {
-      return <strong key={index} className="font-semibold text-foreground">{parte.slice(2, -2)}</strong>;
+      return <strong key={index} className="font-semibold">{parte.slice(2, -2)}</strong>;
     }
     if ((parte.startsWith("*") && parte.endsWith("*")) || (parte.startsWith("_") && parte.endsWith("_"))) {
       return <em key={index}>{parte.slice(1, -1)}</em>;
     }
     if (parte.startsWith("`") && parte.endsWith("`")) {
-      return <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground">{parte.slice(1, -1)}</code>;
+      return <code key={index} className="rounded border border-current/20 px-1.5 py-0.5 font-mono text-[0.9em]">{parte.slice(1, -1)}</code>;
     }
     const link = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link && /^https?:\/\//i.test(link[2] ?? "")) {
-      return <a key={index} href={link[2]} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">{link[1]}</a>;
+      return <a key={index} href={link[2]} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2 hover:opacity-80">{link[1]}</a>;
     }
     return <Fragment key={index}>{parte}</Fragment>;
   });
@@ -49,7 +49,7 @@ function MarkdownResposta({ texto }: { texto: string }) {
     if (codigo === null) return;
     blocos.push(
       <div key={"codigo-" + blocos.length} className="my-3 min-w-0 overflow-hidden rounded-lg border border-border bg-muted/40">
-        {linguagem ? <div className="border-b border-border px-3 py-1 text-[11px] text-muted-foreground">{linguagem}</div> : null}
+        {linguagem ? <div className="border-b border-border px-3 py-1 text-[11px] opacity-70">{linguagem}</div> : null}
         <pre className="overflow-x-auto p-3 text-xs leading-5"><code>{codigo.join("\n")}</code></pre>
       </div>,
     );
@@ -100,7 +100,7 @@ function MarkdownResposta({ texto }: { texto: string }) {
     const citado = linha.match(/^\s*>\s?(.+)$/);
     if (citado?.[1]) {
       blocos.push(
-        <blockquote key={"citacao-" + index} className="my-2 border-l-2 border-primary/40 pl-3 text-muted-foreground">
+        <blockquote key={"citacao-" + index} className="my-2 border-l-2 border-current/30 pl-3 opacity-80">
           {renderInlineMarkdown(citado[1])}
         </blockquote>,
       );
