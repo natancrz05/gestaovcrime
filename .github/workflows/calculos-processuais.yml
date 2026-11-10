@@ -43,6 +43,10 @@ jobs:
         run: bun test tests/prazos-processuais.test.ts tests/calculos-ia.test.ts
       - name: Testes completos do repositório
         run: bun run test
+      - name: Compilar e regenerar tipos das rotas TanStack
+        run: bun run build
+      - name: Diagnóstico da árvore de rotas gerada
+        run: git diff -- src/routeTree.gen.ts
       - name: Verificar tipagem TypeScript
         run: bun run typecheck
       - name: Lint
