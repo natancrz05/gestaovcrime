@@ -10,7 +10,7 @@ import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
 import { somarDiasISO, TIPOS_CUSTODIA_OPERACIONAIS } from "@/lib/processos/reus-presos";
 
-export const TIPOS_CUSTODIA = [...TIPOS_CUSTODIA_OPERACIONAIS];
+export const TIPOS_CUSTODIA: string[] = [...TIPOS_CUSTODIA_OPERACIONAIS];
 
 export interface ReuEditavel {
   id: string; processo_id: string | null; nome: string; situacao: string; tipo_prisao: string; data_prisao: string | null;
