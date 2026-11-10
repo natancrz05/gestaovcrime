@@ -68,32 +68,6 @@ async function extrairPdf(file: File): Promise<Omit<ArquivoExtraido, "id">> {
   };
 }
 
-export async function extrairArquivoAssistente(file: File): Promise<ArquivoExtraido> {
-  if (file.size > LIMITE_ARQUIVO_BYTES) {
-    throw new Error("O arquivo excede 60 MB. Divida-o em partes menores antes de anexar.");
-  }
-
-  const nome = file.name.toLowerCase();
-  const pdf = file.type === "application/pdf" || nome.endsWith(".pdf");
-  const texto =
-    file.type.startsWith("text/") ||
-    nome.endsWith(".txt") ||
-    nome.endsWith(".md") ||
-    nome.endsWith(".csv");
-
-  if (!pdf && !texto) {
-    throw new Error("Formato não suportado. Envie PDF, TXT, MD ou CSV.");
-  }
-
-  const extraido = pdf
-    ? await extrairPdf(file)
-    : (() => {
-        throw new Error("leitura_texto_pendente");
-      })();
-
-  return { id: crypto.randomUUID(), ...extraido };
-}
-
 export async function extrairArquivoTexto(file: File): Promise<ArquivoExtraido> {
   if (file.size > LIMITE_ARQUIVO_BYTES) {
     throw new Error("O arquivo excede 60 MB. Divida-o em partes menores antes de anexar.");
