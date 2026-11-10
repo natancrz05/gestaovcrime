@@ -8,8 +8,9 @@ import { SeletorProcesso } from "./SeletorProcesso";
 import { supabase } from "@/integrations/supabase/client";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
+import { somarDiasISO, TIPOS_CUSTODIA_OPERACIONAIS } from "@/lib/processos/reus-presos";
 
-export const TIPOS_CUSTODIA = ["Prisão preventiva", "Prisão temporária", "Prisão em flagrante", "Outra"];
+export const TIPOS_CUSTODIA = [...TIPOS_CUSTODIA_OPERACIONAIS];
 
 export interface ReuEditavel {
   id: string; processo_id: string | null; nome: string; situacao: string; tipo_prisao: string; data_prisao: string | null;
@@ -19,13 +20,6 @@ export interface ReuEditavel {
 const CHAVE_PRAZO_TEMPORARIA = "Prazo da prisão temporária (dias)";
 const CHAVE_TERMINO_TEMPORARIA = "Término de eventual prazo";
 const BTN = "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium disabled:opacity-50";
-
-function somarDiasISO(iso: string, dias: number): string {
-  const [ano, mes, dia] = iso.split("-").map(Number);
-  const data = new Date(Date.UTC(ano!, mes! - 1, dia!));
-  data.setUTCDate(data.getUTCDate() + dias);
-  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}-${String(data.getUTCDate()).padStart(2, "0")}`;
-}
 
 export function FormReuPreso({ reu, aberto, onFechar, onSalvo }: { reu: ReuEditavel | null; aberto: boolean; onFechar: () => void; onSalvo: () => void }) {
   const queryClient = useQueryClient();
