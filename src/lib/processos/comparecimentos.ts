@@ -202,6 +202,31 @@ export function somarMeses(iso: string, n = 1): string {
 }
 export const somarMes = (iso: string) => somarMeses(iso, 1);
 
+export function inadimplenciaCriticaComparecimento(
+  comparecimento: Pick<Comparecimento, "situacao" | "proximo" | "comparecimento_registros">,
+  hoje = hojeISO(),
+): { proximo: string; disparo: string; atraso: number } | null {
+  if (comparecimento.situacao === "Encerrado") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(comparecimento.proximo)) return null;
+  if (situacaoPorData(comparecimento.proximo, hoje) !== "vencido") return null;
+
+  const houveRegistroPosterior = comparecimento.comparecimento_registros.some(
+    (registro) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(registro.data_realizada) &&
+      registro.data_realizada >= comparecimento.proximo,
+  );
+  if (houveRegistroPosterior) return null;
+
+  const disparo = somarMeses(comparecimento.proximo, 1);
+  if (hoje < disparo) return null;
+
+  return {
+    proximo: comparecimento.proximo,
+    disparo,
+    atraso: diasEntre(comparecimento.proximo, hoje),
+  };
+}
+
 export interface ComparecimentoEntrada {
   processo_id: string;
   pessoa: string;
