@@ -220,7 +220,7 @@ export function ImportarPautaAudiencias({
           <div className="rounded-md border border-border bg-muted/20 p-4">
             <p className="text-sm font-medium">Selecione o PDF da pauta de audiências</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              A leitura é feita antes de qualquer gravação. Processos e audiências existentes são reaproveitados; quando a mesma audiência reaparece em pauta posterior, os dados atuais do PJe atualizam o cadastro existente.
+              A leitura é feita antes de qualquer gravação. Processos e audiências existentes são reaproveitados; quando a mesma audiência reaparece em pauta posterior, os dados atuais do PJe atualizam o cadastro existente. Situações finais (realizada, cancelada, não realizada ou convertida em diligência) não são reabertas pela importação, e observações manuais são preservadas.
             </p>
             <input
               ref={inputRef}
