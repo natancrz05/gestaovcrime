@@ -187,6 +187,7 @@ function CalculadoraManual() {
                           <CommandItem key={uf.sigla} value={uf.sigla} onSelect={() => {
                             setEstado(uf.sigla);
                             setMunicipio(uf.sigla === "BA" ? "Coração de Maria" : "");
+                            setExtras([]);
                             setBuscaMunicipio("");
                             setResultado(null);
                             setEstadoAberto(false);
@@ -219,6 +220,7 @@ function CalculadoraManual() {
                         {municipiosFiltrados.map((nome) => (
                           <CommandItem key={nome} value={nome} onSelect={() => {
                             setMunicipio(nome);
+                            setExtras([]);
                             setResultado(null);
                             setMunicipioAberto(false);
                           }}>
@@ -265,7 +267,7 @@ function CalculadoraManual() {
                     </PopoverTrigger>
                     <PopoverContent align="start" className="w-auto max-w-[95vw] p-3">
                       <p className="mb-2 text-xs text-muted-foreground">Clique nos dias sem expediente para selecionar ou retirar.</p>
-                      <Calendar mode="multiple" selected={extras.map(deIsoParaDataLocal)} onSelect={(datas) => {
+                      <Calendar mode="multiple" captionLayout="dropdown" startMonth={new Date(2000, 0)} endMonth={new Date(2050, 11)} selected={extras.map(deIsoParaDataLocal)} onSelect={(datas) => {
                         setExtras((datas ?? []).map(deDataLocalParaIso).sort());
                         setResultado(null);
                       }} />
