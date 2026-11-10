@@ -245,7 +245,7 @@ export function AssistenteChat() {
       }
     }
     void iniciar();
-    return () => { ativo = false; ++cargaRef.current; };
+    return () => { ativo = false; };
   }, [sessao.id, chaveSessao]);
 
   const atualizarLista = async () => {
