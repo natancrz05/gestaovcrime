@@ -34,5 +34,10 @@ const Entrada = z.object({
 
 export function executarPrazoTemporaria(argumentos: Record<string, unknown>) {
   const dados = Entrada.parse(argumentos);
-  return conferirPrazoTemporaria(dados);
+  return conferirPrazoTemporaria({
+    dataCumprimento: dados.dataCumprimento,
+    prazoDiasMandado: dados.prazoDiasMandado,
+    dataReferencia: dados.dataReferencia,
+    ...(dados.dataLibertacaoMandado !== undefined ? { dataLibertacaoMandado: dados.dataLibertacaoMandado } : {}),
+  });
 }
