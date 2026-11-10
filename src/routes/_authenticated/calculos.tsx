@@ -6,7 +6,7 @@ import { calcularPrazoProcessual, type DadosPrazo, type ExcecaoRecesso, type Mat
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
 import { criarConversaAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
-import { useSessao } from "@/lib/sessao";
+import { usePode, useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/calculos")({
@@ -377,6 +377,7 @@ function CalculadoraIA() {
 
 function PaginaCalculos() {
   const [aba, setAba] = useState<Aba>("manual");
+  const podeUsarAssistente = usePode("usar-assistente");
   return (
     <div className="space-y-5">
       <div>
@@ -388,11 +389,11 @@ function PaginaCalculos() {
         <button type="button" onClick={() => setAba("manual")} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium", aba === "manual" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
           <CalendarDays className="size-4" /> Calculadora manual
         </button>
-        <button type="button" onClick={() => setAba("ia")} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium", aba === "ia" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+        <button type="button" onClick={() => setAba("ia")} disabled={!podeUsarAssistente} title={!podeUsarAssistente ? "Disponível somente para perfis autorizados ao Assistente." : undefined} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40", aba === "ia" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
           <BrainCircuit className="size-4" /> Calculadora por IA
         </button>
       </div>
-      {aba === "manual" ? <CalculadoraManual /> : <CalculadoraIA />}
+      {aba === "manual" ? <CalculadoraManual /> : podeUsarAssistente ? <CalculadoraIA /> : null}
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><LockKeyhole className="size-3.5" /> Acesso reservado aos usuários autenticados. Resultados sujeitos à conferência técnica.</p>
     </div>
   );
