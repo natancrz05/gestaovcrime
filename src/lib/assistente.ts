@@ -10,6 +10,8 @@ export interface ArquivoAssistente {
   tipo: string;
   texto: string;
   paginas?: number;
+  paginasLidas?: number;
+  paginasSemTexto?: number[];
   truncado?: boolean;
 }
 
