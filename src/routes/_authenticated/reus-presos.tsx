@@ -18,7 +18,7 @@ import { tipoPrisaoDe, type ProcRel } from "@/lib/processos/importacao-reus";
 import { normalizarCorEtiqueta } from "@/lib/processos/etiquetas-niveis";
 import { toast } from "sonner";
 import { usePode } from "@/lib/sessao";
-import { referenciaPreventiva, presosQuery } from "@/lib/processos/reus-presos";
+import { estadoPrazoPreventiva, presosQuery, terminoPrisaoTemporaria, tipoPrisaoOperacional } from "@/lib/processos/reus-presos";
 import { etiquetasDosProcessosQuery } from "@/lib/processos/repositorio";
 import { GerenciarEtiquetasProcesso } from "@/components/processos/GerenciarEtiquetasProcesso";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
@@ -61,13 +61,8 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // O tipo salvo no cadastro (inclusive alterações manuais) prevalece na exibição.
-// A espécie importada é usada somente como fallback para registros sem tipo válido.
 const tipoExibido = (p: Pick<Preso, "tipo_prisao" | "especie_cautelar">) =>
-  TIPOS_CUSTODIA.includes(p.tipo_prisao)
-    ? p.tipo_prisao
-    : p.especie_cautelar?.trim()
-      ? tipoPrisaoDe(p.especie_cautelar)
-      : p.tipo_prisao;
+  tipoPrisaoOperacional({ tipoPrisao: p.tipo_prisao, especieCautelar: p.especie_cautelar });
 
 const NIVEL_PRIORIDADE = {
   critico: { rotulo: "Crítico", severidade: "urgente", ordem: 0 },
@@ -86,43 +81,12 @@ const ORDEM_ETIQUETA = {
   concluido: 5,
 } as const;
 
-function normalizarData(v?: string | null): string | null {
-  const s = v?.trim();
-  if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
-function somarDiasISO(iso: string, dias: number): string {
-  const partes = iso.split("-").map(Number);
-  const a = partes[0];
-  const m = partes[1];
-  const d = partes[2];
-  if (a === undefined || m === undefined || d === undefined) {
-    throw new Error("Data ISO inválida.");
-  }
-  const dt = new Date(Date.UTC(a, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + dias);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-}
-
-function maiorData(datas: Array<string | null>): string | null {
-  const validas = datas.filter((d): d is string => Boolean(d)).sort();
-  return validas[validas.length - 1] ?? null;
-}
-
 function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: string | null) {
   const tipo = tipoExibido(p);
   const dp = p.dados_planilha ?? {};
 
   if (tipo === "Prisão temporária") {
-    const termino = maiorData([
-      normalizarData(dp["Término de eventual prazo"]),
-      normalizarData(dp["Termino de eventual prazo"]),
-      normalizarData(dp["Término do prazo"]),
-      normalizarData(dp["Termino do prazo"]),
-    ]);
+    const termino = terminoPrisaoTemporaria(dp);
     if (!termino) {
       return { principal: "Sem data registrada", detalhe: "Término da temporária", cls: "text-muted-foreground" };
     }
@@ -136,21 +100,21 @@ function resumoPrazoPrisao(p: Preso, hoje: string, ultimaReavaliacaoHistorico?: 
   }
 
   if (tipo === "Prisão preventiva") {
-    const referencia = referenciaPreventiva({
+    const estado = estadoPrazoPreventiva({
       dataPrisao: p.data_prisao,
       ultimaReavaliacaoHistorico: ultimaReavaliacaoHistorico ?? null,
       dadosPlanilha: dp,
+      hoje,
     });
-    if (!referencia.referenciaPrazo) {
+    if (!estado.limite || estado.diasRestantes === null) {
       return { principal: "Conferir reavaliação", detalhe: "Sem data da prisão ou reavaliação registrada", cls: "font-medium text-temporaria" };
     }
-    const limite = somarDiasISO(referencia.referenciaPrazo, 90);
-    const dias = diasEntre(hoje, limite);
-    if (dias < 0) return { principal: `Vencida há ${Math.abs(dias)}d`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-urgente" };
-    if (dias === 0) return { principal: "Revisão hoje", detalhe: formatarData(limite), cls: "font-medium text-urgente" };
-    if (dias <= 5) return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-alerta" };
-    if (dias <= 15) return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(limite)}`, cls: "font-medium text-atencao" };
-    return { principal: "Regular", detalhe: `Próxima revisão: ${formatarData(limite)}`, cls: "text-foreground" };
+    const dias = estado.diasRestantes;
+    if (estado.faixa === "vencida") return { principal: `Vencida há ${Math.abs(dias)}d`, detalhe: `Marco: ${formatarData(estado.limite)}`, cls: "font-medium text-urgente" };
+    if (estado.faixa === "hoje") return { principal: "Revisão hoje", detalhe: formatarData(estado.limite), cls: "font-medium text-urgente" };
+    if (estado.faixa === "ate-5") return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(estado.limite)}`, cls: "font-medium text-alerta" };
+    if (estado.faixa === "ate-15") return { principal: `Faltam ${dias} dias`, detalhe: `Marco: ${formatarData(estado.limite)}`, cls: "font-medium text-atencao" };
+    return { principal: "Regular", detalhe: `Próxima revisão: ${formatarData(estado.limite)}`, cls: "text-foreground" };
   }
 
   return { principal: "—", detalhe: null as string | null, cls: "text-muted-foreground" };
