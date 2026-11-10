@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAssistenteRouteImport } from './routes/_authenticated/assistente'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
+import { Route as AuthenticatedCalculosRouteImport } from './routes/_authenticated/calculos'
 import { Route as AuthenticatedComparecimentosRouteImport } from './routes/_authenticated/comparecimentos'
 import { Route as AuthenticatedOficiosRouteImport } from './routes/_authenticated/oficios'
 import { Route as AuthenticatedPendenciasRouteImport } from './routes/_authenticated/pendencias'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedPrisoesTemporariasRouteImport } from './routes/_a
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedReusPresosRouteImport } from './routes/_authenticated/reus-presos'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
+import { Route as AuthenticatedComparecimentosEncerradosRouteImport } from './routes/_authenticated/comparecimentos_.encerrados'
 import { Route as AuthenticatedConfiguracoesIndexRouteImport } from './routes/_authenticated/configuracoes.index'
 import { Route as AuthenticatedConfiguracoesAuditoriaRouteImport } from './routes/_authenticated/configuracoes.auditoria'
 import { Route as AuthenticatedConfiguracoesEtiquetasRouteImport } from './routes/_authenticated/configuracoes.etiquetas'
@@ -53,6 +55,11 @@ const AuthenticatedAssistenteRoute = AuthenticatedAssistenteRouteImport.update({
 const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
   id: '/audiencias',
   path: '/audiencias',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCalculosRoute = AuthenticatedCalculosRouteImport.update({
+  id: '/calculos',
+  path: '/calculos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedComparecimentosRoute =
@@ -98,6 +105,12 @@ const AuthenticatedSugestoesRoute = AuthenticatedSugestoesRouteImport.update({
   path: '/sugestoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedComparecimentosEncerradosRoute =
+  AuthenticatedComparecimentosEncerradosRouteImport.update({
+    id: '/comparecimentos_/encerrados',
+    path: '/comparecimentos/encerrados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracoesIndexRoute =
   AuthenticatedConfiguracoesIndexRouteImport.update({
     id: '/configuracoes/',
@@ -152,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/calculos': typeof AuthenticatedCalculosRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -160,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reus-presos': typeof AuthenticatedReusPresosRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
+  '/comparecimentos/encerrados': typeof AuthenticatedComparecimentosEncerradosRoute
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
@@ -173,6 +188,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/assistente': typeof AuthenticatedAssistenteRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
+  '/calculos': typeof AuthenticatedCalculosRoute
   '/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/oficios': typeof AuthenticatedOficiosRoute
   '/pendencias': typeof AuthenticatedPendenciasRoute
@@ -182,6 +198,7 @@ export interface FileRoutesByTo {
   '/reus-presos': typeof AuthenticatedReusPresosRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/': typeof AuthenticatedIndexRoute
+  '/comparecimentos/encerrados': typeof AuthenticatedComparecimentosEncerradosRoute
   '/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
@@ -197,6 +214,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/assistente': typeof AuthenticatedAssistenteRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
+  '/_authenticated/calculos': typeof AuthenticatedCalculosRoute
   '/_authenticated/comparecimentos': typeof AuthenticatedComparecimentosRoute
   '/_authenticated/oficios': typeof AuthenticatedOficiosRoute
   '/_authenticated/pendencias': typeof AuthenticatedPendenciasRoute
@@ -206,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/reus-presos': typeof AuthenticatedReusPresosRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/comparecimentos_/encerrados': typeof AuthenticatedComparecimentosEncerradosRoute
   '/_authenticated/configuracoes/auditoria': typeof AuthenticatedConfiguracoesAuditoriaRoute
   '/_authenticated/configuracoes/etiquetas': typeof AuthenticatedConfiguracoesEtiquetasRoute
   '/_authenticated/configuracoes/usuarios': typeof AuthenticatedConfiguracoesUsuariosRoute
@@ -222,6 +241,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/assistente'
     | '/audiencias'
+    | '/calculos'
     | '/comparecimentos'
     | '/oficios'
     | '/pendencias'
@@ -230,6 +250,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/reus-presos'
     | '/sugestoes'
+    | '/comparecimentos/encerrados'
     | '/configuracoes/auditoria'
     | '/configuracoes/etiquetas'
     | '/configuracoes/usuarios'
@@ -243,6 +264,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/assistente'
     | '/audiencias'
+    | '/calculos'
     | '/comparecimentos'
     | '/oficios'
     | '/pendencias'
@@ -252,6 +274,7 @@ export interface FileRouteTypes {
     | '/reus-presos'
     | '/sugestoes'
     | '/'
+    | '/comparecimentos/encerrados'
     | '/configuracoes/auditoria'
     | '/configuracoes/etiquetas'
     | '/configuracoes/usuarios'
@@ -266,6 +289,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/assistente'
     | '/_authenticated/audiencias'
+    | '/_authenticated/calculos'
     | '/_authenticated/comparecimentos'
     | '/_authenticated/oficios'
     | '/_authenticated/pendencias'
@@ -275,6 +299,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reus-presos'
     | '/_authenticated/sugestoes'
     | '/_authenticated/'
+    | '/_authenticated/comparecimentos_/encerrados'
     | '/_authenticated/configuracoes/auditoria'
     | '/_authenticated/configuracoes/etiquetas'
     | '/_authenticated/configuracoes/usuarios'
@@ -325,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/audiencias'
       fullPath: '/audiencias'
       preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/calculos': {
+      id: '/_authenticated/calculos'
+      path: '/calculos'
+      fullPath: '/calculos'
+      preLoaderRoute: typeof AuthenticatedCalculosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comparecimentos': {
@@ -381,6 +413,13 @@ declare module '@tanstack/react-router' {
       path: '/sugestoes'
       fullPath: '/sugestoes'
       preLoaderRoute: typeof AuthenticatedSugestoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/comparecimentos_/encerrados': {
+      id: '/_authenticated/comparecimentos_/encerrados'
+      path: '/comparecimentos/encerrados'
+      fullPath: '/comparecimentos/encerrados'
+      preLoaderRoute: typeof AuthenticatedComparecimentosEncerradosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configuracoes/': {
@@ -445,6 +484,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAssistenteRoute: typeof AuthenticatedAssistenteRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
+  AuthenticatedCalculosRoute: typeof AuthenticatedCalculosRoute
   AuthenticatedComparecimentosRoute: typeof AuthenticatedComparecimentosRoute
   AuthenticatedOficiosRoute: typeof AuthenticatedOficiosRoute
   AuthenticatedPendenciasRoute: typeof AuthenticatedPendenciasRoute
@@ -454,6 +494,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReusPresosRoute: typeof AuthenticatedReusPresosRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedComparecimentosEncerradosRoute: typeof AuthenticatedComparecimentosEncerradosRoute
   AuthenticatedConfiguracoesAuditoriaRoute: typeof AuthenticatedConfiguracoesAuditoriaRoute
   AuthenticatedConfiguracoesEtiquetasRoute: typeof AuthenticatedConfiguracoesEtiquetasRoute
   AuthenticatedConfiguracoesUsuariosRoute: typeof AuthenticatedConfiguracoesUsuariosRoute
@@ -467,6 +508,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAssistenteRoute: AuthenticatedAssistenteRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
+  AuthenticatedCalculosRoute: AuthenticatedCalculosRoute,
   AuthenticatedComparecimentosRoute: AuthenticatedComparecimentosRoute,
   AuthenticatedOficiosRoute: AuthenticatedOficiosRoute,
   AuthenticatedPendenciasRoute: AuthenticatedPendenciasRoute,
@@ -476,6 +518,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReusPresosRoute: AuthenticatedReusPresosRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedComparecimentosEncerradosRoute:
+    AuthenticatedComparecimentosEncerradosRoute,
   AuthenticatedConfiguracoesAuditoriaRoute:
     AuthenticatedConfiguracoesAuditoriaRoute,
   AuthenticatedConfiguracoesEtiquetasRoute:
