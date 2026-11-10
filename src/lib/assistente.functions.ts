@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { credencialOpenAI, resolverModeloOpenAI, respostaOpenAI } from "./assistente-openai";
 
 const INSTRUCOES = `Você é o Assistente da Vara, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
 Funções: responder perguntas gerais; explicar conceitos jurídicos de forma prática; melhorar, revisar e estruturar minutas, certidões, despachos administrativos e comunicações; resumir textos; quando houver dados do acervo no contexto, responder com base neles.
@@ -17,8 +18,8 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Entrada.parse(d))
   .handler(async ({ data, context }) => {
-    const key = process.env["LOVABLE_API_KEY"];
-    if (!key) throw new Error("A IA não está configurada no servidor.");
+    const credencial = credencialOpenAI();
+    const modelo = await resolverModeloOpenAI(credencial);
     const sb = context.supabase;
     const pergunta = data.messages[data.messages.length - 1]?.content ?? "";
     const ctx: string[] = [];
@@ -48,53 +49,12 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
       ? "\n\nDADOS DO ACERVO (fonte factual):\n" + ctx.join("\n")
       : "\n\nNenhum dado do acervo foi consultado. Não invente dados.");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-        Authorization: `Bearer ${key}`,
-        "X-Lovable-AIG-SDK": "fetch",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-6-astra",
-        instructions: instr,
-        input: data.messages,
-        reasoning: { effort: "low" },
-        store: false,
-        stream: true,
-      }),
+    const texto = await respostaOpenAI({
+      token: credencial.token,
+      model: modelo,
+      instructions: instr,
+      input: data.messages,
     });
 
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => "");
-      console.error("AI gateway", res.status, t);
-      if (res.status === 429) throw new Error("Muitas solicitações. Aguarde um instante e tente novamente.");
-      if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos no workspace.");
-      throw new Error("O serviço de IA não respondeu. Tente novamente.");
-    }
-
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "", texto = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const linhas = buf.split("\n");
-      buf = linhas.pop() ?? "";
-      for (const l of linhas) {
-        if (!l.startsWith("data:")) continue;
-        const s = l.slice(5).trim();
-        if (!s || s === "[DONE]") continue;
-        try {
-          const ev = JSON.parse(s);
-          if (ev.type === "response.output_text.delta") texto += ev.delta ?? "";
-          if (ev.type === "error" || ev.type === "response.failed") throw new Error("Falha na resposta da IA.");
-        } catch (e) {
-          if (e instanceof Error && e.message.startsWith("Falha")) throw e;
-        }
-      }
-    }
-    return { resposta: texto || "Não foi possível obter uma resposta." };
+    return { resposta: texto };
   });
