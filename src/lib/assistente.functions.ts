@@ -44,6 +44,8 @@ const Arquivo = z.object({
   tipo: z.string().max(100),
   texto: z.string().max(450_000),
   paginas: z.number().int().positive().max(10_000).optional(),
+  paginasLidas: z.number().int().nonnegative().max(10_000).optional(),
+  paginasSemTexto: z.array(z.number().int().positive().max(10_000)).max(10_000).optional(),
   truncado: z.boolean().optional(),
 });
 
@@ -132,6 +134,8 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
         tipo: arquivo.tipo,
         texto: arquivo.texto,
         ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+        ...(arquivo.paginasLidas !== undefined ? { paginasLidas: arquivo.paginasLidas } : {}),
+        ...(arquivo.paginasSemTexto !== undefined ? { paginasSemTexto: arquivo.paginasSemTexto } : {}),
         ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
       })),
       tools: [...FERRAMENTAS_ACERVO, FERRAMENTA_CALCULO_PRAZO, FERRAMENTA_INTERVALO],
