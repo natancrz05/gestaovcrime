@@ -21,7 +21,7 @@ import { etiquetasDosProcessosQuery, processosResumoQuery } from "@/lib/processo
 import {
   STATUS_PROCESSO,
   diasSemMovimentacao,
-  estadoContagem100Dias,
+  estadoAlertaSemMovimentacao,
   reuPrincipal,
   rotuloFluxo,
   ultimaMovimentacao,
@@ -45,8 +45,7 @@ import {
   preparar,
   type Comparecimento,
 } from "@/lib/processos/comparecimentos";
-import { presosQuery } from "@/lib/processos/reus-presos";
-import { tipoPrisaoDe } from "@/lib/processos/importacao-reus";
+import { presosQuery, tipoPrisaoOperacional } from "@/lib/processos/reus-presos";
 import {
   DADOS_VAZIOS_ALERTAS_BETA,
   alertasOcultosBetaQuery,
@@ -317,7 +316,10 @@ const noPeriodo = (d: string | null, de: string, ate: string) =>
   (!de || (d !== null && d >= de)) && (!ate || (d !== null && d <= ate));
 
 const tipoCustodia = (p: ReuPresoBeta) =>
-  p.especie_cautelar?.trim() ? tipoPrisaoDe(p.especie_cautelar) : p.tipo_prisao;
+  tipoPrisaoOperacional({
+    tipoPrisao: p.tipo_prisao,
+    especieCautelar: p.especie_cautelar,
+  });
 
 function Relatorio({
   tipo,
@@ -517,18 +519,12 @@ function Relatorio({
     linhas = processos
       .map((p) => ({
         p,
-        d: diasSemMovimentacao(p),
+        estado: estadoAlertaSemMovimentacao(p, undefined, lim),
         u: ultimaMovimentacao(p),
-        contagem100: estadoContagem100Dias(p),
       }))
-      .filter(
-        (x) =>
-          !x.contagem100.pausada &&
-          x.d !== null &&
-          x.d > lim,
-      )
-      .sort((a, b) => (b.d ?? 0) - (a.d ?? 0))
-      .map(({ p, d, u }) => ({
+      .filter((x) => x.estado.emAlerta)
+      .sort((a, b) => (b.estado.dias ?? 0) - (a.estado.dias ?? 0))
+      .map(({ p, estado, u }) => ({
         chave: p.id,
         processoId: p.id,
         destaque: "atencao" as const,
@@ -539,7 +535,7 @@ function Relatorio({
           rotuloFluxo(p),
           u?.descricao ?? "—",
           fmt(u?.data),
-          d ?? "—",
+          estado.dias ?? "—",
         ],
       }));
   } else if (tipo === "audiencias") {
