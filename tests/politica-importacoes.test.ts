@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import * as XLSX from "xlsx";
 import {
   campoPjeLimpaQuandoVazio,
+  lerPlanilha,
 } from "../src/lib/processos/importacao";
 import {
   tipoPrisaoAposReimportacao,
@@ -10,6 +12,24 @@ import {
 } from "../src/lib/processos/importacao-comparecimentos";
 
 describe("Política previsível das importações", () => {
+  test("o leitor distingue coluna operacional vazia de coluna ausente", async () => {
+    const planilha = XLSX.utils.aoa_to_sheet([
+      ["Número do processo", "Tarefas"],
+      ["0000004-20.2020.8.05.0067", ""],
+    ]);
+    const pasta = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(pasta, planilha, "Acervo");
+    const bytes = XLSX.write(pasta, { type: "array", bookType: "xlsx" });
+    const arquivo = new File([bytes], "acervo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const analise = await lerPlanilha(arquivo);
+    expect(analise.validas).toHaveLength(1);
+    expect(analise.validas[0]?.campos_presentes).toContain("pje_tarefas");
+    expect(analise.validas[0]?.campos.pje_tarefas).toBeUndefined();
+  });
+
   test("campos operacionais do PJe são limpos quando a coluna existe e vem vazia", () => {
     for (const campo of [
       "pje_qtde_dias",
