@@ -124,7 +124,13 @@ export function AssistenteChat() {
     try {
       const resposta = await perguntarAoAssistente(
         proxima,
-        arquivos.map(({ nome, tipo, texto, paginas, truncado }) => ({ nome, tipo, texto, paginas, truncado })),
+        arquivos.map((arquivo) => ({
+          nome: arquivo.nome,
+          tipo: arquivo.tipo,
+          texto: arquivo.texto,
+          ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+          ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
+        })),
       );
       setMensagens((atual) => [...atual, { role: "assistant", content: resposta.resposta }]);
     } catch (e) {
