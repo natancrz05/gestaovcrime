@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { diasEntre, hojeISO, reuPrincipal, type AudienciaProcesso, type ProcessoCompleto } from "./modelo";
+import { mesmaSituacaoAudiencia, situacaoAudienciaFinalCanonica, situacaoAudienciaPendente } from "./regras-audiencias";
 
 export const CONFIG_AUDIENCIAS = {
   /** Audiência marcada para mais de X dias a partir de hoje. */
@@ -84,26 +85,18 @@ export function futuras(lista: AudienciaListada[]) {
 export const horaCurta = (h: string | null) => (h ? h.slice(0, 5) : "—");
 
 /** Pendente = somente situações ainda aguardando realização. */
-export const estaPendente = (a: { situacao: string }) => {
-  const s = a.situacao.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-  return /^(AGENDADA|DESIGNADA|REDESIGNADA)$/.test(s);
-};
-
-const normalizarSituacao = (situacao: string) =>
-  situacao.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+export const estaPendente = (a: { situacao: string }) =>
+  situacaoAudienciaPendente(a.situacao);
 
 /** Situações encerradas não podem ser reabertas automaticamente por importação de pauta. */
-export function situacaoAudienciaFinal(situacao: string) {
-  const s = normalizarSituacao(situacao);
-  return /^(REALIZADA|CANCELADA|NAO REALIZADA|CONVERTIDA EM DILIGENCIA)$/.test(s);
-}
+export const situacaoAudienciaFinal = situacaoAudienciaFinalCanonica;
 
 /**
  * A situação final registrada no sistema prevalece sobre uma pauta posterior.
  * Correções de uma situação final continuam possíveis manualmente pelo servidor.
  */
 export function devePreservarSituacaoFinalNaImportacao(atual: string, recebida: string) {
-  return situacaoAudienciaFinal(atual) && normalizarSituacao(atual) !== normalizarSituacao(recebida);
+  return situacaoAudienciaFinal(atual) && !mesmaSituacaoAudiencia(atual, recebida);
 }
 
 /** Única lógica de confirmação (lista e calendário): situação, data efetiva e movimentação sem duplicar. */
