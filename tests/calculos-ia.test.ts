@@ -162,3 +162,19 @@ describe("Revisão de prisão provisória", () => {
     })).toThrow(/anterior ao cumprimento/);
   });
 });
+
+describe("Conferência do mandado e segurança da liberação", () => {
+  test("data de soltura anterior informada no mandado não substitui a contagem inclusiva", () => {
+    const calculo = conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-10",
+      prazoDiasMandado: 5,
+      dataReferencia: "2026-11-11",
+      dataLibertacaoMandado: "2026-11-13",
+    });
+    expect(calculo.dataLimitePorContagemInclusiva).toBe("2026-11-14");
+    expect(calculo.primeiroDiaAposPrazo).toBe("2026-11-15");
+    expect(calculo.dataLibertacaoMandado).toBe("2026-11-13");
+    expect(calculo.divergenciaComDataDoMandado).toBe(true);
+    expect(calculo.observacoes.join(" ")).toContain("não demonstra, isoladamente, erro do mandado");
+  });
+});
