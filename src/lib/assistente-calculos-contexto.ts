@@ -57,12 +57,23 @@ export async function consultarContextoCalculo(
     encontrado: true,
     fonte: "Acervo administrativo Vara Crime, acesso condicionado à sessão e RLS",
     aviso: AVISO,
-    processo,
+    processo: {
+      ...processo,
+      pje_ultima_mov_descricao: processo.pje_ultima_mov_descricao?.slice(0, 300) ?? null,
+    },
     reus: reus.data ?? [],
-    reavaliacoes,
-    movimentacoes: movimentacoes.data ?? [],
-    audiencias: audiencias.data ?? [],
-    pendencias: pendencias.data ?? [],
+    reavaliacoes: reavaliacoes.map((item) => ({
+      ...item, observacao: item.observacao.slice(0, 240),
+    })),
+    movimentacoes: (movimentacoes.data ?? []).map((item) => ({
+      ...item, descricao: item.descricao.slice(0, 320),
+    })),
+    audiencias: (audiencias.data ?? []).map((item) => ({
+      ...item, observacao: item.observacao.slice(0, 220),
+    })),
+    pendencias: (pendencias.data ?? []).map((item) => ({
+      ...item, titulo: item.titulo.slice(0, 160),
+    })),
     limites: {
       movimentacoes: 100,
       reus: 50,
