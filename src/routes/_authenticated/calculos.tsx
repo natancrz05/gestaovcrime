@@ -356,7 +356,7 @@ function CalculadoraManual() {
           <section className="rounded-xl border border-dashed border-border bg-card p-5 text-sm text-muted-foreground">
             <CalendarDays className="mb-3 size-6 text-primary" />
             <p className="font-medium text-foreground">Resultado do cálculo</p>
-            <p className="mt-2 text-xs leading-5">Preencha os campos e clique em Calcular. O cálculo é feito localmente, sem consumir créditos de IA.</p>
+            <p className="mt-2 text-xs leading-5">Preencha os campos e clique em Calcular para visualizar a data prevista de vencimento e a memória de cálculo.</p>
           </section>
         )}
         <section className="rounded-xl border border-border bg-card p-5">
@@ -499,7 +499,7 @@ function CalculadoraIA() {
           <p className="mt-2">O PDF é extraído no navegador; apenas o texto analisável é enviado ao GPT através do gateway Lovable AI.</p>
           <p className="mt-2">A IA pode consultar processos e réus cadastrados, sem alterar registros.</p>
           <p className="mt-2">A análise é registrada no histórico privado do usuário. O PDF original não é guardado.</p>
-          <p className="mt-2 font-medium text-foreground">Atenção: executar uma análise com IA consome créditos de uso do Lovable AI. A calculadora manual não consome.</p>
+          <p className="mt-2 font-medium text-foreground">Uso responsável: utilize a análise por IA somente quando necessária à atividade cartorária. Evite consultas repetitivas ou desnecessárias e confira os resultados antes de utilizá-los nos autos.</p>
         </aside>
       </section>
       {resposta ? (
