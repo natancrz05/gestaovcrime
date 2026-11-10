@@ -207,6 +207,7 @@ function Pagina() {
           <p className="text-sm text-muted-foreground">
             O leitor aceita XLSX, XLS e ODS, procura automaticamente a aba correta e reconhece variações de cabeçalho.
             A coluna de número do processo é obrigatória. Nada é gravado antes da prévia e da sua confirmação.
+            Campos operacionais do PJe (tarefas, situação, prioridade, conclusão, segredo, localização e sistema) funcionam como espelho: se a coluna existir e vier vazia, o valor antigo será limpo. Classe, assunto, autuação, última movimentação e partes nunca são apagados apenas por célula vazia; dados internos da serventia não são sobrescritos.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <input type="file" accept=".xlsx,.xls,.ods,application/vnd.oasis.opendocument.spreadsheet" aria-label="Planilha do acervo" className="text-sm"
