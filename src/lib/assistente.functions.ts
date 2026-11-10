@@ -52,7 +52,13 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
       resposta: await respostaLovable({
         instructions: INSTRUCOES,
         input: data.messages,
-        arquivos: data.arquivos,
+        arquivos: data.arquivos.map((arquivo) => ({
+          nome: arquivo.nome,
+          tipo: arquivo.tipo,
+          texto: arquivo.texto,
+          ...(arquivo.paginas !== undefined ? { paginas: arquivo.paginas } : {}),
+          ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
+        })),
         tools: FERRAMENTAS_ACERVO,
         executarFerramenta: (nome, argumentos) =>
           executarFerramentaAcervo(sb, nome, argumentos),
