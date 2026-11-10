@@ -23,6 +23,7 @@ export function conferirPrazoTemporaria(dados: EntradaTemporaria) {
   }
   const fim = inicio + (dados.prazoDiasMandado - 1) * DIA_MS;
   const dataFim = isoUTC(new Date(fim));
+  const diaSeguinteAoFim = isoUTC(new Date(fim + DIA_MS));
   const dataMandado = dados.dataLibertacaoMandado
     ? isoUTC(dataUTC(dados.dataLibertacaoMandado))
     : null;
@@ -34,13 +35,15 @@ export function conferirPrazoTemporaria(dados: EntradaTemporaria) {
     prazoDiasMandado: dados.prazoDiasMandado,
     dataReferencia: dados.dataReferencia,
     dataLimitePorContagemInclusiva: dataFim,
+    primeiroDiaAposPrazo: diaSeguinteAoFim,
     dataLibertacaoMandado: dataMandado,
     diasDeCumprimentoAteReferencia: diasDesdeCumprimento < 0 ? 0 : diasDesdeCumprimento + 1,
     diasAteDataLimiteCalculada: Math.round((fim - referencia) / DIA_MS),
-    divergenciaComDataDoMandado: dataMandado === null ? null : dataMandado !== dataFim,
+    divergenciaComDataDoMandado: dataMandado === null ? null : dataMandado !== diaSeguinteAoFim,
     observacoes: [
       "O dia do cumprimento do mandado está incluído: primeiro dia = data do cumprimento.",
-      "Data calculada é referência aritmética; confirme o horário e a data de libertação fixados no mandado judicial.",
+      "O último dia computado é a dataLimitePorContagemInclusiva. A expiração regular do prazo ocorre no primeiro minuto do dia seguinte, indicada em primeiroDiaAposPrazo, conforme regras operacionais do BNMP 3.0.",
+      "A data indicada no mandado judicial deve ser conferida e prevalece como documento da ordem; a divergência com a referência aritmética não demonstra, isoladamente, erro do mandado ou irregularidade de prisão.",
       "Prazo informado não significa prorrogação válida: eventual extensão depende de decisão e comunicação judicial.",
       "Lei 7.960/1989, art. 2º, § 7º: decorrido o prazo do mandado, soltura independente de nova ordem, salvo prorrogação comunicada ou decretação de preventiva.",
       "Não aplicar revisão de 90 dias do CPP art. 316 a prisão exclusivamente temporária.",
