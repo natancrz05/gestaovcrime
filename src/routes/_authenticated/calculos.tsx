@@ -60,7 +60,7 @@ const OPCOES_IA = [
     titulo: "Prescrição penal",
     descricao: "Análise de marcos, períodos suspensos e datas de possível prescrição",
     icone: CalendarClock,
-    orientacao: "Reconstrua a linha do tempo dos marcos interruptivos e suspensivos com indicação precisa de datas, IDs documentais e páginas. Distinga prescrição da pretensão punitiva, retroativa, intercorrente e executória conforme o caso. Não trate inclusão em pauta, mera movimentação administrativa ou agendamento como interrupção legal sem fundamento. Confira pena cominada/aplicada, majorantes e causas legais, bem como data de recebimento da denúncia e trânsito em julgado. Sem documentos suficientes, não declare prescrição consumada.",
+    orientacao: "Reconstrua a linha do tempo dos marcos interruptivos e suspensivos com indicação precisa de datas, IDs documentais e páginas. Distinga prescrição da pretensão punitiva, retroativa, intercorrente e executória conforme o caso. Não trate inclusão em pauta, mera movimentação administrativa ou agendamento como interrupção legal sem fundamento. Confira pena cominada/aplicada, majorantes e causas legais (CP, arts. 109 a 119), a legislação vigente na data dos fatos, a idade e as exceções do art. 115 do CP, bem como recebimento da denúncia, publicação de sentença e trânsito em julgado. Quando houver art. 366 do CPP, exija decisão expressa e observe a Súmula 415/STJ para o limite da suspensão prescricional; não presuma suspensão perpétua nem automática. Sem documentos suficientes, não declare prescrição consumada.",
   },
   {
     id: "preventiva",
@@ -68,7 +68,7 @@ const OPCOES_IA = [
     titulo: "Revisão da prisão preventiva",
     descricao: "Alertas de 90 dias e identificação da última decisão de revisão",
     icone: ShieldCheck,
-    orientacao: "Identifique a data da prisão, decisão de decretação e última decisão fundamentada de revisão. Diferencie a prisão de última reavaliação. Calcule o período até a data de referência com indicação de fatos verificáveis, explique art. 316, parágrafo único, do CPP e não afirme soltura automática.",
+    orientacao: "Identifique a data da prisão, decisão de decretação e última decisão fundamentada de revisão. Diferencie a prisão de última reavaliação. Calcule com ferramenta cronológica os dias decorridos desde a última decisão judicial de reavaliação efetivamente comprovada, ou desde a decretação caso seja o único marco comprovado, e a referência de 90 dias. Registros administrativos de reavaliação não substituem decisão fundamentada. Explique art. 316, parágrafo único, do CPP; não afirme soltura automática.",
   },
   {
     id: "manifestacoes",
@@ -76,7 +76,7 @@ const OPCOES_IA = [
     titulo: "Prazos de manifestações",
     descricao: "Controle de intimações, defesas, vistas e recursos",
     icone: FileText,
-    orientacao: "Identifique modalidade e data de intimação/publicação efetiva, ato processual, base legal do prazo, contagem conforme CPP, CPC ou Juizados, feriados e suspensões. Não presuma início pela disponibilização no DJE e não invente feriados locais. Se faltar dado sobre ciência, conclua como prazo ainda não confirmável.",
+    orientacao: "Identifique modalidade e data de intimação/publicação efetiva, ato processual e base legal. Diferencie dias úteis no CPC e Juizado Cível de dias corridos no CPP e Juizado Criminal, observadas exceções aplicáveis, feriados e suspensões; use calcular_prazo_processual para prazo processual em dias. Não presuma início pela disponibilização no DJE e não invente feriados locais. Se faltar dado sobre ciência, conclua como prazo ainda não confirmável.",
   },
   {
     id: "excesso",
@@ -100,7 +100,7 @@ const OPCOES_IA = [
     titulo: "Suspensão processual",
     descricao: "Períodos de suspensão, fundamento, retomada e efeitos nos prazos",
     icone: Gavel,
-    orientacao: "Identifique todas as determinações judiciais de suspensão, fundamento legal, termo inicial, termo final e eventual decisão de retomada. Diferencie suspensão do processo, suspensão de prazo processual e suspensão da prescrição; não presuma duração ou retomada quando os autos forem insuficientes.",
+    orientacao: "Identifique todas as determinações judiciais de suspensão, fundamento legal, termo inicial, termo final e eventual decisão de retomada. Diferencie suspensão do processo, suspensão de prazo processual e suspensão da prescrição; no art. 366 do CPP, confirme decisão expressa e observe a Súmula 415/STJ quanto ao limite da suspensão do curso prescricional. Não presuma duração ou retomada quando os autos forem insuficientes.",
   },
 ] as const;
 
