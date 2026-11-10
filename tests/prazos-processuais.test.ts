@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { calcularPrazoProcessual } from "../src/lib/prazos/calculo";
+import { ESTADOS_BRASIL, QUANTIDADE_MUNICIPIOS, municipiosDaUf } from "../src/lib/prazos/localidades-brasil";
 
 describe("Contagem de prazos TJBA — Coração de Maria", () => {
   test("civil usa dias úteis e exclui o dia da publicação", () => {
@@ -78,5 +79,54 @@ describe("Contagem de prazos TJBA — Coração de Maria", () => {
     expect(() => calcularPrazoProcessual({
       publicacao: "2026-11-10", prazoDias: -3, materia: "penal",
     })).toThrow();
+  });
+});
+
+describe("Localidades e feriados específicos", () => {
+  test("catálogo próprio disponibiliza 27 estados e municípios brasileiros", () => {
+    expect(ESTADOS_BRASIL).toHaveLength(27);
+    expect(QUANTIDADE_MUNICIPIOS).toBeGreaterThanOrEqual(5570);
+    expect(municipiosDaUf("BA")).toContain("Coração de Maria");
+    expect(municipiosDaUf("SP")).toContain("São Paulo");
+    expect(municipiosDaUf("AC")).not.toContain("Coração de Maria");
+  });
+
+  test("feriado de Coração de Maria não se aplica a município de outra UF", () => {
+    const coracao = calcularPrazoProcessual({
+      publicacao: "2026-06-26", prazoDias: 1, materia: "civil",
+      uf: "BA", municipio: "Coração de Maria",
+    });
+    const saoPaulo = calcularPrazoProcessual({
+      publicacao: "2026-06-26", prazoDias: 1, materia: "civil",
+      uf: "SP", municipio: "São Paulo",
+    });
+    expect(coracao.vencimento).toBe("2026-06-30");
+    expect(saoPaulo.vencimento).toBe("2026-06-29");
+    expect(saoPaulo.avisoCalendario.some((msg) => msg.includes("outra UF"))).toBe(true);
+  });
+
+  test("outro município da Bahia solicita conferência de feriados locais", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 2, materia: "civil",
+      uf: "BA", municipio: "Feira de Santana",
+    });
+    expect(r.avisoCalendario.some((msg) => msg.includes("Feira de Santana"))).toBe(true);
+  });
+
+  test("estado e município incompatíveis são rejeitados", () => {
+    expect(() => calcularPrazoProcessual({
+      publicacao: "2026-11-10", prazoDias: 5, materia: "penal",
+      uf: "SP", municipio: "Coração de Maria",
+    })).toThrow();
+  });
+
+  test("suspensão prevista no art. 798-A CPP permanece no padrão", () => {
+    const r = calcularPrazoProcessual({
+      publicacao: "2026-12-18", prazoDias: 2, materia: "penal",
+      uf: "BA", municipio: "Coração de Maria",
+    });
+    expect(r.primeiroDia).toBe("2027-01-21");
+    expect(r.vencimento).toBe("2027-01-22");
+    expect(r.avisoCalendario.some((msg) => msg.includes("798-A"))).toBe(true);
   });
 });
