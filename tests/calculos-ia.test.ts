@@ -155,5 +155,8 @@ describe("Revisão de prisão provisória", () => {
     expect(() => conferirPrazoTemporaria({
       dataCumprimento: "2026-11-31", prazoDiasMandado: 5, dataReferencia: "2026-12-03",
     })).toThrow();
+    expect(() => conferirPrazoTemporaria({
+      dataCumprimento: "2026-11-10", prazoDiasMandado: 5, dataReferencia: "2026-11-09",
+    })).toThrow(/anterior ao cumprimento/);
   });
 });
