@@ -268,7 +268,7 @@ export function RelatorioProdutividade() {
           .from("auditoria")
           .select(
             "id, criado_em, usuario_nome, categoria_produtividade, processo_id, processo_numero, descricao, acao, modulo",
-            { count: inicio === 0 ? "exact" : undefined },
+            { ...(inicio === 0 ? { count: "exact" as const } : {}) },
           )
           .eq("conta_produtividade", true)
           .gte("criado_em", de + "T00:00:00-03:00")
