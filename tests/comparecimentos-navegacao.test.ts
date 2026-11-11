@@ -43,3 +43,13 @@ describe("Acesso ao cadastro completo a partir da ficha do processo", () => {
     expect(cadastroEncerradoPorId(registros, "encerrado-2")?.pessoa).toBe("José");
   });
 });
+
+describe("Roteamento permanece estável após reativação", () => {
+  test("reativado volta a abrir a ficha pelo cadastro ativo", () => {
+    const cadastro = { id: "registro-1", situacao: "Encerrado" };
+    expect(rotaCadastroComparecimento(cadastro.situacao)).toBe("/comparecimentos/encerrados");
+    const reativado = { ...cadastro, situacao: "Ativo" };
+    expect(rotaCadastroComparecimento(reativado.situacao)).toBe("/comparecimentos");
+    expect(cadastroEncerradoPorId([reativado], reativado.id)).toBeNull();
+  });
+});
