@@ -180,7 +180,7 @@ function situacaoCanonica(s: string): LinhaPautaAudiencia["situacao"] | null {
   if (/CANCELAD/.test(t)) return "Cancelada";
   if (/REDESIGNAD/.test(t)) return "Redesignada";
   if (/REALIZAD/.test(t)) return "Realizada";
-  if (/DESIGNAD|AGENDAD|MARCADA/.test(t)) return "Agendada";
+  if (/DESIGNAD|AGENDAD|MARCADA|PROGRAMAD|A REALIZAR|PENDENTE DE REALIZACAO/.test(t)) return "Agendada";
   return null;
 }
 
@@ -284,14 +284,14 @@ function colunaDe(x: number, limites: number[]): Coluna {
 function limitesCabecalho(itens: ItemPdf[]): number[] | null {
   const achar = (re: RegExp) => itens.find((i) => re.test(norm(i.str)))?.x;
   const xs = [
-    achar(/^DATA$/),
-    achar(/^PROCESSO$/),
-    achar(/^ORGAO/),
-    achar(/^PARTES$/),
-    achar(/^CLASSE$/),
-    achar(/^TIPO\b/),
-    achar(/^SALA$/),
-    achar(/^SITUACAO$/),
+    achar(/^DATA(?:\s+(?:DA\s+)?AUDIENCIA)?$/),
+    achar(/^(?:PROCESSO|NUMERO(?:\s+DO)?\s+PROCESSO|N[O.]?\s*PROCESSO)$/),
+    achar(/^(?:ORGAO|UNIDADE\s+JUDICIAL|JUIZO)/),
+    achar(/^(?:PARTES|POLOS\s+PROCESSUAIS)$/),
+    achar(/^CLASSE(?:\s+PROCESSUAL)?$/),
+    achar(/^(?:TIPO|FINALIDADE|ATO\s+PROCESSUAL)\b/),
+    achar(/^(?:SALA|LOCAL|AMBIENTE)$/),
+    achar(/^(?:SITUACAO|STATUS)$/),
   ];
   if (xs.some((x) => x === undefined)) return null;
   const n = xs as number[];
