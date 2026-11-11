@@ -21,7 +21,7 @@ import {
   type AudienciaEntrada,
   type NovoProcessoEntrada,
 } from "./repositorio";
-import { devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
+import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 import { papelEhReu } from "./papeis-pauta";
 import { orgaoPertenceUnidade } from "./orgaos-pauta";
@@ -482,6 +482,35 @@ export function analisarPautaAudiencias(
     }
     primeiraPorChave.add(k);
     linhasUnicas.push(l);
+  }
+
+  // Informações acessórias ausentes ou novos tipos do PJe não impedem a
+  // importação. Exibe avisos claros para conferência técnica posterior.
+  for (const l of linhasUnicas) {
+    if (!(TIPOS_AUDIENCIA as readonly string[]).includes(l.tipo)) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: `Finalidade "${l.tipo}" não catalogada: será preservada exatamente como consta na pauta.`,
+      });
+    }
+    if (!l.reus.length) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Nenhum réu/autor do fato identificado: audiência será registrada sem criar pessoas fictícias.",
+      });
+    }
+    if (!l.salaOriginal) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Sala não informada: local será 'Outro'; a modalidade deve ser conferida.",
+      });
+    }
+    if (l.classe === "Classe não informada na pauta") {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Classe não identificada: utilizada anotação provisória sem bloquear a audiência.",
+      });
+    }
   }
 
   // O mesmo processo deve ter uma única classe na pauta.
