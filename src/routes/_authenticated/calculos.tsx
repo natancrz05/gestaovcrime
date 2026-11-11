@@ -12,6 +12,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { MarkdownResposta } from "@/components/assistente/MarkdownResposta";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
+import { abrirAnaliseCompartilhada, consultarAnalisesRecentes } from "@/lib/calculos-reuso.functions";
+import { numeroUnicoDoPdf, type ReferenciaRelatorio } from "@/lib/prazos/reuso-calculos";
 import { criarConversaAssistente, listarMensagensAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
 import { historicosDoMesmoProcesso, listarHistoricoCalculos, nomeReuCandidatoPdf, numeroCandidatoPdf, paginarHistorico, tituloHistoricoCalculo, tituloVisivelHistorico } from "@/lib/calculos-historico";
 import { usePode, useSessao } from "@/lib/sessao";
@@ -404,6 +406,11 @@ function CalculadoraIA() {
   const [resposta, setResposta] = useState("");
   const [tituloResposta, setTituloResposta] = useState("");
   const [conversaCriada, setConversaCriada] = useState("");
+  const [relatorioCompartilhado, setRelatorioCompartilhado] = useState(false);
+  const [consultasRecentes, setConsultasRecentes] = useState<ReferenciaRelatorio[]>([]);
+  const [situacaoReuso, setSituacaoReuso] = useState<"aguardando" | "verificando" | "concluido" | "sem-numero" | "erro">("aguardando");
+  const [liberarNovaAvaliacao, setLiberarNovaAvaliacao] = useState(false);
+  const [abrindoCompartilhado, setAbrindoCompartilhado] = useState<string | null>(null);
   const [historico, setHistorico] = useState<Awaited<ReturnType<typeof listarHistoricoCalculos>>>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(true);
   const [abrindoHistorico, setAbrindoHistorico] = useState<string | null>(null);
@@ -415,12 +422,67 @@ function CalculadoraIA() {
   const indice = useMemo(() => arquivo ? indexarReferenciasPdf(arquivo.texto) : null, [arquivo]);
   const textoParcial = Boolean(arquivo?.truncado || arquivo?.paginasSemTexto?.length);
   const numeroIndicativo = useMemo(() => arquivo ? numeroCandidatoPdf(arquivo.nome, arquivo.texto) : null, [arquivo]);
+  const numeroSeguroReuso = useMemo(() => arquivo ? numeroUnicoDoPdf(arquivo.texto) : null, [arquivo]);
   const nomeReuIndicativo = useMemo(() => arquivo ? nomeReuCandidatoPdf(arquivo.texto) : null, [arquivo]);
   const quantidadeAnteriores = useMemo(() => historicosDoMesmoProcesso(historico, numeroIndicativo), [historico, numeroIndicativo]);
   const historicoFiltrado = useMemo(() => historico.filter((item) =>
     normalizarPesquisa(tituloVisivelHistorico(item.titulo)).includes(normalizarPesquisa(buscaHistorico))
   ), [historico, buscaHistorico]);
   const paginacaoHistorico = useMemo(() => paginarHistorico(historicoFiltrado, paginaHistorico), [historicoFiltrado, paginaHistorico]);
+
+  // Consulta apenas METADADOS de relatórios autorizados, nunca chats de outros usuários.
+  // Mudanças do PDF, tipo ou data cancelam a apresentação de resultados anteriores.
+  useEffect(() => {
+    let cancelada = false;
+    setConsultasRecentes([]);
+    setLiberarNovaAvaliacao(false);
+    if (!arquivo) {
+      setSituacaoReuso("aguardando");
+      return () => { cancelada = true; };
+    }
+    if (!numeroSeguroReuso) {
+      setSituacaoReuso("sem-numero");
+      return () => { cancelada = true; };
+    }
+    setSituacaoReuso("verificando");
+    void consultarAnalisesRecentes({ data: {
+      numero: numeroSeguroReuso, tipo,
+      ...(tipo === "prisao_provisoria" ? { modalidade: modalidadePrisao } : {}),
+      ...(nomeReuIndicativo ? { nomeReu: nomeReuIndicativo } : {}),
+      dataReferencia,
+    }}).then((itens) => {
+      if (cancelada) return;
+      setConsultasRecentes(itens);
+      setSituacaoReuso("concluido");
+    }).catch(() => {
+      if (cancelada) return;
+      setSituacaoReuso("erro");
+    });
+    return () => { cancelada = true; };
+  }, [arquivo, numeroSeguroReuso, tipo, modalidadePrisao, nomeReuIndicativo, dataReferencia]);
+
+  const abrirRelatorioInstitucional = async (id: string) => {
+    if (!numeroSeguroReuso || abrindoCompartilhado || analisando) return;
+    setAbrindoCompartilhado(id);
+    setErro("");
+    try {
+      const anterior = await abrirAnaliseCompartilhada({ data: {
+        id, numero: numeroSeguroReuso, tipo,
+        ...(tipo === "prisao_provisoria" ? { modalidade: modalidadePrisao } : {}),
+        ...(nomeReuIndicativo ? { nomeReu: nomeReuIndicativo } : {}),
+        dataReferencia,
+      }});
+      setResposta(anterior.texto);
+      setTituloResposta("Avaliação anterior · " + anterior.processo);
+      setConversaCriada("");
+      setRelatorioCompartilhado(true);
+      toast.success("Relatório institucional recuperado, sem nova consulta à IA.");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível consultar o relatório anterior.");
+    } finally {
+      setAbrindoCompartilhado(null);
+    }
+  };
 
   useEffect(() => {
     let ativo = true;
@@ -456,6 +518,7 @@ function CalculadoraIA() {
       setResposta(ultimaResposta.conteudo);
       setTituloResposta(item ? tituloVisivelHistorico(item.titulo) : "Análise anterior");
       setConversaCriada(id);
+      setRelatorioCompartilhado(false);
       setErro("");
       toast.success("Relatório anterior recuperado, sem nova consulta à IA.");
     } catch (e) {
@@ -472,6 +535,7 @@ function CalculadoraIA() {
     setErro("");
     setArquivo(null);
     setResposta("");
+    setRelatorioCompartilhado(false);
     setTituloResposta("");
     setConversaCriada("");
     try {
@@ -488,6 +552,14 @@ function CalculadoraIA() {
 
   const analisar = async () => {
     if (!arquivo || analisando) return;
+    if (numeroSeguroReuso && situacaoReuso !== "concluido") {
+      setErro("A verificação de análises recentes ainda não foi concluída. Tente atualizar ou importar novamente o PDF.");
+      return;
+    }
+    if (consultasRecentes.length && !liberarNovaAvaliacao) {
+      setErro("Já existe uma avaliação recente. Consulte o relatório disponível ou escolha Fazer nova avaliação.");
+      return;
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataReferencia)) {
       setErro("Informe uma data de referência válida.");
       return;
@@ -497,6 +569,7 @@ function CalculadoraIA() {
     setTituloResposta("");
     setConversaCriada("");
     setAnalisando(true);
+    setRelatorioCompartilhado(false);
     try {
       const prompt = [
         "ANÁLISE JURÍDICA — " + opcao.titulo.toUpperCase(),
@@ -536,17 +609,20 @@ function CalculadoraIA() {
         }],
         { conversaId: chat.id, respostaId: crypto.randomUUID() },
         { tipoAnalise: tipo, dataReferencia,
-          ...(tipo === "prisao_provisoria" ? { modalidadePrisao } : {}) },
+          ...(tipo === "prisao_provisoria" ? { modalidadePrisao } : {}),
+          ...(liberarNovaAvaliacao ? { novaAvaliacao: true } : {}) },
       );
       setResposta(gerada.resposta);
       setTituloResposta(opcao.titulo);
+      setRelatorioCompartilhado(false);
       if (gerada.persistida) {
         void listarHistoricoCalculos(sessao.id)
           .then((itens) => { setHistorico(itens); setPaginaHistorico(1); })
           .catch(() => toast.warning("A análise foi salva, mas a lista do histórico não pôde ser atualizada."));
       }
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
-      else toast.success("Análise concluída e salva em Suas conversas.");
+      else if (!gerada.compartilhada) toast.warning("Análise salva em seu histórico privado. O relatório não foi incluído no reuso institucional.");
+      else toast.success("Análise concluída, salva no histórico privado e disponível para reuso autorizado.");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível realizar a análise.");
     } finally {
