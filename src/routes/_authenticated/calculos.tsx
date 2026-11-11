@@ -552,14 +552,44 @@ function CalculadoraIA() {
 
   return (
     <div className="space-y-5">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="inline-flex items-center gap-2 text-sm font-semibold"><History className="size-4 text-primary" /> Meu histórico de análises</h2>
+          <button type="button" onClick={() => void atualizarHistorico()} disabled={carregandoHistorico}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">Atualizar</button>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">Consulte relatórios já elaborados antes de repetir uma análise. Somente as suas análises são exibidas; abrir um relatório não solicita outra análise.</p>
+        <input value={buscaHistorico} onChange={(e) => setBuscaHistorico(e.target.value)}
+          className={cn(CAMPO, "mt-3")} aria-label="Filtrar análises anteriores"
+          placeholder="Filtrar por tipo ou número do processo na lista…" />
+        {erroHistorico ? <p role="alert" className="mt-2 text-xs text-destructive">{erroHistorico}</p> : null}
+        {carregandoHistorico ? <p className="mt-3 text-xs text-muted-foreground">Carregando histórico pessoal…</p> :
+          historicoFiltrado.length === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">{historico.length ? "Nenhuma análise corresponde à pesquisa." : "Nenhuma análise anterior encontrada para este usuário."}</p>
+          ) : (
+            <div className="mt-3 max-h-56 space-y-1 overflow-y-auto" aria-label="Análises anteriores">
+              {historicoFiltrado.map((item) => (
+                <button type="button" key={item.id} onClick={() => void abrirAnaliseSalva(item.id)}
+                  disabled={!!abrindoHistorico || analisando}
+                  className="flex w-full items-start justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-left hover:bg-muted/60 disabled:opacity-50">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">{item.titulo.replace(PREFIXO_HISTORICO_CALCULO, "")}</span>
+                    <span className="block text-[11px] text-muted-foreground">{new Date(item.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                  </span>
+                  <span className="shrink-0 text-[11px] font-medium text-primary">{abrindoHistorico === item.id ? "Abrindo…" : "Ver relatório"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+      </section>
       <section>
         <h2 className="text-lg font-semibold">Selecione o tipo de análise</h2>
-        <p className="mt-1 text-sm text-muted-foreground">A IA usará o Assistente da Vara e, quando pertinente, as consultas somente leitura ao acervo.</p>
+        <p className="mt-1 text-sm text-muted-foreground">A análise utiliza o PDF importado e as ferramentas de cálculo, sem pesquisa de processo por número.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {OPCOES_IA.map((item) => {
             const Icone = item.icone;
             return (
-              <button key={item.id} type="button" onClick={() => { setTipo(item.id); setResposta(""); }} disabled={analisando}
+              <button key={item.id} type="button" onClick={() => { setTipo(item.id); setResposta(""); setTituloResposta(""); setConversaCriada(""); }} disabled={analisando}
                 className={cn("min-h-[145px] rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/50 disabled:opacity-50", tipo === item.id ? "border-primary ring-1 ring-primary/25" : "border-border")}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold tracking-wider text-muted-foreground">{item.numero}</span>
@@ -575,6 +605,9 @@ function CalculadoraIA() {
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
           <h3 className="text-base font-semibold">Autos para análise</h3>
+          <p className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs leading-5">
+            <strong>Como importar:</strong> 1. Baixe os autos em PDF no PJe. 2. Importe o arquivo aqui.
+          </p>
           {tipo === "prisao_provisoria" ? (
             <label>
               <span className={TITULO}>Modalidade de prisão provisória</span>
@@ -590,9 +623,6 @@ function CalculadoraIA() {
               </span>
             </label>
           ) : null}
-          <label><span className={TITULO}>Número do processo (opcional, para buscar no acervo)</span>
-            <input className={CAMPO} value={processo} onChange={(e) => setProcesso(e.target.value)} placeholder="Ex.: 8000000-00.2026.8.05.0067" maxLength={40} disabled={analisando} />
-          </label>
           <label>
             <span className={TITULO}>Data de referência da análise</span>
             <input type="date" required value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} disabled={analisando} className={CAMPO} />
@@ -606,6 +636,12 @@ function CalculadoraIA() {
               : "PDF com texto selecionável, até 60 MB"}</span>
             <input type="file" className="sr-only" accept=".pdf,application/pdf" disabled={lendo || analisando} onChange={(e) => void carregar(e.target.files)} />
           </label>
+          {quantidadeAnteriores > 0 ? (
+            <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs leading-5">
+              <strong>{quantidadeAnteriores} análise(s) anterior(es)</strong> encontrada(s) com o número candidato {numeroIndicativo} do arquivo.
+              Confira o histórico pessoal acima antes de solicitar uma nova análise. O processo e a atualidade das peças devem ser confirmados nos autos.
+            </p>
+          ) : null}
           {arquivo?.truncado ? <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">O arquivo ultrapassa o limite de texto analisável por requisição. O resultado será parcial e não deve fundamentar uma conclusão definitiva.</p> : null}
           {arquivo?.paginasSemTexto?.length ? (
             <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
@@ -634,7 +670,7 @@ function CalculadoraIA() {
           <ShieldCheck className="mb-3 size-6 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Como funciona</h3>
           <p className="mt-2">O PDF é extraído no navegador; apenas o texto analisável é enviado ao GPT através do gateway Lovable AI.</p>
-          <p className="mt-2">A IA pode consultar processos e réus cadastrados, sem alterar registros.</p>
+          <p className="mt-2">Não há busca automática no acervo por número de processo; a análise parte dos autos importados.</p>
           <p className="mt-2">A análise é registrada no histórico privado do usuário. O PDF original não é guardado.</p>
           <p className="mt-2 font-medium text-foreground">Uso responsável: utilize a análise por IA somente quando necessária à atividade cartorária. Evite consultas repetitivas ou desnecessárias e confira os resultados antes de utilizá-los nos autos.</p>
         </aside>
@@ -642,7 +678,7 @@ function CalculadoraIA() {
       {resposta ? (
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-live="polite">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-            <h3 className="font-semibold">Resultado da análise — {opcao.titulo}</h3>
+            <h3 className="font-semibold">Resultado da análise — {tituloResposta || opcao.titulo}</h3>
             <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
               onClick={() => void navigator.clipboard.writeText(resposta).then(() => toast.success("Análise copiada."), () => toast.error("Não foi possível copiar."))}>
               <ClipboardCopy className="mr-1 inline size-3.5" /> Copiar análise
