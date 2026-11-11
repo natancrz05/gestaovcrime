@@ -21,6 +21,7 @@ export interface ContextoCalculoAssistente {
   modalidadePrisao?: ModalidadePrisao;
   dataReferencia: string;
   novaAvaliacao?: boolean;
+  compartilharRelatorio?: boolean;
 }
 
 export interface RespostaAssistente {
@@ -40,7 +41,7 @@ export async function perguntarAoAssistente(
       messages: mensagens.slice(-20),
       arquivos: arquivos.slice(0, 2),
       ...(destino ? { conversaId: destino.conversaId, respostaId: destino.respostaId } : {}),
-      ...(contextoCalculo ? { tipoAnalise: contextoCalculo.tipoAnalise, dataReferencia: contextoCalculo.dataReferencia, ...(contextoCalculo.modalidadePrisao ? { modalidadePrisao: contextoCalculo.modalidadePrisao } : {}), ...(contextoCalculo.novaAvaliacao ? { novaAvaliacao: true } : {}) } : {}),
+      ...(contextoCalculo ? { tipoAnalise: contextoCalculo.tipoAnalise, dataReferencia: contextoCalculo.dataReferencia, ...(contextoCalculo.modalidadePrisao ? { modalidadePrisao: contextoCalculo.modalidadePrisao } : {}), ...(contextoCalculo.novaAvaliacao ? { novaAvaliacao: true } : {}), ...(contextoCalculo.compartilharRelatorio ? { compartilharRelatorio: true } : {}) } : {}),
     },
   });
 }
