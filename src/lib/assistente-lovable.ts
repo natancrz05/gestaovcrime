@@ -1,3 +1,5 @@
+import { criarExecutorEconomico, erroControladoFerramenta, MAX_RODADAS_IA, resultadoConcisoFerramenta } from "./assistente-execucao";
+
 type Mensagem = { role: "user" | "assistant"; content: string };
 
 type RespostaGateway = {
@@ -135,7 +137,9 @@ export async function respostaLovable({
 
   const itens: Array<Record<string, unknown> | Mensagem> = inputComArquivos(input, arquivos);
 
-  for (let rodada = 0; rodada < 6; rodada += 1) {
+  const executarComLimite = executarFerramenta ? criarExecutorEconomico(executarFerramenta) : null;
+
+  for (let rodada = 0; rodada < MAX_RODADAS_IA; rodada += 1) {
     const json = await chamarGateway(key, {
       model: modelo,
       instructions,
@@ -159,25 +163,23 @@ export async function respostaLovable({
     for (const chamada of chamadas) {
       itens.push(chamada.bruto as Record<string, unknown>);
       try {
-        const resultado = await executarFerramenta(chamada.name, chamada.argumentos);
+        const resultado = await executarComLimite!(chamada.name, chamada.argumentos);
         itens.push({
           type: "function_call_output",
           call_id: chamada.call_id,
-          output: JSON.stringify(resultado),
+          output: resultadoConcisoFerramenta(resultado),
         });
-      } catch (erro) {
+      } catch {
         itens.push({
           type: "function_call_output",
           call_id: chamada.call_id,
-          output: JSON.stringify({
-            erro: erro instanceof Error ? erro.message : "Falha ao consultar o acervo.",
-          }),
+          output: JSON.stringify(erroControladoFerramenta(chamada.name)),
         });
       }
     }
   }
 
-  throw new Error("A consulta exigiu etapas demais. Reformule a pergunta de modo mais específico.");
+  throw new Error("A análise exigiu consultas demais para esta solicitação. Especifique a informação principal a verificar.");
 }
 
 export const __teste = {
