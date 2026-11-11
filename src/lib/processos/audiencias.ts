@@ -13,6 +13,7 @@ export const CONFIG_AUDIENCIAS = {
 
 export const TIPOS_AUDIENCIA = [
   "Audiência de custódia",
+  "Audiência de apresentação",
   "Audiência preliminar",
   "Audiência de instrução e julgamento",
   "Audiência de depoimento especial",
@@ -35,6 +36,7 @@ export function tipoAudienciaCanonico(valor: string): string {
   const original = valor.replace(/[.\s]+$/g, "").trim();
   const t = original.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
   if (/CUSTODIA/.test(t)) return "Audiência de custódia";
+  if (/\bAPRESENTACAO\b/.test(t)) return "Audiência de apresentação";
   if (/PRELIMINAR/.test(t)) return "Audiência preliminar";
   if (/INSTRUCAO(?: E JULGAMENTO)?/.test(t)) return "Audiência de instrução e julgamento";
   if (/DEPOIMENTO ESPECIAL/.test(t)) return "Audiência de depoimento especial";
