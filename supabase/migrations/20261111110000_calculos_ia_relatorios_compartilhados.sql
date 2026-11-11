@@ -35,7 +35,8 @@ grant insert (autor_id, processo_numero, tipo_analise, modalidade_prisao, nome_r
 create policy "calculos_relatorios_select_serventia" on public.calculos_ia_relatorios
   for select to authenticated
   using (
-    unidade = 'VARA_CORACAO_DE_MARIA_BA'
+    compartilhamento_autorizado = true
+    and unidade = 'VARA_CORACAO_DE_MARIA_BA'
     and criado_em >= now() - interval '30 days'
     and exists (
       select 1 from public.usuarios u
