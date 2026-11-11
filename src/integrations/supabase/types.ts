@@ -32,6 +32,45 @@ export type Database = {
         }
         Relationships: []
       }
+      calculos_ia_relatorios: {
+        Row: {
+          id: string
+          autor_id: string
+          processo_numero: string
+          tipo_analise: string
+          modalidade_prisao: string | null
+          nome_reu: string | null
+          data_referencia: string
+          relatorio: string
+          unidade: string
+          criado_em: string
+        }
+        Insert: {
+          id?: string
+          autor_id: string
+          processo_numero: string
+          tipo_analise: string
+          modalidade_prisao?: string | null
+          nome_reu?: string | null
+          data_referencia: string
+          relatorio: string
+          unidade?: string
+          criado_em?: string
+        }
+        Update: {
+          id?: string
+          autor_id?: string
+          processo_numero?: string
+          tipo_analise?: string
+          modalidade_prisao?: string | null
+          nome_reu?: string | null
+          data_referencia?: string
+          relatorio?: string
+          unidade?: string
+          criado_em?: string
+        }
+        Relationships: []
+      }
       assistente_conversas: {
         Row: {
           id: string
