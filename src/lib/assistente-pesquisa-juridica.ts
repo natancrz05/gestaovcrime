@@ -107,14 +107,12 @@ export function parsearLexml(xml: string) {
   };
 }
 
-function linksConsultaManual(tema: string) {
-  const termo = encodeURIComponent(tema);
+function linksConsultaManual() {
   return [
     { portal: "STJ — Jurisprudência", url: "https://scon.stj.jus.br/SCON/" },
     { portal: "STF — Jurisprudência", url: "https://jurisprudencia.stf.jus.br/pages/search" },
     { portal: "LexML Brasil", url: DOMINIO_FONTE + "/busca/" },
     { portal: "CNJ — Atos Normativos", url: "https://atos.cnj.jus.br/atos" },
-    { portal: "STJ — Pesquisa sugerida (abrir e conferir)", url: "https://scon.stj.jus.br/SCON/" + "?q=" + termo },
   ];
 }
 
@@ -151,8 +149,8 @@ export async function executarPesquisaJuridica(dados: unknown) {
       consultaRealizada: true,
       ...dadosLexml,
       consultadoEm: new Date().toISOString(),
-      observacao: "Referências e metadados públicos. NÃO constituem confirmação do teor de acórdãos, de vigência normativa ou da atualidade de entendimentos. Confira no tribunal de origem antes de citar ou usar em decisão.",
-      portaisParaConferencia: linksConsultaManual(tema),
+      observacao: "Metadados públicos: confira o inteiro teor e a atualidade no tribunal antes de citar.",
+      portaisParaConferencia: linksConsultaManual(),
     };
   } catch {
     // Não declarar falsamente que pesquisa externa ocorreu. Nenhum dado do processo é retransmitido.
@@ -162,8 +160,8 @@ export async function executarPesquisaJuridica(dados: unknown) {
       consultaRealizada: false,
       totalEncontrado: 0,
       referencias: [],
-      observacao: "O LexML não respondeu ou a resposta não pôde ser confirmada. A consulta externa NÃO foi concluída. Use os portais oficiais para pesquisa manual; não invente precedentes, números ou ementas.",
-      portaisParaConferencia: linksConsultaManual(tema),
+      observacao: "A consulta externa NÃO foi concluída. Não cite precedentes não verificados; confira nos portais oficiais.",
+      portaisParaConferencia: linksConsultaManual(),
     };
   }
 }
