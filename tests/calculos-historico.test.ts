@@ -44,3 +44,13 @@ describe("Histórico individual de relatórios processuais", () => {
     expect(historicosDoMesmoProcesso(conversas, null)).toBe(0);
   });
 });
+
+describe("Uso responsável e identificação conservadora", () => {
+  test("não identifica automaticamente número ausente no cabeçalho do PDF", () => {
+    const numero = "8000373-72.2020.8.05.0067";
+    const texto = "Capa digitalizada sem número legível. ".repeat(150) + numero;
+    expect(numeroCandidatoPdf("autos.pdf", texto)).toBeNull();
+    // O arquivo continua apto à análise: a identificação é opcional.
+    expect(tituloHistoricoCalculo("Prescrição penal", "autos.pdf", null)).toContain("autos");
+  });
+});
