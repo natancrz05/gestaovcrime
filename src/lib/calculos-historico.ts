@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { listarConversasAssistente } from "./assistente-historico";
 import { PREFIXO_HISTORICO_CALCULO, ehHistoricoCalculo } from "./prazos/historico-calculos";
-export { PREFIXO_HISTORICO_CALCULO, ehHistoricoCalculo, historicosDoMesmoProcesso, numeroCandidatoPdf, tituloHistoricoCalculo } from "./prazos/historico-calculos";
+export { PREFIXO_HISTORICO_CALCULO, TAMANHO_PAGINA_HISTORICO, ehHistoricoCalculo, historicosDoMesmoProcesso, nomeReuCandidatoPdf, numeroCandidatoPdf, paginarHistorico, tituloHistoricoCalculo, tituloVisivelHistorico } from "./prazos/historico-calculos";
 
 /**
  * Usa as MESMAS tabelas privadas do Assistente, filtradas pelo usuário.
