@@ -561,7 +561,7 @@ function CalculadoraIA() {
         <p className="mt-1 text-xs text-muted-foreground">Consulte relatórios já elaborados antes de repetir uma análise. Somente as suas análises são exibidas; abrir um relatório não solicita outra análise.</p>
         <input value={buscaHistorico} onChange={(e) => setBuscaHistorico(e.target.value)}
           className={cn(CAMPO, "mt-3")} aria-label="Filtrar análises anteriores"
-          placeholder="Filtrar por tipo ou número do processo na lista…" />
+          placeholder="Filtrar relatórios anteriores…" />
         {erroHistorico ? <p role="alert" className="mt-2 text-xs text-destructive">{erroHistorico}</p> : null}
         {carregandoHistorico ? <p className="mt-3 text-xs text-muted-foreground">Carregando histórico pessoal…</p> :
           historicoFiltrado.length === 0 ? (
@@ -612,14 +612,14 @@ function CalculadoraIA() {
             <label>
               <span className={TITULO}>Modalidade de prisão provisória</span>
               <select className={CAMPO} value={modalidadePrisao}
-                onChange={(e) => { setModalidadePrisao(e.target.value as ModalidadePrisao); setResposta(""); }}
+                onChange={(e) => { setModalidadePrisao(e.target.value as ModalidadePrisao); setResposta(""); setTituloResposta(""); setConversaCriada(""); }}
                 disabled={analisando}>
                 {MODALIDADES_PRISAO.map((item) => (
                   <option key={item.valor} value={item.valor}>{item.rotulo}</option>
                 ))}
               </select>
               <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
-                A escolha orienta a pesquisa; a natureza atual da prisão deve ser confirmada nos autos. A referência de 90 dias é específica da preventiva.
+                A escolha orienta a análise; a natureza atual da prisão deve ser confirmada nos autos. A referência de 90 dias é específica da preventiva.
               </span>
             </label>
           ) : null}
