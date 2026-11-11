@@ -48,28 +48,23 @@ export function solicitouPesquisaExterna(pergunta: string): boolean {
   return acao && objeto;
 }
 
-/** Uma consulta ao LexML por resposta; o controle é isolado à requisição, não ao usuário. */
+/** Uma pesquisa LexML por solicitação; nenhuma resposta é armazenada entre usuários. */
 export function limitarPesquisasExternas(
   executar: (dados: Record<string, unknown>) => Promise<unknown>,
 ) {
-  let chamadas = 0;
   let primeira: Promise<unknown> | undefined;
+  let temaOriginal = "";
   return (dados: Record<string, unknown>) => {
+    const tema = String(dados["tema"] ?? "").trim().toLowerCase();
     if (primeira) {
+      if (tema && tema === temaOriginal) return primeira;
       return Promise.resolve({
         consultaRealizada: false,
         limiteDaResposta: true,
-        observacao: "A pesquisa jurídica desta resposta já foi executada. Utilize as referências obtidas e não faça outra busca nesta solicitação.",
+        observacao: "Uma consulta ao LexML já foi realizada para esta resposta. Utilize as referências anteriores; não inicie outra pesquisa.",
       });
     }
-    if (chamadas >= 1) {
-      return Promise.resolve({
-        consultaRealizada: false,
-        limiteDaResposta: true,
-        observacao: "Limite de uma pesquisa externa nesta resposta.",
-      });
-    }
-    chamadas++;
+    temaOriginal = tema;
     primeira = executar(dados);
     return primeira;
   };
