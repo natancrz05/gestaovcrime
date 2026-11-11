@@ -27,6 +27,29 @@ export function numeroUnicoDoPdf(texto: string): string | null {
   return candidatos.length === 1 ? candidatos[0]! : null;
 }
 
+/**
+ * O compartilhamento é desabilitado por padrão e condicionado a autorização
+ * explícita. OCR incompleto, identificação ausente ou indicação de sigilo
+ * impedem a publicação no repositório institucional.
+ */
+export function autorizacaoParaReuso(dados: {
+  consentimento: boolean;
+  texto: string;
+  numero: string | null;
+  nomeReu: string | null;
+  truncado: boolean;
+  paginasSemTexto: number[];
+  paginas?: number;
+  paginasLidas?: number;
+}) {
+  if (!dados.consentimento || dados.truncado || dados.paginasSemTexto.length > 0) return false;
+  if (documentoSinalizaSigilo(dados.texto)) return false;
+  if (!dados.numero || numeroUnicoDoPdf(dados.texto) !== dados.numero) return false;
+  if (!dados.nomeReu?.trim()) return false;
+  if (!dados.paginas || dados.paginasLidas !== dados.paginas) return false;
+  return true;
+}
+
 export interface ReferenciaRelatorio {
   id: string;
   processo_numero: string;
