@@ -148,10 +148,6 @@ export const Route = createFileRoute("/_authenticated/relatorios")({
 const fmt = (iso: string | null | undefined) =>
   iso ? iso.slice(0, 10).split("-").reverse().join("/") : "—";
 
-interface Coluna {
-  titulo: string;
-}
-
 type Linha = {
   chave: string;
   processoId?: string | null;
@@ -313,7 +309,7 @@ function Relatorio({
   comparecimentos,
   oficios,
 }: {
-  tipo: Tipo;
+  tipo: Exclude<Tipo, "produtividade">;
   titulo: string;
   processos: ProcessoCompleto[];
   presos: ReuPresoBeta[];
