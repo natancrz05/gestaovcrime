@@ -29,7 +29,7 @@ import {
 export const ITENS_NAV = [
   { para: "/", rotulo: "Dashboard", icone: LayoutDashboard, exato: true },
   { para: "/processos", rotulo: "Processos", icone: FolderOpen, exato: false },
-  { para: "/assistente", rotulo: "Assistente da Vara", icone: Sparkles, exato: false },
+  { para: "/assistente", rotulo: "ConclusosIA", icone: Sparkles, exato: false },
   { para: "/calculos", rotulo: "Cálculos Processuais", icone: CalendarRange, exato: false },
   { para: "/reus-presos", rotulo: "Presos Provisórios", icone: Lock, exato: false },
   { para: "/audiencias", rotulo: "Audiências", icone: CalendarDays, exato: false },
