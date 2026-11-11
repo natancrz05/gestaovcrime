@@ -78,3 +78,17 @@ describe("Separação entre relatórios institucionais e chats particulares", ()
     expect(sql).not.toMatch(/grant\s+(?:update|delete)\b/i);
   });
 });
+
+describe("Privacidade em avaliações por outros servidores", () => {
+  test("uma análise não é reaproveitada quando a natureza da prisão diverge", () => {
+    const preventiva: ReferenciaRelatorio = {
+      ...base, tipo_analise: "prisao_provisoria", modalidade_prisao: "preventiva",
+    };
+    expect(elegivelParaReuso(preventiva, {
+      ...consulta, tipo: "prisao_provisoria", modalidade: "identificar",
+    })).toBe(false);
+  });
+  test("identificação ambígua do PDF não permite cruzamento indevido", () => {
+    expect(numeroUnicoDoPdf("[Página 1] " + caso + " \n [Página 2] " + outro)).toBeNull();
+  });
+});
