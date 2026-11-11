@@ -55,6 +55,7 @@ export type Database = {
           nome_reu?: string | null
           data_referencia: string
           relatorio: string
+          compartilhamento_autorizado?: boolean
           unidade?: string
           criado_em?: string
         }
