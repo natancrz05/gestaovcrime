@@ -24,7 +24,8 @@ describe("ConclusosIA — publicação institucional segura", () => {
     expect(autorizacaoParaReuso({ ...base, truncado: true })).toBe(false);
     expect(autorizacaoParaReuso({ ...base, paginasSemTexto: [2] })).toBe(false);
     expect(autorizacaoParaReuso({ ...base, paginasLidas: 1 })).toBe(false);
-    expect(autorizacaoParaReuso({ ...base, paginas: undefined })).toBe(false);
+    const { paginas: _paginas, ...semPaginas } = base;
+    expect(autorizacaoParaReuso(semPaginas)).toBe(false);
   });
   test("número ou réu incerto bloqueia a publicação", () => {
     expect(autorizacaoParaReuso({ ...base, numero: null })).toBe(false);
