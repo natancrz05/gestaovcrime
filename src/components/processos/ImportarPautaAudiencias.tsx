@@ -107,7 +107,7 @@ export function ImportarPautaAudiencias({
   }
 
   async function importar() {
-    if (!analise || analise.erros.length || analise.conflitos || !analise.itens.length) return;
+    if (!analise || !analise.itens.some((item) => item.estado !== "conflito")) return;
     setImportando(true);
     setFalhaImportacao(false);
     setResultado(null);
@@ -156,7 +156,8 @@ export function ImportarPautaAudiencias({
     limpar();
   }
 
-  const bloqueada = !analise || analise.erros.length > 0 || analise.conflitos > 0 || !analise.itens.length;
+  const importaveis = analise?.itens.filter((item) => item.estado !== "conflito").length ?? 0;
+  const bloqueada = !analise || importaveis === 0;
   const conflitos = analise?.itens
     .filter((i) => i.estado === "conflito")
     .map((i) => ({ pagina: i.pagina, numero: i.numero, motivo: i.motivo ?? "Conflito não identificado." })) ?? [];
@@ -245,13 +246,14 @@ export function ImportarPautaAudiencias({
                 <Resumo rotulo="Réus a acrescentar" valor={analise.reusNovos} />
                 <Resumo rotulo="Processos novos" valor={analise.processosNovos} />
                 <Resumo rotulo="Processos já existentes" valor={analise.processosExistentes} />
-                <Resumo rotulo="Conflitos" valor={analise.conflitos} />
+                <Resumo rotulo="Conflitos ignorados" valor={analise.conflitos} />
+                <Resumo rotulo="Linhas disponíveis para importar" valor={importaveis} />
                 <Resumo rotulo="Linhas repetidas ignoradas" valor={analise.duplicadasArquivo.length} />
                 <Resumo rotulo="Outra jurisdição ignorada" valor={analise.linhasOutraJurisdicao} />
               </div>
 
-              <Problemas titulo="Erros de leitura — a importação está bloqueada" itens={analise.erros} />
-              <Problemas titulo="Conflitos — a importação está bloqueada" itens={conflitos} />
+              <Problemas titulo="Linhas não reconhecidas — serão ignoradas, sem bloquear as demais" itens={analise.erros} />
+              <Problemas titulo="Conflitos isolados — não serão gravados; as demais linhas serão importadas" itens={conflitos} />
 
               {analise.avisos.length ? (
                 <div className="rounded-md border border-atencao/25 bg-atencao-suave p-3 text-xs">
@@ -338,11 +340,12 @@ export function ImportarPautaAudiencias({
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                 <p className="max-w-2xl text-xs text-muted-foreground">
-                  A importação só é liberada quando todas as linhas estão legíveis e sem conflito real.
-                  Se a audiência já existir no mesmo processo, data e horário, ela é reutilizada. Mudanças de situação, finalidade, sala ou modalidade vindas de uma pauta posterior atualizam o mesmo registro, sem duplicação.
+                  As linhas reconhecidas podem ser importadas mesmo que outras estejam ilegíveis ou apresentem divergências.
+                  Linhas em conflito são ignoradas, sem sobrescrever registros incompatíveis. Revise os avisos para conferir os casos que não foram importados.
+                  Reimportações preservam situações finais e evitam duplicidades.
                 </p>
                 <button className={BOTAO_PRIMARIO} disabled={bloqueada || importando || !!resultado} onClick={() => void importar()}>
-                  <Upload className="size-4" /> {importando ? "Importando…" : "Importar pauta conferida"}
+                  <Upload className="size-4" /> {importando ? "Importando…" : `Importar ${importaveis} registro(s) válido(s)`}
                 </button>
               </div>
             </>
