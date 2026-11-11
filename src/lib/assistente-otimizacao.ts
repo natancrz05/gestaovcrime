@@ -43,7 +43,7 @@ export function modeloParaSolicitacao(pergunta: string, possuiAnexo: boolean, an
 /** Consultas externas só quando o usuário solicitar expressamente pesquisa/atualização. */
 export function solicitouPesquisaExterna(pergunta: string): boolean {
   const t = pergunta.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const acao = /\b(?:pesquis|busqu|consult|verifiqu|confir|localiz|procur|atualiz|encontr|traga|mostre)\w*/.test(t);
+  const acao = /\b(?:pesquis|busqu|consult|verifiqu|confir|localiz|procur|atualiz|encontr|traga|mostre|indiqu|apresent|cit|quero|preciso|existe|existem)\w*/.test(t);
   const objeto = /\b(?:jurisprudenc|precedent|acorda|stj|stf|lexml|fonte[s]? extern|legislac|sumula[s]?|decisoes? de tribunais|pesquisa externa|consulta externa|internet|web|online|portais? oficiais?)\w*/.test(t);
   return acao && objeto;
 }
