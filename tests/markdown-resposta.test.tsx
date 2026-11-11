@@ -80,3 +80,23 @@ describe("Markdown dos relatórios jurídicos gerados por IA", () => {
     expect(resultado).toContain("<strong");
   });
 });
+
+describe("Compatibilidade com respostas do Assistente", () => {
+  test("quebras de linha e marcadores de revisão permanecem legíveis", () => {
+    const resultado = html([
+      "Data do ato: **04/08/2021**",
+      "Retomada: *11/12/2023*",
+      "",
+      "> ⚖️ Conferência judicial necessária",
+      "",
+      "### Pendências",
+      "- Conferir mídia",
+    ].join("\n"));
+    expect(resultado).toContain("04/08/2021</strong>");
+    expect(resultado).toContain("11/12/2023</em>");
+    expect(resultado).toContain("<blockquote");
+    expect(resultado).toContain("⚖️");
+    expect(resultado).toContain("<h4");
+    expect(resultado).toContain("Conferir mídia");
+  });
+});
