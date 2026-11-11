@@ -7,6 +7,8 @@ import { executarCalculoPrazo, FERRAMENTA_CALCULO_PRAZO } from "./assistente-pra
 import { executarMedicaoIntervalo, FERRAMENTA_INTERVALO } from "./assistente-intervalos";
 import { ORIENTACAO_REVISAO_PRISAO, orientacaoPorModalidade } from "./prazos/revisao-prisao";
 import { FERRAMENTA_PRAZO_TEMPORARIA, executarPrazoTemporaria } from "./assistente-temporaria";
+import { nomeReuCandidatoPdf } from "./prazos/historico-calculos";
+import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
 
 const INSTRUCOES = `Você é o Assistente da Vara, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
 
@@ -63,6 +65,7 @@ const Entrada = z.object({
   tipoAnalise: z.enum(["prescricao", "preventiva", "prisao_provisoria", "manifestacoes", "excesso", "execucao", "suspensao"]).optional(),
   modalidadePrisao: z.enum(["identificar", "preventiva", "temporaria", "flagrante", "outra"]).optional(),
   dataReferencia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  novaAvaliacao: z.boolean().optional(),
 }).refine((data) => Boolean(data.conversaId) === Boolean(data.respostaId), {
   message: "Identificação incompleta da conversa.",
 });
@@ -104,6 +107,34 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
         .maybeSingle();
       if (erroExistente) throw new Error("Não foi possível verificar a resposta anterior.");
       if (existente) return { resposta: existente.conteudo, persistida: true };
+    }
+
+    const arquivoAnalise = data.tipoAnalise ? data.arquivos[0] : undefined;
+    const numeroConfirmado = arquivoAnalise ? numeroUnicoDoPdf(arquivoAnalise.texto) : null;
+    const tipoReuso = data.tipoAnalise && TIPOS_REUSO_IA.some((t) => t === data.tipoAnalise)
+      ? data.tipoAnalise as (typeof TIPOS_REUSO_IA)[number]
+      : null;
+    const subtipo = tipoReuso === "prisao_provisoria" ? data.modalidadePrisao ?? "identificar" : null;
+    const nomeReu = arquivoAnalise ? nomeReuCandidatoPdf(arquivoAnalise.texto) : null;
+    // Proteção também no servidor: uma requisição direta não deve consumir IA
+    // sem a decisão explícita de refazer uma avaliação já identificada.
+    if (tipoReuso && numeroConfirmado && data.dataReferencia && !data.novaAvaliacao) {
+      const limite = new Date(Date.now() - DIAS_REUSO_IA * 86400000).toISOString();
+      const { data: candidatas, error: erroReuso } = await sb.from("calculos_ia_relatorios")
+        .select("id,processo_numero,tipo_analise,modalidade_prisao,nome_reu,data_referencia,criado_em")
+        .eq("unidade", UNIDADE_REUSO_IA)
+        .eq("processo_numero", numeroConfirmado)
+        .eq("tipo_analise", tipoReuso)
+        .gte("criado_em", limite)
+        .lte("data_referencia", data.dataReferencia)
+        .order("criado_em", { ascending: false }).limit(20);
+      if (erroReuso) throw new Error("Não foi possível verificar análises recentes. Nenhuma chamada à IA foi realizada.");
+      if ((candidatas ?? []).some((item) => elegivelParaReuso(item, {
+        numero: numeroConfirmado, tipo: tipoReuso, modalidade: subtipo,
+        nomeReu, dataReferencia: data.dataReferencia!, agora: new Date(),
+      }))) {
+        throw new Error("Já existe uma avaliação recente para estes autos e modalidade. Consulte-a antes ou escolha expressamente Nova avaliação.");
+      }
     }
 
     const mensagensContextualizadas = data.messages.map((mensagem) => ({ ...mensagem }));
@@ -176,5 +207,29 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
       console.error("Assistente: não foi possível persistir a resposta", erroSalvar.code);
       return { resposta, persistida: false };
     }
-    return { resposta, persistida: true };
+
+    // Somente resultado final: nunca copiar prompt, histórico ou IDs de conversa.
+    // PDFs incompletos e processos não identificados inequivocamente não entram no reuso.
+    let compartilhada = false;
+    if (tipoReuso && numeroConfirmado && data.dataReferencia && arquivoAnalise &&
+        !arquivoAnalise.truncado && !(arquivoAnalise.paginasSemTexto?.length) &&
+        resposta.length >= 40 && resposta.length <= 100000) {
+      const { error: erroCompartilhar } = await sb.from("calculos_ia_relatorios")
+        .insert({
+          autor_id: usuarioId,
+          processo_numero: numeroConfirmado,
+          tipo_analise: tipoReuso,
+          modalidade_prisao: subtipo,
+          nome_reu: nomeReu,
+          data_referencia: data.dataReferencia,
+          relatorio: resposta,
+        });
+      if (erroCompartilhar) {
+        // Falha no reuso não retira o relatório do histórico PRIVADO do autor.
+        console.error("Relatório institucional não publicado:", erroCompartilhar.code);
+      } else {
+        compartilhada = true;
+      }
+    }
+    return { resposta, persistida: true, compartilhada };
   });
