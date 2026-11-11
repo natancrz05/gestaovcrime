@@ -94,6 +94,9 @@ export interface ResultadoImportacaoPauta {
   audienciasCriadas: number;
   audienciasAtualizadas: number;
   audienciasJaExistentes: number;
+  linhasIlegiveisIgnoradas: number;
+  linhasComConflitoIgnoradas: number;
+  linhasOutraJurisdicaoIgnoradas: number;
 }
 
 export interface ProgressoImportacaoPauta {
@@ -976,5 +979,8 @@ export async function executarImportacaoPauta(
     audienciasCriadas,
     audienciasAtualizadas,
     audienciasJaExistentes,
+    linhasIlegiveisIgnoradas: errosLeitura.length,
+    linhasComConflitoIgnoradas: analise.conflitos,
+    linhasOutraJurisdicaoIgnoradas: analise.linhasOutraJurisdicao,
   };
 }
