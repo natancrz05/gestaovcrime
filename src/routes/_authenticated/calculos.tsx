@@ -13,7 +13,7 @@ import { MarkdownResposta } from "@/components/assistente/MarkdownResposta";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
 import { criarConversaAssistente, listarMensagensAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
-import { historicosDoMesmoProcesso, listarHistoricoCalculos, numeroCandidatoPdf, PREFIXO_HISTORICO_CALCULO, tituloHistoricoCalculo } from "@/lib/calculos-historico";
+import { historicosDoMesmoProcesso, listarHistoricoCalculos, nomeReuCandidatoPdf, numeroCandidatoPdf, paginarHistorico, tituloHistoricoCalculo, tituloVisivelHistorico } from "@/lib/calculos-historico";
 import { usePode, useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
@@ -409,15 +409,18 @@ function CalculadoraIA() {
   const [abrindoHistorico, setAbrindoHistorico] = useState<string | null>(null);
   const [erroHistorico, setErroHistorico] = useState("");
   const [buscaHistorico, setBuscaHistorico] = useState("");
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
   const [erro, setErro] = useState("");
   const opcao = useMemo(() => OPCOES_IA.find((o) => o.id === tipo) ?? OPCOES_IA[0], [tipo]);
   const indice = useMemo(() => arquivo ? indexarReferenciasPdf(arquivo.texto) : null, [arquivo]);
   const textoParcial = Boolean(arquivo?.truncado || arquivo?.paginasSemTexto?.length);
   const numeroIndicativo = useMemo(() => arquivo ? numeroCandidatoPdf(arquivo.nome, arquivo.texto) : null, [arquivo]);
+  const nomeReuIndicativo = useMemo(() => arquivo ? nomeReuCandidatoPdf(arquivo.texto) : null, [arquivo]);
   const quantidadeAnteriores = useMemo(() => historicosDoMesmoProcesso(historico, numeroIndicativo), [historico, numeroIndicativo]);
   const historicoFiltrado = useMemo(() => historico.filter((item) =>
-    normalizarPesquisa(item.titulo).includes(normalizarPesquisa(buscaHistorico))
+    normalizarPesquisa(tituloVisivelHistorico(item.titulo)).includes(normalizarPesquisa(buscaHistorico))
   ), [historico, buscaHistorico]);
+  const paginacaoHistorico = useMemo(() => paginarHistorico(historicoFiltrado, paginaHistorico), [historicoFiltrado, paginaHistorico]);
 
   useEffect(() => {
     let ativo = true;
@@ -451,7 +454,7 @@ function CalculadoraIA() {
       if (!ultimaResposta) throw new Error("Esta análise ainda não possui uma resposta salva. Confira o histórico no Assistente.");
       const item = historico.find((conversa) => conversa.id === id);
       setResposta(ultimaResposta.conteudo);
-      setTituloResposta(item?.titulo.replace(PREFIXO_HISTORICO_CALCULO, "") ?? "Análise anterior");
+      setTituloResposta(item ? tituloVisivelHistorico(item.titulo) : "Análise anterior");
       setConversaCriada(id);
       setErro("");
       toast.success("Relatório anterior recuperado, sem nova consulta à IA.");
@@ -515,7 +518,7 @@ function CalculadoraIA() {
         arquivo.paginasSemTexto?.length ? "ATENÇÃO: PÁGINAS SEM TEXTO EXTRAÍVEL: " + arquivo.paginasSemTexto.join(", ") + ". Não foram lidas por OCR. Nunca trate o PDF como integralmente legível; indique limitações e solicite conferência visual." : "",
         "O resultado é subsídio para avaliação técnica humana, não decisão judicial.",
       ].join("\n");
-      const chat = await criarConversaAssistente(sessao.id, tituloHistoricoCalculo(opcao.titulo, arquivo.nome, numeroIndicativo));
+      const chat = await criarConversaAssistente(sessao.id, tituloHistoricoCalculo(opcao.titulo, arquivo.nome, numeroIndicativo, nomeReuIndicativo));
       setConversaCriada(chat.id);
       const msgId = crypto.randomUUID();
       await salvarMensagemUsuario({
@@ -538,8 +541,9 @@ function CalculadoraIA() {
       setResposta(gerada.resposta);
       setTituloResposta(opcao.titulo);
       if (gerada.persistida) {
-        void listarHistoricoCalculos(sessao.id).then(setHistorico).catch(() =>
-          toast.warning("A análise foi salva, mas a lista do histórico não pôde ser atualizada."));
+        void listarHistoricoCalculos(sessao.id)
+          .then((itens) => { setHistorico(itens); setPaginaHistorico(1); })
+          .catch(() => toast.warning("A análise foi salva, mas a lista do histórico não pôde ser atualizada."));
       }
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
       else toast.success("Análise concluída e salva em Suas conversas.");
@@ -559,7 +563,7 @@ function CalculadoraIA() {
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">Atualizar</button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Consulte relatórios já elaborados antes de repetir uma análise. Somente as suas análises são exibidas; abrir um relatório não solicita outra análise.</p>
-        <input value={buscaHistorico} onChange={(e) => setBuscaHistorico(e.target.value)}
+        <input value={buscaHistorico} onChange={(e) => { setBuscaHistorico(e.target.value); setPaginaHistorico(1); }}
           className={cn(CAMPO, "mt-3")} aria-label="Filtrar análises anteriores"
           placeholder="Filtrar relatórios anteriores…" />
         {erroHistorico ? <p role="alert" className="mt-2 text-xs text-destructive">{erroHistorico}</p> : null}
@@ -568,12 +572,12 @@ function CalculadoraIA() {
             <p className="mt-3 text-xs text-muted-foreground">{historico.length ? "Nenhuma análise corresponde à pesquisa." : "Nenhuma análise anterior encontrada para este usuário."}</p>
           ) : (
             <div className="mt-3 max-h-56 space-y-1 overflow-y-auto" aria-label="Análises anteriores">
-              {historicoFiltrado.map((item) => (
+              {paginacaoHistorico.registros.map((item) => (
                 <button type="button" key={item.id} onClick={() => void abrirAnaliseSalva(item.id)}
                   disabled={!!abrindoHistorico || analisando}
                   className="flex w-full items-start justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-left hover:bg-muted/60 disabled:opacity-50">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">{item.titulo.replace(PREFIXO_HISTORICO_CALCULO, "")}</span>
+                    <span className="block break-words text-xs font-medium leading-5" title={tituloVisivelHistorico(item.titulo)}>{tituloVisivelHistorico(item.titulo)}</span>
                     <span className="block text-[11px] text-muted-foreground">{new Date(item.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
                   </span>
                   <span className="shrink-0 text-[11px] font-medium text-primary">{abrindoHistorico === item.id ? "Abrindo…" : "Ver relatório"}</span>
@@ -581,6 +585,22 @@ function CalculadoraIA() {
               ))}
             </div>
           )}
+        {!carregandoHistorico && paginacaoHistorico.total > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+            <span>Exibindo {paginacaoHistorico.inicio}–{paginacaoHistorico.fim} de {paginacaoHistorico.total} análises</span>
+            {paginacaoHistorico.totalPaginas > 1 ? (
+              <nav aria-label="Paginação do histórico de análises" className="flex items-center gap-2">
+                <button type="button" className="rounded-lg border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:opacity-40"
+                  disabled={paginacaoHistorico.paginaAtual === 1 || !!abrindoHistorico}
+                  onClick={() => setPaginaHistorico(paginacaoHistorico.paginaAtual - 1)}>Anterior</button>
+                <span aria-live="polite">Página {paginacaoHistorico.paginaAtual} de {paginacaoHistorico.totalPaginas}</span>
+                <button type="button" className="rounded-lg border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:opacity-40"
+                  disabled={paginacaoHistorico.paginaAtual === paginacaoHistorico.totalPaginas || !!abrindoHistorico}
+                  onClick={() => setPaginaHistorico(paginacaoHistorico.paginaAtual + 1)}>Próxima</button>
+              </nav>
+            ) : null}
+          </div>
+        ) : null}
       </section>
       <section>
         <h2 className="text-lg font-semibold">Selecione o tipo de análise</h2>
