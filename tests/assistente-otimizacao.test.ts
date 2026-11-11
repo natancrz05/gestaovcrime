@@ -60,9 +60,11 @@ describe("ConclusosIA — freio da pesquisa externa", () => {
       return { consultaRealizada: true, referencias: [{ url: "https://www.lexml.gov.br" }] };
     });
     const primeiro = await pesquisar({ tema: "prescrição penal" });
+    const repetido = await pesquisar({ tema: "prescrição penal" });
     const segundo = await pesquisar({ tema: "prisão preventiva" });
     expect(chamadas).toBe(1);
     expect(primeiro).toMatchObject({ consultaRealizada: true });
+    expect(repetido).toEqual(primeiro);
     expect(segundo).toMatchObject({ consultaRealizada: false, limiteDaResposta: true });
   });
   test("limite é isolado por solicitação, sem misturar dados entre usuários", async () => {
