@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { z } from "zod";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { ArrowLeft, Archive, RotateCcw } from "lucide-react";
 import { Cabecalho, EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
@@ -18,6 +20,7 @@ import {
 } from "@/lib/processos/comparecimentos";
 
 export const Route = createFileRoute("/_authenticated/comparecimentos_/encerrados")({
+  validateSearch: zodValidator(z.object({ id: fallback(z.string(), "").default("") })),
   head: () => ({
     meta: [
       { title: "Comparecimentos encerrados — Gestão da Vara Criminal" },
@@ -41,6 +44,8 @@ const normalizar = (valor: string) =>
 
 function Pagina() {
   const { data } = useSuspenseQuery(comparecimentosQuery());
+  const busca = Route.useSearch();
+  const navigate = Route.useNavigate();
   const hoje = hojeISO();
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
   const encerrados = useMemo(
@@ -48,7 +53,9 @@ function Pagina() {
     [lista],
   );
   const [termo, setTermo] = useState("");
-  const [selecionado, setSelecionado] = useState<ComparecimentoListado | null>(null);
+  const selecionado = encerrados.find((c) => c.id === busca.id) ?? null;
+  const abrir = (id: string) => navigate({ search: (anterior) => ({ ...anterior, id }) });
+  const fechar = () => navigate({ search: (anterior) => ({ ...anterior, id: "" }) });
   const [reativando, setReativando] = useState(false);
   const podeEditar = usePode("editar");
   const qc = useQueryClient();
@@ -99,7 +106,7 @@ function Pagina() {
       await reativarComparecimento(selecionado.id);
       await qc.invalidateQueries({ queryKey: ["comparecimentos"] });
       toast.success("Comparecimento reativado.");
-      setSelecionado(null);
+      await navigate({ to: "/comparecimentos", search: { situacao: "", id: selecionado.id } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível reativar o comparecimento.");
     } finally {
@@ -173,7 +180,7 @@ function Pagina() {
                   <tr
                     key={comparecimento.id}
                     className="cursor-pointer text-muted-foreground hover:bg-muted/40"
-                    onClick={() => setSelecionado(comparecimento)}
+                    onClick={() => void abrir(comparecimento.id)}
                   >
                     <td className="break-words px-3 py-2 align-top font-medium text-foreground">
                       {comparecimento.pessoa}
@@ -194,7 +201,7 @@ function Pagina() {
         )}
       </Secao>
 
-      <Dialog open={!!selecionado} onOpenChange={(aberto) => !aberto && setSelecionado(null)}>
+      <Dialog open={!!selecionado} onOpenChange={(aberto) => { if (!aberto) void fechar(); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Comparecimento encerrado — {selecionado?.pessoa}</DialogTitle>
