@@ -9,6 +9,7 @@ import { CLASSE_CAMPO, Secao } from "@/components/processos/campos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatarData } from "@/lib/dominio";
 import { hojeISO } from "@/lib/processos/modelo";
+import { cadastroEncerradoPorId } from "@/lib/processos/comparecimentos-navegacao";
 import { usePode } from "@/lib/sessao";
 import { toast } from "sonner";
 import {
@@ -53,7 +54,7 @@ function Pagina() {
     [lista],
   );
   const [termo, setTermo] = useState("");
-  const selecionado = encerrados.find((c) => c.id === busca.id) ?? null;
+  const selecionado = cadastroEncerradoPorId(encerrados, busca.id);
   const abrir = (id: string) => navigate({ search: (anterior) => ({ ...anterior, id }) });
   const fechar = () => navigate({ search: (anterior) => ({ ...anterior, id: "" }) });
   const [reativando, setReativando] = useState(false);
@@ -202,7 +203,7 @@ function Pagina() {
       </Secao>
 
       <Dialog open={!!selecionado} onOpenChange={(aberto) => { if (!aberto) void fechar(); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Comparecimento encerrado — {selecionado?.pessoa}</DialogTitle>
           </DialogHeader>
