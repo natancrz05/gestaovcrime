@@ -861,7 +861,7 @@ function CalculadoraIA() {
               </p>
             ) : null}
           </div>
-          <button type="button" onClick={() => void analisar()
+          <button type="button" onClick={() => void analisar()}
             disabled={!arquivo || lendo || analisando || (Boolean(numeroSeguroReuso) && situacaoReuso !== "concluido" && !(situacaoReuso === "erro" && liberarNovaAvaliacao)) || (consultasRecentes.length > 0 && !liberarNovaAvaliacao)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
             {analisando ? <Loader2 className="size-4 animate-spin" /> : <BrainCircuit className="size-4" />}
