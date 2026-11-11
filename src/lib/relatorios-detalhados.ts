@@ -67,6 +67,14 @@ function diasAte(iso: string | null): number | "" {
   return Math.round((Date.parse(iso.slice(0, 10) + "T00:00:00Z") - ref) / 86400000);
 }
 
+function diasEmCustodia(valor: string | null): number | "" {
+  const brasileira = data(valor);
+  if (!brasileira) return "";
+  const iso = brasileira.slice(6) + "-" + brasileira.slice(3, 5) + "-" + brasileira.slice(0, 2);
+  const dias = diasAte(iso);
+  return dias === "" ? "" : -dias;
+}
+
 export const COLUNAS_CSV_EXTRAS: Record<TipoRelatorioCSV, readonly string[]> = {
   processos: [
     "Comarca", "Unidade", "Fase", "Responsável", "Réus cadastrados", "Qtd. réus",
@@ -158,7 +166,7 @@ export function enriquecerRelatorioCSV(
           data(ultima?.data_reavaliacao ?? campoPlanilha(dp, ["Última reavaliação", "Data da última reavaliação"])),
           data(ultima?.proxima_data),
           data(campoPlanilha(dp, ["Término de eventual prazo", "Término do prazo", "Termino do prazo"])),
-          p.situacao, p.data_prisao ? -Number(diasAte(p.data_prisao)) : "", p.observacoes, data(processo?.criado_em),
+          p.situacao, diasEmCustodia(p.data_prisao), p.observacoes, data(processo?.criado_em),
         ] : Array(COLUNAS_CSV_EXTRAS[tipo].length).fill("");
         break;
       }
