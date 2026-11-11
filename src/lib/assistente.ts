@@ -20,11 +20,13 @@ export interface ContextoCalculoAssistente {
   tipoAnalise: "prescricao" | "preventiva" | "prisao_provisoria" | "manifestacoes" | "excesso" | "execucao" | "suspensao";
   modalidadePrisao?: ModalidadePrisao;
   dataReferencia: string;
+  novaAvaliacao?: boolean;
 }
 
 export interface RespostaAssistente {
   resposta: string;
   persistida: boolean;
+  compartilhada?: boolean;
 }
 
 export async function perguntarAoAssistente(
@@ -38,7 +40,7 @@ export async function perguntarAoAssistente(
       messages: mensagens.slice(-20),
       arquivos: arquivos.slice(0, 2),
       ...(destino ? { conversaId: destino.conversaId, respostaId: destino.respostaId } : {}),
-      ...(contextoCalculo ? { tipoAnalise: contextoCalculo.tipoAnalise, dataReferencia: contextoCalculo.dataReferencia, ...(contextoCalculo.modalidadePrisao ? { modalidadePrisao: contextoCalculo.modalidadePrisao } : {}) } : {}),
+      ...(contextoCalculo ? { tipoAnalise: contextoCalculo.tipoAnalise, dataReferencia: contextoCalculo.dataReferencia, ...(contextoCalculo.modalidadePrisao ? { modalidadePrisao: contextoCalculo.modalidadePrisao } : {}), ...(contextoCalculo.novaAvaliacao ? { novaAvaliacao: true } : {}) } : {}),
     },
   });
 }
