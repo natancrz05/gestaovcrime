@@ -13,5 +13,5 @@ const normalizarPapel = (s: string) =>
  */
 export function papelEhReu(papel: string) {
   const t = normalizarPapel(papel);
-  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD|FLAGRANTEAD|AUTUAD)/.test(t);
+  return /(AUTOR\s+DO\s+FATO|\bREU\b|ACUSAD|DENUNCIAD|INDICIAD|QUERELAD|EXECUTAD|INVESTIGAD|REQUERID|APELAD|FLAGRANTEAD|AUTUAD|ADOLESCENT|REPRESENTAD|APREENDID)/.test(t);
 }

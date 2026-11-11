@@ -17,7 +17,7 @@ export function chaveOrgaoPauta(orgao: string) {
 
   // O PJe pode repetir palavras, acrescentar sufixos ou quebrar o nome da unidade
   // de forma diferente entre linhas/páginas.
-  if (/VARA\s+CRIMINAL/.test(t) && /CORACAO\s+DE\s+MARIA/.test(t)) {
+  if (/CORACAO\s+DE\s+MARIA/.test(t) && /(?:VARA\s+(?:CRIMINAL|PLENA|UNICA|DE\s+INFANCIA|DA\s+INFANCIA)|JUIZO\s+DE\s+DIREITO|COMARCA\s+DE\s+CORACAO)/.test(t)) {
     return "VARA CRIMINAL DE CORACAO DE MARIA";
   }
 

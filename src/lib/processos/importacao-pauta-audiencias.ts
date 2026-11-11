@@ -11,7 +11,6 @@
  * - a importação é idempotente: se for interrompida, o mesmo arquivo pode ser
  *   processado novamente sem recriar o que já tiver sido salvo.
  */
-import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto, Reu } from "./modelo";
 import {
@@ -94,6 +93,9 @@ export interface ResultadoImportacaoPauta {
   audienciasCriadas: number;
   audienciasAtualizadas: number;
   audienciasJaExistentes: number;
+  linhasIlegiveisIgnoradas: number;
+  linhasComConflitoIgnoradas: number;
+  linhasOutraJurisdicaoIgnoradas: number;
 }
 
 export interface ProgressoImportacaoPauta {
@@ -180,7 +182,7 @@ function situacaoCanonica(s: string): LinhaPautaAudiencia["situacao"] | null {
   if (/CANCELAD/.test(t)) return "Cancelada";
   if (/REDESIGNAD/.test(t)) return "Redesignada";
   if (/REALIZAD/.test(t)) return "Realizada";
-  if (/DESIGNAD|AGENDAD|MARCADA/.test(t)) return "Agendada";
+  if (/DESIGNAD|AGENDAD|MARCADA|PROGRAMAD|A REALIZAR|PENDENTE DE REALIZACAO/.test(t)) return "Agendada";
   return null;
 }
 
@@ -284,14 +286,14 @@ function colunaDe(x: number, limites: number[]): Coluna {
 function limitesCabecalho(itens: ItemPdf[]): number[] | null {
   const achar = (re: RegExp) => itens.find((i) => re.test(norm(i.str)))?.x;
   const xs = [
-    achar(/^DATA$/),
-    achar(/^PROCESSO$/),
-    achar(/^ORGAO/),
-    achar(/^PARTES$/),
-    achar(/^CLASSE$/),
-    achar(/^TIPO\b/),
-    achar(/^SALA$/),
-    achar(/^SITUACAO$/),
+    achar(/^DATA(?:\s+(?:DA\s+)?AUDIENCIA)?$/),
+    achar(/^(?:PROCESSO|NUMERO(?:\s+DO)?\s+PROCESSO|N[O.]?\s*PROCESSO)$/),
+    achar(/^(?:ORGAO|UNIDADE\s+JUDICIAL|JUIZO)/),
+    achar(/^(?:PARTES|POLOS\s+PROCESSUAIS)$/),
+    achar(/^CLASSE(?:\s+PROCESSUAL)?$/),
+    achar(/^(?:TIPO|FINALIDADE|ATO\s+PROCESSUAL)\b/),
+    achar(/^(?:SALA|LOCAL|AMBIENTE)$/),
+    achar(/^(?:SITUACAO|STATUS)$/),
   ];
   if (xs.some((x) => x === undefined)) return null;
   const n = xs as number[];
@@ -304,7 +306,7 @@ function limitesCabecalho(itens: ItemPdf[]): number[] | null {
   return limites;
 }
 
-function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha?: LinhaPautaAudiencia; erro?: ProblemaPauta } {
+export function montarLinhaPauta(pagina: number, colunas: Record<Coluna, string[]>): { linha?: LinhaPautaAudiencia; erro?: ProblemaPauta } {
   const dataHora = limparTexto(colunas.data.join(" "));
   const dm = dataHora.match(/(\d{2}\/\d{2}\/(?:\d{2}|\d{4}))\s+(\d{2}:\d{2})/);
   const data = dm ? paraIso(dm[1]!) : null;
@@ -314,7 +316,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   const orgao = limparTexto(colunas.orgao.join(" "));
   const tipoOriginal = limparTexto(colunas.tipo.join(" ")).replace(/[.\s]+$/g, "").trim();
   const tipo = tipoAudienciaCanonico(tipoOriginal);
-  const tipoReconhecido = (TIPOS_AUDIENCIA as readonly string[]).includes(tipo);
+  // Finalidades não catalogadas no PJe devem ser preservadas.
   const salaOriginal = limparTexto(colunas.sala.join(" "));
   const situacaoOriginal = limparTexto(colunas.situacao.join(" "));
   const situacao = situacaoCanonica(situacaoOriginal);
@@ -335,20 +337,20 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
 
   const faltas: string[] = [];
   if (!data) faltas.push("data inválida");
-  if (!/^\d{2}:\d{2}$/.test(horario)) faltas.push("horário inválido");
+  if (!/^\d{2}:\d{2}$/.test(horario) || Number(horario.slice(0, 2)) > 23 || Number(horario.slice(3, 5)) > 59) faltas.push("horário inválido");
   if (digitos.length !== 20) faltas.push("número CNJ inválido");
-  if (!classe) faltas.push("classe não identificada");
-  if (!tipoOriginal || !tipoReconhecido) faltas.push(`tipo de audiência não reconhecido ("${tipoOriginal || "vazio"}")`);
+  // Classe pode não estar preenchida no PDF.
+  if (!tipoOriginal) faltas.push("finalidade da audiência ausente");
+  if (tipoOriginal.length > 180) faltas.push("finalidade excessivamente longa; conferir extração");
   if (!situacao) faltas.push(`situação não reconhecida ("${situacaoOriginal || "vazia"}")`);
   if (!orgao) faltas.push("órgão julgador não identificado");
-  if (!sala) faltas.push("sala/local não identificado");
-  if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
+  // Sem sala ou réu, registrar sem inventar pessoas; outros campos identificam o ato.
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
 
   return {
     linha: {
-      pagina, data: data!, horario, numero, orgao, classe,
-      tipo, tipoOriginal, salaOriginal, local: sala!.local, modalidade: sala!.modalidade,
+      pagina, data: data!, horario, numero, orgao, classe: classe || "Classe não informada na pauta",
+      tipo, tipoOriginal, salaOriginal, local: sala?.local ?? "Outro", modalidade: sala?.modalidade ?? "Presencial",
       situacao: situacao!, situacaoOriginal, pessoas, reus,
     },
   };
@@ -359,8 +361,11 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
     throw new Error("Envie a pauta de audiências em PDF exportada pelo PJe.");
   }
 
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
   const pdf = await (async () => {
     try {
@@ -428,7 +433,7 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
         const coluna = colunaDe(item.x, limites);
         colunas[coluna].push(item.str);
       }
-      const r = montarLinha(pagina, colunas);
+      const r = montarLinhaPauta(pagina, colunas);
       if (r.linha) linhas.push(r.linha);
       if (r.erro) erros.push(r.erro);
     }
@@ -452,6 +457,8 @@ export function analisarPautaAudiencias(
   processos: ProcessoCompleto[],
   errosLeitura: ProblemaPauta[] = [],
 ): AnalisePautaAudiencias {
+  // Falhas pontuais de leitura são informadas, sem impedir que outras
+  // linhas completas e inequívocas da pauta sejam aproveitadas.
   const erros = [...errosLeitura];
   const avisos: ProblemaPauta[] = [];
   const duplicadasArquivo: ProblemaPauta[] = [];
@@ -482,6 +489,35 @@ export function analisarPautaAudiencias(
     linhasUnicas.push(l);
   }
 
+  // Informações acessórias ausentes ou novos tipos do PJe não impedem a
+  // importação. Exibe avisos claros para conferência técnica posterior.
+  for (const l of linhasUnicas) {
+    if (!(TIPOS_AUDIENCIA as readonly string[]).includes(l.tipo)) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: `Finalidade "${l.tipo}" não catalogada: será preservada exatamente como consta na pauta.`,
+      });
+    }
+    if (!l.reus.length) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Nenhum réu/autor do fato identificado: audiência será registrada sem criar pessoas fictícias.",
+      });
+    }
+    if (!l.salaOriginal) {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Sala não informada: local será 'Outro'; a modalidade deve ser conferida.",
+      });
+    }
+    if (l.classe === "Classe não informada na pauta") {
+      avisos.push({
+        pagina: l.pagina, numero: l.numero,
+        motivo: "Classe não identificada: utilizada anotação provisória sem bloquear a audiência.",
+      });
+    }
+  }
+
   // O mesmo processo deve ter uma única classe na pauta.
   const classes = new Map<string, Set<string>>();
   for (const l of linhasUnicas) {
@@ -491,7 +527,7 @@ export function analisarPautaAudiencias(
     classes.set(k, set);
   }
   for (const [numero, set] of classes) {
-    if (set.size > 1) erros.push({ numero: formatarNumeroCnj(numero), pagina: 0, motivo: "O mesmo processo aparece com classes diferentes na pauta." });
+    if (set.size > 1) avisos.push({ numero: formatarNumeroCnj(numero), pagina: 0, motivo: "Classes divergentes na própria pauta; conferir no PJe. O cadastro atual não será sobrescrito." });
   }
 
   // O conflito de horário é avaliado apenas dentro do mesmo processo.
@@ -522,10 +558,10 @@ export function analisarPautaAudiencias(
       const classeSistema = normClasse(processo.classe ?? "");
       const classePauta = normClasse(l.classe);
       if (classeSistema && classePauta && classeSistema !== classePauta) {
-        return {
-          ...l, processoId: processo.id, processoNovo: false, reusNovos: [], estado: "conflito",
-          motivo: `O processo já existe, mas a classe diverge: sistema "${processo.classe}" e pauta "${l.classe}".`,
-        };
+        avisos.push({
+          pagina: l.pagina, numero: l.numero,
+          motivo: `Classe divergente (cadastro: "${processo.classe}"; PJe: "${l.classe}"). A audiência poderá ser registrada sem alterar a classe do processo.`,
+        });
       }
 
       const conflitoReu = l.reus.map((p) => conflitoIdentidadeReu(processo.reus, p)).find(Boolean);
@@ -625,7 +661,7 @@ export function analisarPautaAudiencias(
     erros,
     avisos,
     duplicadasArquivo,
-    linhasOutraJurisdicao: avisos.length,
+    linhasOutraJurisdicao: linhas.length - linhasDaUnidade.length,
     processosNovos: numsNovos.size,
     processosExistentes: numsExistentes.size,
     audienciasNovas: itens.filter((i) => i.estado === "nova").length,
@@ -720,14 +756,14 @@ export async function executarImportacaoPauta(
   let processos = await listarProcessosCompletos();
   let processosPorNumero = indexarProcessosPorNumero(processos);
   let analise = analisarPautaAudiencias(linhas, processos, errosLeitura);
-  if (analise.erros.length || analise.conflitos) {
-    throw new Error("A pauta possui erros ou conflitos. Nenhuma nova audiência foi importada.");
+  if (!analise.itens.some((item) => item.estado !== "conflito")) {
+    throw new Error("Nenhuma audiência pode ser importada com segurança. Confira os avisos e o número CNJ das linhas.");
   }
 
   let processosCriados = 0;
   let reusCriados = 0;
   let reusAtualizados = 0;
-  const linhasImportaveis: LinhaPautaAudiencia[] = analise.itens;
+  const linhasImportaveis: LinhaPautaAudiencia[] = analise.itens.filter((item) => item.estado !== "conflito");
   const porNumero = new Map<string, LinhaPautaAudiencia[]>();
   for (const l of linhasImportaveis) {
     const k = normalizarNumeroProcesso(l.numero);
@@ -736,7 +772,7 @@ export async function executarImportacaoPauta(
 
   // Unidades reais: análise inicial + conferência de processos + conferência de réus
   // + revalidação final + cada audiência processada.
-  const totalTrabalho = 2 + (porNumero.size * 2) + analise.itens.length;
+  const totalTrabalho = 2 + (porNumero.size * 2) + linhasImportaveis.length;
   let trabalhoConcluido = 1;
   const emitirProgresso = (etapa: string) =>
     onProgresso?.({ concluidas: trabalhoConcluido, total: totalTrabalho, etapa });
@@ -827,15 +863,15 @@ export async function executarImportacaoPauta(
   processos = await listarProcessosCompletos();
   processosPorNumero = indexarProcessosPorNumero(processos);
   analise = analisarPautaAudiencias(linhas, processos);
-  if (analise.erros.length || analise.conflitos) {
-    throw new Error("O acervo mudou durante a importação e surgiu um conflito. As audiências não foram duplicadas; revise a prévia e tente novamente.");
+  if (!analise.itens.some((item) => item.estado !== "conflito")) {
+    throw new Error("Após a conferência do acervo, nenhuma linha permanece importável. Os cadastros existentes foram preservados.");
   }
   avancarProgresso("Acervo revalidado. Atualizando audiências...");
 
   let audienciasCriadas = 0;
   let audienciasAtualizadas = 0;
   let audienciasJaExistentes = analise.audienciasExistentes;
-  for (const item of analise.itens) {
+  for (const item of analise.itens.filter((item) => item.estado !== "conflito")) {
     emitirProgresso(`Processando audiência de ${item.numero} em ${item.data} às ${item.horario}...`);
     const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
     if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
@@ -939,11 +975,14 @@ export async function executarImportacaoPauta(
 
   return {
     processosCriados,
-    processosReutilizados: new Set(linhas.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
+    processosReutilizados: new Set(linhasImportaveis.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
     reusCriados,
     reusAtualizados,
     audienciasCriadas,
     audienciasAtualizadas,
     audienciasJaExistentes,
+    linhasIlegiveisIgnoradas: errosLeitura.length,
+    linhasComConflitoIgnoradas: analise.conflitos,
+    linhasOutraJurisdicaoIgnoradas: analise.linhasOutraJurisdicao,
   };
 }
