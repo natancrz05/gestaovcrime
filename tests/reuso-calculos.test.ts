@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
-  DIAS_REUSO_IA, elegivelParaReuso, numeroUnicoDoPdf, type ReferenciaRelatorio,
+  DIAS_REUSO_IA, documentoSinalizaSigilo, elegivelParaReuso, numeroUnicoDoPdf, type ReferenciaRelatorio,
 } from "../src/lib/prazos/reuso-calculos";
 
 const caso = "8000373-72.2020.8.05.0067";
@@ -76,5 +76,30 @@ describe("Separação entre relatórios institucionais e chats particulares", ()
     const select = sql.match(/grant select \(([\s\S]*?)\)\s+on public.calculos_ia_relatorios to authenticated/i)?.[1] ?? "";
     expect(select).not.toContain("autor_id");
     expect(sql).not.toMatch(/grant\s+(?:update|delete)\b/i);
+  });
+});
+
+describe("Privacidade em avaliações por outros servidores", () => {
+  test("uma análise não é reaproveitada quando a natureza da prisão diverge", () => {
+    const preventiva: ReferenciaRelatorio = {
+      ...base, tipo_analise: "prisao_provisoria", modalidade_prisao: "preventiva",
+    };
+    expect(elegivelParaReuso(preventiva, {
+      ...consulta, tipo: "prisao_provisoria", modalidade: "identificar",
+    })).toBe(false);
+  });
+  test("identificação ambígua do PDF não permite cruzamento indevido", () => {
+    expect(numeroUnicoDoPdf("[Página 1] " + caso + " \n [Página 2] " + outro)).toBeNull();
+  });
+});
+
+describe("Sigilo e reaproveitamento institucional", () => {
+  test("não autoriza compartilhamento quando constar segredo de justiça ou sigilo", () => {
+    expect(documentoSinalizaSigilo("TRIBUNAL DE JUSTIÇA\nSEGREDO DE JUSTIÇA\nProcesso " + caso)).toBe(true);
+    expect(documentoSinalizaSigilo("Processo sigiloso\nNúmero " + caso)).toBe(true);
+    expect(documentoSinalizaSigilo("GRAU DE SIGILO: 2\n" + caso)).toBe(true);
+  });
+  test("capa pública sem indicação de sigilo não é bloqueada", () => {
+    expect(documentoSinalizaSigilo("TRIBUNAL DE JUSTIÇA\nProcesso " + caso + "\nRéu: Jailton")).toBe(false);
   });
 });

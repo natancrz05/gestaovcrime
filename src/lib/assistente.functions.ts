@@ -8,7 +8,7 @@ import { executarMedicaoIntervalo, FERRAMENTA_INTERVALO } from "./assistente-int
 import { ORIENTACAO_REVISAO_PRISAO, orientacaoPorModalidade } from "./prazos/revisao-prisao";
 import { FERRAMENTA_PRAZO_TEMPORARIA, executarPrazoTemporaria } from "./assistente-temporaria";
 import { nomeReuCandidatoPdf } from "./prazos/historico-calculos";
-import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
+import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, documentoSinalizaSigilo, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
 
 const INSTRUCOES = `Você é o Assistente da Vara, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
 
@@ -110,7 +110,7 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
     }
 
     const arquivoAnalise = data.tipoAnalise ? data.arquivos[0] : undefined;
-    const numeroConfirmado = arquivoAnalise ? numeroUnicoDoPdf(arquivoAnalise.texto) : null;
+    const numeroConfirmado = arquivoAnalise && !documentoSinalizaSigilo(arquivoAnalise.texto) ? numeroUnicoDoPdf(arquivoAnalise.texto) : null;
     const tipoReuso = data.tipoAnalise && TIPOS_REUSO_IA.some((t) => t === data.tipoAnalise)
       ? data.tipoAnalise as (typeof TIPOS_REUSO_IA)[number]
       : null;
