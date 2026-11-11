@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { CLASSE_CAMPO } from "@/components/processos/campos";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { baixarRelatorioCSV } from "@/lib/relatorios-csv";
 
 const POR_PAGINA = 50;
 const CATEGORIAS = ["Processos", "Movimentações", "Audiências", "Comparecimentos", "Pendências", "Prisões", "Ofícios"] as const;
@@ -151,24 +152,14 @@ function diaSeguinte(data: string) {
   return d.toISOString().slice(0, 10);
 }
 
-function csv(nome: string, linhas: string[][]) {
-  const esc = (v: string) => /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-  const conteudo = linhas.map((l) => l.map(esc).join(";")).join("\r\n");
-  const blob = new Blob(["\uFEFF" + conteudo], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${nome}-${hojeLocal()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export function RelatorioProdutividade() {
   const [de, setDe] = useState(inicioMesLocal());
   const [ate, setAte] = useState(hojeLocal());
   const [usuario, setUsuario] = useState("");
   const [categoria, setCategoria] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [exportando, setExportando] = useState(false);
+  const [erroExportacao, setErroExportacao] = useState("");
 
   const usuarios = useQuery({
     queryKey: ["produtividade", "usuarios"],
@@ -219,7 +210,8 @@ export function RelatorioProdutividade() {
     () => new Set(eventos.map((e) => e.criado_em.slice(0, 10))).size,
     [eventos],
   );
-  const mediaDia = diasAtivos ? total / diasAtivos : 0;
+  const resumoParcial = total > eventos.length;
+  const mediaDia = !resumoParcial && diasAtivos ? total / diasAtivos : null;
 
   const porCategoria = useMemo(() => {
     const m = new Map<string, number>();
@@ -257,17 +249,69 @@ export function RelatorioProdutividade() {
     fn(v);
   };
 
-  const exportar = () => {
-    csv("relatorio-produtividade", [
-      ["Data/hora", "Usuário", "Categoria", "Processo", "Descrição"],
-      ...eventos.map((e) => [
-        new Date(e.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }),
-        e.usuario_nome || "Sistema",
-        e.categoria_produtividade || "—",
-        e.processo_numero || "—",
-        e.descricao,
-      ]),
-    ]);
+  /**
+   * Exporta TODOS os eventos autorizados no período usando paginação real.
+   * A tela mostra no máximo 5.000 para evitar carregamento pesado no navegador.
+   * Falha fechada se qualquer lote ou a conferência do total não terminar.
+   */
+  const exportar = async () => {
+    if (exportando || relatorio.isLoading || relatorio.isError || !total) return;
+    setExportando(true);
+    setErroExportacao("");
+    try {
+      const tamanhoLote = 1000;
+      const limiteSnapshot = new Date().toISOString();
+      const todos: typeof eventos = [];
+      let totalEsperado: number | null = null;
+      for (let inicio = 0; ; inicio += tamanhoLote) {
+        let consulta = supabase
+          .from("auditoria")
+          .select(
+            "id, criado_em, usuario_nome, categoria_produtividade, processo_id, processo_numero, descricao, acao, modulo",
+            { count: inicio === 0 ? "exact" : undefined },
+          )
+          .eq("conta_produtividade", true)
+          .gte("criado_em", de + "T00:00:00-03:00")
+          .lt("criado_em", diaSeguinte(ate) + "T00:00:00-03:00")
+          .lte("criado_em", limiteSnapshot)
+          .order("criado_em", { ascending: false })
+          .order("id", { ascending: false })
+          .range(inicio, inicio + tamanhoLote - 1);
+        if (usuario) consulta = consulta.eq("usuario_nome", usuario);
+        if (categoria) consulta = consulta.eq("categoria_produtividade", categoria);
+        const resposta = await consulta;
+        if (resposta.error) throw resposta.error;
+        if (inicio === 0) totalEsperado = resposta.count;
+        const lote = resposta.data ?? [];
+        todos.push(...lote);
+        if (lote.length < tamanhoLote) break;
+        if (todos.length > 200000) {
+          throw new Error("O período excede a capacidade de exportação do navegador. Refine o intervalo de datas.");
+        }
+      }
+      if (totalEsperado === null || todos.length !== totalEsperado) {
+        throw new Error("O total de registros mudou durante a exportação. Refaça a consulta para evitar arquivo incompleto.");
+      }
+      baixarRelatorioCSV(
+        "relatorio-produtividade-completo",
+        ["Data/hora", "Usuário", "Categoria", "Módulo", "Ação", "Processo", "Descrição", "ID do evento", "ID do processo"],
+        todos.map((e) => [
+          new Date(e.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }),
+          e.usuario_nome || "Sistema",
+          e.categoria_produtividade || "",
+          e.modulo || "",
+          e.acao || "",
+          e.processo_numero || "",
+          e.descricao,
+          e.id,
+          e.processo_id || "",
+        ]),
+      );
+    } catch (erro) {
+      setErroExportacao(erro instanceof Error ? erro.message : "Não foi possível concluir a exportação. Nenhum CSV parcial foi gerado.");
+    } finally {
+      setExportando(false);
+    }
   };
 
   return (
@@ -282,10 +326,10 @@ export function RelatorioProdutividade() {
         </div>
         <button
           className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          disabled={!eventos.length}
-          onClick={exportar}
+          disabled={!eventos.length || exportando || relatorio.isLoading || relatorio.isError}
+          onClick={() => void exportar()}
         >
-          <Download className="size-4" /> Exportar CSV
+          <Download className="size-4" /> {exportando ? "Exportando todos os registros…" : "Exportar CSV completo"}
         </button>
       </div>
 
@@ -329,6 +373,13 @@ export function RelatorioProdutividade() {
         ) : null}
       </div>
 
+      {erroExportacao ? <p role="alert" className="text-sm text-destructive">{erroExportacao}</p> : null}
+      {resumoParcial ? (
+        <p className="text-xs text-muted-foreground">
+          A prévia e os agrupamentos abaixo utilizam os 5.000 eventos mais recentes;
+          o botão CSV completo consulta todas as páginas do período antes de gerar o arquivo.
+        </p>
+      ) : null}
       {relatorio.isLoading ? (
         <div className="rounded-md border border-border p-8 text-center text-sm text-muted-foreground">
           Calculando produtividade…
@@ -341,14 +392,14 @@ export function RelatorioProdutividade() {
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Resumo icone={ListChecks} rotulo="Operações produtivas" valor={total.toLocaleString("pt-BR")} />
-            <Resumo icone={CalendarCheck2} rotulo="Dias com produção" valor={diasAtivos.toLocaleString("pt-BR")} />
-            <Resumo icone={Gauge} rotulo="Média por dia ativo" valor={mediaDia.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} />
-            <Resumo icone={Users} rotulo="Usuários com produção" valor={porUsuario.length.toLocaleString("pt-BR")} />
+            <Resumo icone={CalendarCheck2} rotulo="Dias com produção" valor={(resumoParcial ? "≥ " : "") + diasAtivos.toLocaleString("pt-BR")} />
+            <Resumo icone={Gauge} rotulo="Média por dia ativo" valor={mediaDia === null ? "—" : mediaDia.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} />
+            <Resumo icone={Users} rotulo="Usuários com produção" valor={(resumoParcial ? "≥ " : "") + porUsuario.length.toLocaleString("pt-BR")} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
             <div className="rounded-md border border-border p-3">
-              <h3 className="mb-3 text-sm font-semibold">Distribuição por categoria</h3>
+              <h3 className="mb-3 text-sm font-semibold">Distribuição por categoria{resumoParcial ? " (prévia)" : ""}</h3>
               {porCategoria.length ? (
                 <div className="space-y-2">
                   {porCategoria.map(([cat, n]) => (
@@ -362,7 +413,7 @@ export function RelatorioProdutividade() {
             </div>
 
             <div className="rounded-md border border-border p-3">
-              <h3 className="mb-3 text-sm font-semibold">Resumo por usuário</h3>
+              <h3 className="mb-3 text-sm font-semibold">Resumo por usuário{resumoParcial ? " (prévia)" : ""}</h3>
               {porUsuario.length ? (
                 <div className="space-y-3">
                   {porUsuario.map((u) => (
