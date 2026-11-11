@@ -9,6 +9,7 @@ import { ESTADOS_BRASIL, municipiosDaUf } from "@/lib/prazos/localidades-brasil"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
+import { MarkdownResposta } from "@/components/assistente/MarkdownResposta";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
 import { criarConversaAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
@@ -592,7 +593,7 @@ function CalculadoraIA() {
             </button>
             {conversaCriada ? <Link to="/assistente" className="text-xs font-medium text-primary underline underline-offset-2">Abrir histórico no Assistente</Link> : null}
           </div>
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7">{resposta}</pre>
+          <div className="min-w-0 rounded-lg bg-background/40 px-1 py-2"><MarkdownResposta texto={resposta} /></div>
         </section>
       ) : null}
     </div>
