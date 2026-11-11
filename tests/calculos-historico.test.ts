@@ -128,3 +128,14 @@ describe("Identificação do réu e títulos por processo", () => {
       .toBe(numero + " — Jailton Santos Damasceno");
   });
 });
+
+describe("Paginação após alteração dos filtros", () => {
+  test("uma nova pesquisa com poucos registros mantém uma página válida", () => {
+    const todos = Array.from({ length: 23 }, (_, i) => ({ titulo: "Processo " + (i + 1), indice: i + 1 }));
+    const paginaAntiga = paginarHistorico(todos, 5);
+    expect(paginaAntiga.registros).toHaveLength(3);
+    const filtrados = todos.filter((item) => item.indice === 2);
+    expect(paginarHistorico(filtrados, 5).paginaAtual).toBe(1);
+    expect(paginarHistorico(filtrados, 5).registros).toEqual([{ titulo: "Processo 2", indice: 2 }]);
+  });
+});
