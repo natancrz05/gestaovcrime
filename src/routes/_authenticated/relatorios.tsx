@@ -67,6 +67,8 @@ import {
 } from "@/lib/controle-oficios";
 import { cn } from "@/lib/utils";
 import { RelatorioProdutividade } from "@/components/relatorios/RelatorioProdutividade";
+import { baixarRelatorioCSV } from "@/lib/relatorios-csv";
+import { enriquecerRelatorioCSV } from "@/lib/relatorios-detalhados";
 
 type Tipo =
   | "produtividade"
@@ -146,34 +148,12 @@ export const Route = createFileRoute("/_authenticated/relatorios")({
 const fmt = (iso: string | null | undefined) =>
   iso ? iso.slice(0, 10).split("-").reverse().join("/") : "—";
 
-interface Coluna {
-  titulo: string;
-}
-
 type Linha = {
   chave: string;
   processoId?: string | null;
   celulas: (string | number)[];
   destaque?: "urgente" | "atencao" | "sucesso" | undefined;
 };
-
-function exportarCSV(nome: string, colunas: Coluna[], linhas: Linha[]) {
-  const esc = (v: string | number) => {
-    const s = String(v);
-    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const conteudo = [
-    colunas.map((c) => esc(c.titulo)).join(";"),
-    ...linhas.map((l) => l.celulas.map(esc).join(";")),
-  ].join("\r\n");
-  const blob = new Blob(["\uFEFF" + conteudo], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `relatorio-${nome}-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function Pagina() {
   const { tipo } = Route.useSearch();
@@ -329,7 +309,7 @@ function Relatorio({
   comparecimentos,
   oficios,
 }: {
-  tipo: Tipo;
+  tipo: Exclude<Tipo, "produtividade">;
   titulo: string;
   processos: ProcessoCompleto[];
   presos: ReuPresoBeta[];
@@ -580,6 +560,7 @@ function Relatorio({
         ],
       }));
   } else if (tipo === "comparecimentos") {
+    nota = "A listagem utiliza apenas o último registro de comparecimento carregado. O histórico integral permanece na ficha do comparecimento e não é informado como completo neste CSV.";
     filtros = (
       <>
         <Sel
@@ -829,7 +810,14 @@ function Relatorio({
     }));
   }
 
-  const cols = colunas.map((t) => ({ titulo: t }));
+  const fontesCSV = {
+    processos, presos, comparecimentos: comparecimentosPreparados, oficios,
+    prioridades: gruposPrioridade, reavaliacoes: auxiliares.data?.reavaliacoes ?? [],
+  };
+  const dadosCSV = () => enriquecerRelatorioCSV(tipo, colunas, linhas, fontesCSV);
+  const dadosCSVIncompletos = etiquetas.isLoading || etiquetas.isError ||
+    ((tipo === "prioridades" || tipo === "presos-provisorios") && (auxiliares.isLoading || auxiliares.isError)) ||
+    (tipo === "prioridades" && (ocultos.isLoading || ocultos.isError));
   const carregandoDadosPrioridade =
     tipo === "prioridades" &&
     (etiquetas.isLoading || auxiliares.isLoading || ocultos.isLoading);
@@ -856,16 +844,23 @@ function Relatorio({
 
           <button
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-            disabled={linhas.length === 0 || carregandoDadosPrioridade}
-            onClick={() => exportarCSV(tipo, cols, linhas)}
+            disabled={linhas.length === 0 || carregandoDadosPrioridade || dadosCSVIncompletos}
+            onClick={() => {
+              const csv = dadosCSV();
+              baixarRelatorioCSV("relatorio-" + tipo + "-detalhado", csv.colunas, csv.linhas);
+            }}
           >
-            <Download className="size-4" /> Exportar CSV
+            <Download className="size-4" /> Exportar CSV detalhado
           </button>
         </div>
       </div>
 
       {filtros ? <div className="flex flex-wrap items-end gap-3">{filtros}</div> : null}
       {nota ? <p className="text-xs text-muted-foreground">{nota}</p> : null}
+      <p className="text-xs text-muted-foreground">O CSV detalhado inclui as linhas do filtro atual e campos complementares disponíveis no cadastro. Campos ausentes ficam vazios, sem estimativas. Exportação disponível apenas após carregar as informações necessárias.</p>
+      {dadosCSVIncompletos && (etiquetas.isError || auxiliares.isError || ocultos.isError) ? (
+        <p role="alert" className="text-xs text-destructive">Há informações complementares indisponíveis. A exportação foi desativada para evitar um relatório incompleto.</p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full text-left text-sm">
