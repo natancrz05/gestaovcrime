@@ -30,7 +30,7 @@ export function solicitacaoSimples(pergunta: string, possuiAnexo: boolean, anali
   if (possuiAnexo || analiseProcessual || pergunta.length > 1500) return false;
   const t = pergunta.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   if (!/^(?:por favor[,:]?\s*)?(?:melhore|reescreva|revise\s+a\s+redacao|corrija\s+a\s+gramatica|corrija\s+o\s+texto|formate|resuma\s+o\s+texto|simplifique\s+a\s+redacao)\b/.test(t)) return false;
-  if (/\b(?:jurisprudencia|stj|stf|pesquise|busque|pesquisa externa|consulta externa|legislacao atual|atualizad|prescric|prisao|fundamentacao juridica|analise processual|calcule|prazo|inquerito|habeas corpus|precedentes|acordaos)\b/.test(t)) return false;
+  if (/\b(?:jurisprudencia|stj|stf|pesquise|busque|pesquisa externa|consulta externa|legislacao atual|atualiz\w*|prescric\w*|prisao|fundamentacao juridica|analise processual|calcule|prazo|inquerito|processo|autos|sentenca|decisao|denuncia|reu|habeas corpus|precedentes|acordaos)\b/.test(t)) return false;
   return true;
 }
 
@@ -44,7 +44,7 @@ export function modeloParaSolicitacao(pergunta: string, possuiAnexo: boolean, an
 export function solicitouPesquisaExterna(pergunta: string): boolean {
   const t = pergunta.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const acao = /\b(?:pesquis|busqu|consult|verifiqu|confir|localiz|procur|atualiz|encontr|traga|mostre)\w*/.test(t);
-  const objeto = /\b(?:jurisprudenc|precedent|acorda|stj|stf|lexml|fonte[s]? extern|legislac|sumula[s]?|decisoes? de tribunais)\w*/.test(t);
+  const objeto = /\b(?:jurisprudenc|precedent|acorda|stj|stf|lexml|fonte[s]? extern|legislac|sumula[s]?|decisoes? de tribunais|pesquisa externa|consulta externa|internet|web|online|portais? oficiais?)\w*/.test(t);
   return acao && objeto;
 }
 
