@@ -22,7 +22,7 @@ export function numeroCandidatoPdf(nomeArquivo: string, textoPdf: string): strin
     null;
 }
 
-const CAMPOS_REU = /(?:^|[\n;]|\\b)(?:r[eé]u|acusad[oa]|denunciad[oa]|flagrantead[oa]|investigad[oa]|polo\s+passivo)\s*:\s*([^\n;]{0,130})/gim;
+const CAMPOS_REU = /(?:^|[\n;]|\b)(?:r[eé]u|acusad[oa]|denunciad[oa]|flagrantead[oa]|investigad[oa]|polo\s+passivo)\s*:\s*([^\n;]{0,130})/gim;
 const NOME_PROPRIO = /^(?:(?:[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ'-]+|[A-ZÀ-ÖØ-Þ]{2,}|da|de|do|das|dos)\s+){1,8}(?:[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ'-]+|[A-ZÀ-ÖØ-Þ]{2,})/;
 const NAO_NOME = new Set(["PODER", "JUSTIÇA", "TRIBUNAL", "ESTADO", "COMARCA", "PROCESSO", "AUTOS", "NÃO", "LOCALIZADO", "DESCONHECIDO", "IDENTIFICADO"]);
 
