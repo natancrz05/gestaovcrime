@@ -9,6 +9,7 @@ import { ORIENTACAO_REVISAO_PRISAO, orientacaoPorModalidade } from "./prazos/rev
 import { FERRAMENTA_PRAZO_TEMPORARIA, executarPrazoTemporaria } from "./assistente-temporaria";
 import { CONSULTA_JURIDICA_EXTERNA, executarPesquisaJuridica } from "./assistente-pesquisa-juridica";
 import { contextoConciso, limitarPesquisasExternas, modeloParaSolicitacao, solicitouPesquisaExterna } from "./assistente-otimizacao";
+import { INSTRUCOES_MINUTAS } from "./assistente-execucao";
 import { nomeReuCandidatoPdf } from "./prazos/historico-calculos";
 import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, autorizacaoParaReuso, documentoSinalizaSigilo, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
 
@@ -182,7 +183,7 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
     }
 
     const resposta = await respostaLovable({
-      instructions: INSTRUCOES,
+      instructions: modelo === "openai/gpt-6-luna" ? INSTRUCOES_MINUTAS : INSTRUCOES,
       input: mensagensContextualizadas,
       modelo,
       arquivos: data.arquivos.map((arquivo) => ({
