@@ -202,6 +202,13 @@ export function ImportarPautaAudiencias({
                 {resultado.audienciasCriadas} audiência(s) criada(s), {resultado.audienciasAtualizadas} audiência(s) atualizada(s),
                 {" "}{resultado.audienciasJaExistentes} já existente(s), {resultado.processosCriados} processo(s) novo(s),
                 {" "}{resultado.reusCriados} réu(s) acrescentado(s) e {resultado.reusAtualizados} cadastro(s) de réu enriquecido(s).
+                {(resultado.linhasIlegiveisIgnoradas + resultado.linhasComConflitoIgnoradas + resultado.linhasOutraJurisdicaoIgnoradas) > 0 ? (
+                  <span className="mt-1 block font-medium text-atencao">
+                    Importação parcial: {resultado.linhasIlegiveisIgnoradas} linha(s) ilegível(is),
+                    {" "}{resultado.linhasComConflitoIgnoradas} conflito(s) e
+                    {" "}{resultado.linhasOutraJurisdicaoIgnoradas} linha(s) de outra jurisdição ignoradas.
+                  </span>
+                ) : null}
               </p>
             }
           />
