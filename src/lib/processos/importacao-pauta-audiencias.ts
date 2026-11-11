@@ -11,7 +11,6 @@
  * - a importação é idempotente: se for interrompida, o mesmo arquivo pode ser
  *   processado novamente sem recriar o que já tiver sido salvo.
  */
-import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/integrations/supabase/client";
 import type { ProcessoCompleto, Reu } from "./modelo";
 import {
@@ -362,8 +361,11 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
     throw new Error("Envie a pauta de audiências em PDF exportada pelo PJe.");
   }
 
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
   const pdf = await (async () => {
     try {
