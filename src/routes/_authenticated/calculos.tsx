@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, Check, CheckCircle2, ChevronsUpDown, ClipboardCopy, FileText, Gavel, Hourglass, Loader2, LockKeyhole, Scale, ShieldCheck, UploadCloud, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BrainCircuit, CalendarClock, CalendarDays, Check, CheckCircle2, ChevronsUpDown, ClipboardCopy, FileText, Gavel, History, Hourglass, Loader2, LockKeyhole, Scale, ShieldCheck, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { calcularPrazoProcessual, type DadosPrazo, type MateriaPrazo } from "@/lib/prazos/calculo";
 import { indexarReferenciasPdf } from "@/lib/prazos/triagem-documental";
@@ -12,7 +12,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { MarkdownResposta } from "@/components/assistente/MarkdownResposta";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
-import { criarConversaAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
+import { criarConversaAssistente, listarMensagensAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
+import { historicosDoMesmoProcesso, listarHistoricoCalculos, numeroCandidatoPdf, PREFIXO_HISTORICO_CALCULO, tituloHistoricoCalculo } from "@/lib/calculos-historico";
 import { usePode, useSessao } from "@/lib/sessao";
 import { cn } from "@/lib/utils";
 
@@ -396,17 +397,70 @@ function CalculadoraIA() {
   const sessao = useSessao();
   const [tipo, setTipo] = useState<(typeof OPCOES_IA)[number]["id"]>("prescricao");
   const [modalidadePrisao, setModalidadePrisao] = useState<ModalidadePrisao>("identificar");
-  const [processo, setProcesso] = useState("");
   const [dataReferencia, setDataReferencia] = useState(hojeBahiaIso);
   const [arquivo, setArquivo] = useState<ArquivoExtraido | null>(null);
   const [lendo, setLendo] = useState(false);
   const [analisando, setAnalisando] = useState(false);
   const [resposta, setResposta] = useState("");
+  const [tituloResposta, setTituloResposta] = useState("");
   const [conversaCriada, setConversaCriada] = useState("");
+  const [historico, setHistorico] = useState<Awaited<ReturnType<typeof listarHistoricoCalculos>>>([]);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+  const [abrindoHistorico, setAbrindoHistorico] = useState<string | null>(null);
+  const [erroHistorico, setErroHistorico] = useState("");
+  const [buscaHistorico, setBuscaHistorico] = useState("");
   const [erro, setErro] = useState("");
   const opcao = useMemo(() => OPCOES_IA.find((o) => o.id === tipo) ?? OPCOES_IA[0], [tipo]);
   const indice = useMemo(() => arquivo ? indexarReferenciasPdf(arquivo.texto) : null, [arquivo]);
   const textoParcial = Boolean(arquivo?.truncado || arquivo?.paginasSemTexto?.length);
+  const numeroIndicativo = useMemo(() => arquivo ? numeroCandidatoPdf(arquivo.nome, arquivo.texto) : null, [arquivo]);
+  const quantidadeAnteriores = useMemo(() => historicosDoMesmoProcesso(historico, numeroIndicativo), [historico, numeroIndicativo]);
+  const historicoFiltrado = useMemo(() => historico.filter((item) =>
+    normalizarPesquisa(item.titulo).includes(normalizarPesquisa(buscaHistorico))
+  ), [historico, buscaHistorico]);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregandoHistorico(true);
+    void listarHistoricoCalculos(sessao.id)
+      .then((registros) => { if (ativo) { setHistorico(registros); setErroHistorico(""); } })
+      .catch(() => { if (ativo) setErroHistorico("Não foi possível consultar seu histórico. Tente atualizar."); })
+      .finally(() => { if (ativo) setCarregandoHistorico(false); });
+    return () => { ativo = false; };
+  }, [sessao.id]);
+
+  const atualizarHistorico = async () => {
+    setCarregandoHistorico(true);
+    setErroHistorico("");
+    try {
+      setHistorico(await listarHistoricoCalculos(sessao.id));
+    } catch {
+      setErroHistorico("Não foi possível atualizar o histórico pessoal.");
+    } finally {
+      setCarregandoHistorico(false);
+    }
+  };
+
+  const abrirAnaliseSalva = async (id: string) => {
+    if (abrindoHistorico || analisando) return;
+    setAbrindoHistorico(id);
+    setErroHistorico("");
+    try {
+      const mensagens = await listarMensagensAssistente(id, sessao.id);
+      const ultimaResposta = [...mensagens].reverse().find((mensagem) => mensagem.papel === "assistant");
+      if (!ultimaResposta) throw new Error("Esta análise ainda não possui uma resposta salva. Confira o histórico no Assistente.");
+      const item = historico.find((conversa) => conversa.id === id);
+      setResposta(ultimaResposta.conteudo);
+      setTituloResposta(item?.titulo.replace(PREFIXO_HISTORICO_CALCULO, "") ?? "Análise anterior");
+      setConversaCriada(id);
+      setErro("");
+      toast.success("Relatório anterior recuperado, sem nova consulta à IA.");
+    } catch (e) {
+      setErroHistorico(e instanceof Error ? e.message : "Falha ao abrir a análise anterior.");
+    } finally {
+      setAbrindoHistorico(null);
+    }
+  };
 
   const carregar = async (files: FileList | null) => {
     const file = files?.[0];
@@ -415,6 +469,8 @@ function CalculadoraIA() {
     setErro("");
     setArquivo(null);
     setResposta("");
+    setTituloResposta("");
+    setConversaCriada("");
     try {
       if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") throw new Error("Envie os autos no formato PDF.");
       const extraido = await extrairArquivoTexto(file);
@@ -429,26 +485,22 @@ function CalculadoraIA() {
 
   const analisar = async () => {
     if (!arquivo || analisando) return;
-    const numero = processo.trim();
-    if (numero && !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(numero)) {
-      setErro("Informe o número CNJ completo ou deixe o campo do processo em branco.");
-      return;
-    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataReferencia)) {
       setErro("Informe uma data de referência válida.");
       return;
     }
     setErro("");
     setResposta("");
+    setTituloResposta("");
     setConversaCriada("");
     setAnalisando(true);
     try {
       const prompt = [
         "ANÁLISE JURÍDICA — " + opcao.titulo.toUpperCase(),
-        numero ? "PROCESSO: " + numero : "PROCESSO: identificar exclusivamente se constar nos autos.",
+        "PROCESSO: identifique exclusivamente pelo conteúdo do PDF. Não presuma número pelo nome do arquivo.",
         "DATA DE REFERÊNCIA (BA): " + dataReferencia + ". Não use outra data para dizer se o prazo decorreu.",
         "Unidade: Vara Plena da Comarca de Coração de Maria/BA — TJBA.",
-        "Examine o PDF anexado como fonte primária. Consulte o acervo interno através das ferramentas do Assistente caso o número do processo esteja informado e exista cadastro correspondente.",
+        "Examine somente o PDF anexado como fonte factual dos autos. Esta tela não faz busca por número nem consulta o acervo administrativo.",
         "OBJETIVO: " + opcao.descricao + ".",
         "CRITÉRIOS ESPECÍFICOS: " + opcao.orientacao,
         ...(tipo === "prisao_provisoria"
@@ -458,13 +510,12 @@ function CalculadoraIA() {
         "Indique cada marco com data, página do PDF, ID do documento quando efetivamente encontrado e fundamento legal. Separe fatos localizados, dados administrativos e inferências.",
         "Use cronologia e cálculos auditáveis. Nunca invente documentos ou datas. Não trate ausência de informação como prova de inexistência.",
         "Quando existirem marcos suficientes, use as ferramentas de cálculo para medir lapsos, e apresente os resultados com a convenção de contagem. Datas e IDs encontrados no texto são apenas indicadores até que o ato seja identificado.",
-        "Se houver número CNJ, consulte também dados do sistema. A ausência de evento no acervo administrativo não prova a inexistência do respectivo ato nos autos.",
+        "Não consulte cadastros de processos ou réus; não deduza ausência de ato com base em registros administrativos. Confira no PDF.",
         arquivo.truncado ? "ATENÇÃO: O PDF foi TRUNCADO NA EXTRAÇÃO. É PROIBIDO CONCLUIR DE MODO DEFINITIVO; informe o que falta e recomende nova análise integral." : "Verifique lacunas dos autos antes de qualquer conclusão.",
         arquivo.paginasSemTexto?.length ? "ATENÇÃO: PÁGINAS SEM TEXTO EXTRAÍVEL: " + arquivo.paginasSemTexto.join(", ") + ". Não foram lidas por OCR. Nunca trate o PDF como integralmente legível; indique limitações e solicite conferência visual." : "",
-        numero && !arquivo.texto.includes(numero) ? "ATENÇÃO: o número CNJ informado não foi localizado literalmente no texto extraído. Confira se o PDF corresponde ao processo e se há páginas digitalizadas." : "",
         "O resultado é subsídio para avaliação técnica humana, não decisão judicial.",
       ].join("\n");
-      const chat = await criarConversaAssistente(sessao.id, opcao.titulo + (numero ? " — " + numero : ""));
+      const chat = await criarConversaAssistente(sessao.id, tituloHistoricoCalculo(opcao.titulo, arquivo.nome, numeroIndicativo));
       setConversaCriada(chat.id);
       const msgId = crypto.randomUUID();
       await salvarMensagemUsuario({
@@ -481,10 +532,15 @@ function CalculadoraIA() {
           ...(arquivo.truncado !== undefined ? { truncado: arquivo.truncado } : {}),
         }],
         { conversaId: chat.id, respostaId: crypto.randomUUID() },
-        { tipoAnalise: tipo, dataReferencia, ...(numero ? { numeroProcesso: numero } : {}),
+        { tipoAnalise: tipo, dataReferencia,
           ...(tipo === "prisao_provisoria" ? { modalidadePrisao } : {}) },
       );
       setResposta(gerada.resposta);
+      setTituloResposta(opcao.titulo);
+      if (gerada.persistida) {
+        void listarHistoricoCalculos(sessao.id).then(setHistorico).catch(() =>
+          toast.warning("A análise foi salva, mas a lista do histórico não pôde ser atualizada."));
+      }
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
       else toast.success("Análise concluída e salva em Suas conversas.");
     } catch (e) {
