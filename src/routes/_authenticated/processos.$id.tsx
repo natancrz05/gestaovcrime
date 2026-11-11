@@ -1,4 +1,5 @@
 import { comparecimentosDoProcessoQuery, preparar } from "@/lib/processos/comparecimentos";
+import { rotaCadastroComparecimento } from "@/lib/processos/comparecimentos-navegacao";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { AudienciasProcesso } from "@/components/processos/AudienciasProcesso";
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
@@ -478,7 +479,15 @@ function ComparecimentosProcesso({ processoId }: { processoId: string }) {
               <p className="mt-1 text-xs text-muted-foreground">
                 {c.historico.length ? `Últimos: ${c.historico.slice(0, 3).map((r) => formatarData(r.data_realizada)).join(", ")} (${c.historico.length} registrados)` : "Nenhum comparecimento registrado."}
               </p>
-              <Link to="/comparecimentos" search={{ situacao: "", id: c.id }} className="mt-1 inline-block text-xs font-medium text-primary hover:underline">Abrir cadastro completo</Link>
+              {rotaCadastroComparecimento(c.situacao) === "/comparecimentos/encerrados" ? (
+                <Link to="/comparecimentos/encerrados" search={{ id: c.id }} className="mt-1 inline-block text-xs font-medium text-primary hover:underline">
+                  Abrir cadastro completo
+                </Link>
+              ) : (
+                <Link to="/comparecimentos" search={{ situacao: "", id: c.id }} className="mt-1 inline-block text-xs font-medium text-primary hover:underline">
+                  Abrir cadastro completo
+                </Link>
+              )}
             </li>
           ))}
         </ul>
