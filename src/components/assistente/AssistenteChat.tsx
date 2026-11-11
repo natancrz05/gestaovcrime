@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, Bot, CheckCircle2, Copy, FileText, Gavel, Loader2, MessageSquare, MessageSquarePlus, Paperclip, Pencil, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { perguntarAoAssistente, type ArquivoAssistente, type MensagemAssistente } from "@/lib/assistente";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { cn } from "@/lib/utils";
+import { MarkdownResposta } from "./MarkdownResposta";
 import { useSessao } from "@/lib/sessao";
 import {
   criarConversaAssistente, excluirConversaAssistente,
@@ -12,120 +13,6 @@ import {
   salvarRespostaAssistenteLocal, tituloInicialDaConversa,
   visualizarMensagemSalva, type ConversaAssistente,
 } from "@/lib/assistente-historico";
-
-function renderInlineMarkdown(texto: string): ReactNode[] {
-  const partes = texto.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
-
-  return partes.map((parte, index) => {
-    if ((parte.startsWith("**") && parte.endsWith("**")) || (parte.startsWith("__") && parte.endsWith("__"))) {
-      return <strong key={index} className="font-semibold">{parte.slice(2, -2)}</strong>;
-    }
-    if ((parte.startsWith("*") && parte.endsWith("*")) || (parte.startsWith("_") && parte.endsWith("_"))) {
-      return <em key={index}>{parte.slice(1, -1)}</em>;
-    }
-    if (parte.startsWith("`") && parte.endsWith("`")) {
-      return <code key={index} className="rounded border border-current/20 px-1.5 py-0.5 font-mono text-[0.9em]">{parte.slice(1, -1)}</code>;
-    }
-    const link = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (link && /^https?:\/\//i.test(link[2] ?? "")) {
-      return <a key={index} href={link[2]} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2 hover:opacity-80">{link[1]}</a>;
-    }
-    return <Fragment key={index}>{parte}</Fragment>;
-  });
-}
-
-function MarkdownResposta({ texto }: { texto: string }) {
-  const linhas = texto.replace(/\r\n/g, "\n").split("\n");
-  const blocos: ReactNode[] = [];
-  let listaAtual: { texto: string; numerada: boolean }[] = [];
-  let codigo: string[] | null = null;
-  let linguagem = "";
-
-  const descarregarLista = () => {
-    const primeiro = listaAtual[0];
-    if (!primeiro) return;
-    const Tag = primeiro.numerada ? "ol" : "ul";
-    blocos.push(
-      <Tag key={"lista-" + blocos.length} className={cn("my-2 space-y-1 pl-5", primeiro.numerada ? "list-decimal" : "list-disc")}>
-        {listaAtual.map((item, index) => <li key={index} className="pl-0.5">{renderInlineMarkdown(item.texto)}</li>)}
-      </Tag>,
-    );
-    listaAtual = [];
-  };
-
-  const descarregarCodigo = () => {
-    if (codigo === null) return;
-    blocos.push(
-      <div key={"codigo-" + blocos.length} className="my-3 min-w-0 overflow-hidden rounded-lg border border-border bg-muted/40">
-        {linguagem ? <div className="border-b border-border px-3 py-1 text-[11px] opacity-70">{linguagem}</div> : null}
-        <pre className="overflow-x-auto p-3 text-xs leading-5"><code>{codigo.join("\n")}</code></pre>
-      </div>,
-    );
-    codigo = null;
-    linguagem = "";
-  };
-
-  for (const [index, linha] of linhas.entries()) {
-    const cerca = linha.match(/^\s*\x60{3}(.*)$/);
-    if (cerca) {
-      if (codigo !== null) descarregarCodigo();
-      else {
-        descarregarLista();
-        codigo = [];
-        linguagem = (cerca[1] ?? "").trim().slice(0, 30);
-      }
-      continue;
-    }
-    if (codigo !== null) {
-      codigo.push(linha);
-      continue;
-    }
-
-    const lista = linha.match(/^\s*(?:[-*•])\s+(.+)$/);
-    const numerada = linha.match(/^\s*\d+[.)]\s+(.+)$/);
-    if (lista || numerada) {
-      const atual = lista ?? numerada;
-      const numero = Boolean(numerada);
-      if (listaAtual[0] && listaAtual[0].numerada !== numero) descarregarLista();
-      if (atual?.[1]) listaAtual.push({ texto: atual[1], numerada: numero });
-      continue;
-    }
-    descarregarLista();
-
-    if (!linha.trim()) {
-      blocos.push(<div key={"espaco-" + index} className="h-2" />);
-      continue;
-    }
-
-    const titulo = linha.match(/^\s*(#{1,3})\s+(.+)$/);
-    if (titulo?.[1] && titulo[2]) {
-      const nivel = titulo[1].length;
-      const classe = nivel === 1 ? "mt-3 text-base font-semibold" : nivel === 2 ? "mt-2.5 text-sm font-semibold" : "mt-2 text-sm font-medium";
-      blocos.push(<div key={"titulo-" + index} className={classe}>{renderInlineMarkdown(titulo[2])}</div>);
-      continue;
-    }
-
-    const citado = linha.match(/^\s*>\s?(.+)$/);
-    if (citado?.[1]) {
-      blocos.push(
-        <blockquote key={"citacao-" + index} className="my-2 border-l-2 border-current/30 pl-3 opacity-80">
-          {renderInlineMarkdown(citado[1])}
-        </blockquote>,
-      );
-      continue;
-    }
-
-    blocos.push(
-      <p key={"paragrafo-" + index} className="whitespace-pre-wrap break-words leading-6">
-        {renderInlineMarkdown(linha)}
-      </p>,
-    );
-  }
-
-  descarregarLista();
-  descarregarCodigo();
-  return <div className="min-w-0 space-y-1">{blocos}</div>;
-}
 
 const SUGESTOES = [
   {
