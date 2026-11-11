@@ -553,7 +553,7 @@ function CalculadoraIA() {
 
   const analisar = async () => {
     if (!arquivo || analisando) return;
-    if (numeroSeguroReuso && situacaoReuso !== "concluido") {
+    if (numeroSeguroReuso && situacaoReuso !== "concluido" && !(situacaoReuso === "erro" && liberarNovaAvaliacao)) {
       setErro("A verificação de análises recentes ainda não foi concluída. Tente atualizar ou importar novamente o PDF.");
       return;
     }
@@ -748,8 +748,15 @@ function CalculadoraIA() {
           {arquivo && numeroSeguroReuso && situacaoReuso === "erro" ? (
             <div role="alert" className="rounded-lg border border-destructive/30 p-3 text-xs">
               <p>Não foi possível conferir o acervo de relatórios recentes. Para evitar consultas repetidas, a nova análise está bloqueada até a verificação.</p>
-              <button type="button" className="mt-2 rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
-                onClick={() => setVersaoVerificacao((v) => v + 1)}>Tentar verificar novamente</button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+                  onClick={() => setVersaoVerificacao((v) => v + 1)}>Tentar verificar novamente</button>
+                <button type="button" className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+                  onClick={() => setLiberarNovaAvaliacao(true)}>
+                  {liberarNovaAvaliacao ? "Nova avaliação autorizada" : "Autorizar nova avaliação sem verificação"}
+                </button>
+              </div>
+              {liberarNovaAvaliacao ? <p className="mt-2 font-medium">Uma nova análise poderá consumir recursos sem confirmação do histórico institucional.</p> : null}
             </div>
           ) : null}
           {arquivo && !numeroSeguroReuso ? (
@@ -814,7 +821,7 @@ function CalculadoraIA() {
           ) : null}
           {erro ? <p role="alert" className="rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">{erro}</p> : null}
           <button type="button" onClick={() => void analisar()}
-            disabled={!arquivo || lendo || analisando || (Boolean(numeroSeguroReuso) && situacaoReuso !== "concluido") || (consultasRecentes.length > 0 && !liberarNovaAvaliacao)}
+            disabled={!arquivo || lendo || analisando || (Boolean(numeroSeguroReuso) && situacaoReuso !== "concluido" && !(situacaoReuso === "erro" && liberarNovaAvaliacao)) || (consultasRecentes.length > 0 && !liberarNovaAvaliacao)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
             {analisando ? <Loader2 className="size-4 animate-spin" /> : <BrainCircuit className="size-4" />}
             {analisando ? "Analisando os autos…" : liberarNovaAvaliacao ? "Analisar com IA — nova avaliação" : "Analisar com IA"}
