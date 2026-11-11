@@ -571,7 +571,7 @@ function CalculadoraIA() {
           historicoFiltrado.length === 0 ? (
             <p className="mt-3 text-xs text-muted-foreground">{historico.length ? "Nenhuma análise corresponde à pesquisa." : "Nenhuma análise anterior encontrada para este usuário."}</p>
           ) : (
-            <div className="mt-3 max-h-56 space-y-1 overflow-y-auto" aria-label="Análises anteriores">
+            <div className="mt-3 space-y-1" aria-label="Análises anteriores">
               {paginacaoHistorico.registros.map((item) => (
                 <button type="button" key={item.id} onClick={() => void abrirAnaliseSalva(item.id)}
                   disabled={!!abrindoHistorico || analisando}
