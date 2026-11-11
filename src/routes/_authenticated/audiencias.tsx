@@ -466,7 +466,7 @@ function FormAudiencia({ inicial, processos, onSalvar }: { inicial: AudienciaEnt
           <p className="mt-1 text-xs text-muted-foreground">O processo cadastrado aqui entra no acervo e passa a ser utilizado normalmente por todo o sistema.</p>
         </Campo>
       </div>
-      <Campo rotulo="Tipo de audiência"><select className={CLASSE_CAMPO} value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}><Opcoes valores={TIPOS_AUDIENCIA} /></select></Campo>
+      <Campo rotulo="Tipo de audiência"><select className={CLASSE_CAMPO} value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}>{v.tipo && !(TIPOS_AUDIENCIA as readonly string[]).includes(v.tipo) ? <option value={v.tipo}>{v.tipo} (finalidade registrada no PJe)</option> : null}<Opcoes valores={TIPOS_AUDIENCIA} /></select></Campo>
       <Campo rotulo="Data"><input type="date" className={CLASSE_CAMPO} value={v.data} onChange={(e) => setV({ ...v, data: e.target.value, aguardando_nova_data: false })} /></Campo>
       <Campo rotulo="Horário"><input type="time" className={CLASSE_CAMPO} value={v.horario ?? ""} onChange={(e) => setV({ ...v, horario: e.target.value })} /></Campo>
       <Campo rotulo="Modalidade"><select className={CLASSE_CAMPO} value={v.modalidade} onChange={(e) => setV({ ...v, modalidade: e.target.value })}><Opcoes valores={MODALIDADES} /></select></Campo>
