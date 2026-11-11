@@ -14,7 +14,7 @@ export function contextoConciso(mensagens: MensagemChat[]): MensagemChat[] {
   const atual = recentes[recentes.length - 1];
   if (!atual) return [];
   let restante = ORCAMENTO_HISTORICO;
-  const selecionadas: MensagemChat[] = [atual];
+  const selecionadas: MensagemChat[] = [{ role: atual.role, content: atual.content }];
   for (let i = recentes.length - 2; i >= 0; i--) {
     const mensagem = recentes[i];
     if (!mensagem || restante <= 0) break;
