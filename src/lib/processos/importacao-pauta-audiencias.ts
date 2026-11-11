@@ -452,6 +452,8 @@ export function analisarPautaAudiencias(
   processos: ProcessoCompleto[],
   errosLeitura: ProblemaPauta[] = [],
 ): AnalisePautaAudiencias {
+  // Falhas pontuais de leitura são informadas, sem impedir que outras
+  // linhas completas e inequívocas da pauta sejam aproveitadas.
   const erros = [...errosLeitura];
   const avisos: ProblemaPauta[] = [];
   const duplicadasArquivo: ProblemaPauta[] = [];
@@ -491,7 +493,7 @@ export function analisarPautaAudiencias(
     classes.set(k, set);
   }
   for (const [numero, set] of classes) {
-    if (set.size > 1) erros.push({ numero: formatarNumeroCnj(numero), pagina: 0, motivo: "O mesmo processo aparece com classes diferentes na pauta." });
+    if (set.size > 1) avisos.push({ numero: formatarNumeroCnj(numero), pagina: 0, motivo: "Classes divergentes na própria pauta; conferir no PJe. O cadastro atual não será sobrescrito." });
   }
 
   // O conflito de horário é avaliado apenas dentro do mesmo processo.
@@ -522,10 +524,10 @@ export function analisarPautaAudiencias(
       const classeSistema = normClasse(processo.classe ?? "");
       const classePauta = normClasse(l.classe);
       if (classeSistema && classePauta && classeSistema !== classePauta) {
-        return {
-          ...l, processoId: processo.id, processoNovo: false, reusNovos: [], estado: "conflito",
-          motivo: `O processo já existe, mas a classe diverge: sistema "${processo.classe}" e pauta "${l.classe}".`,
-        };
+        avisos.push({
+          pagina: l.pagina, numero: l.numero,
+          motivo: `Classe divergente (cadastro: "${processo.classe}"; PJe: "${l.classe}"). A audiência poderá ser registrada sem alterar a classe do processo.`,
+        });
       }
 
       const conflitoReu = l.reus.map((p) => conflitoIdentidadeReu(processo.reus, p)).find(Boolean);
@@ -625,7 +627,7 @@ export function analisarPautaAudiencias(
     erros,
     avisos,
     duplicadasArquivo,
-    linhasOutraJurisdicao: avisos.length,
+    linhasOutraJurisdicao: linhas.length - linhasDaUnidade.length,
     processosNovos: numsNovos.size,
     processosExistentes: numsExistentes.size,
     audienciasNovas: itens.filter((i) => i.estado === "nova").length,
@@ -720,14 +722,14 @@ export async function executarImportacaoPauta(
   let processos = await listarProcessosCompletos();
   let processosPorNumero = indexarProcessosPorNumero(processos);
   let analise = analisarPautaAudiencias(linhas, processos, errosLeitura);
-  if (analise.erros.length || analise.conflitos) {
-    throw new Error("A pauta possui erros ou conflitos. Nenhuma nova audiência foi importada.");
+  if (!analise.itens.some((item) => item.estado !== "conflito")) {
+    throw new Error("Nenhuma audiência pode ser importada com segurança. Confira os avisos e o número CNJ das linhas.");
   }
 
   let processosCriados = 0;
   let reusCriados = 0;
   let reusAtualizados = 0;
-  const linhasImportaveis: LinhaPautaAudiencia[] = analise.itens;
+  const linhasImportaveis: LinhaPautaAudiencia[] = analise.itens.filter((item) => item.estado !== "conflito");
   const porNumero = new Map<string, LinhaPautaAudiencia[]>();
   for (const l of linhasImportaveis) {
     const k = normalizarNumeroProcesso(l.numero);
@@ -736,7 +738,7 @@ export async function executarImportacaoPauta(
 
   // Unidades reais: análise inicial + conferência de processos + conferência de réus
   // + revalidação final + cada audiência processada.
-  const totalTrabalho = 2 + (porNumero.size * 2) + analise.itens.length;
+  const totalTrabalho = 2 + (porNumero.size * 2) + linhasImportaveis.length;
   let trabalhoConcluido = 1;
   const emitirProgresso = (etapa: string) =>
     onProgresso?.({ concluidas: trabalhoConcluido, total: totalTrabalho, etapa });
@@ -827,15 +829,15 @@ export async function executarImportacaoPauta(
   processos = await listarProcessosCompletos();
   processosPorNumero = indexarProcessosPorNumero(processos);
   analise = analisarPautaAudiencias(linhas, processos);
-  if (analise.erros.length || analise.conflitos) {
-    throw new Error("O acervo mudou durante a importação e surgiu um conflito. As audiências não foram duplicadas; revise a prévia e tente novamente.");
+  if (!analise.itens.some((item) => item.estado !== "conflito")) {
+    throw new Error("Após a conferência do acervo, nenhuma linha permanece importável. Os cadastros existentes foram preservados.");
   }
   avancarProgresso("Acervo revalidado. Atualizando audiências...");
 
   let audienciasCriadas = 0;
   let audienciasAtualizadas = 0;
   let audienciasJaExistentes = analise.audienciasExistentes;
-  for (const item of analise.itens) {
+  for (const item of analise.itens.filter((item) => item.estado !== "conflito")) {
     emitirProgresso(`Processando audiência de ${item.numero} em ${item.data} às ${item.horario}...`);
     const processo = (processosPorNumero.get(normalizarNumeroProcesso(item.numero)) ?? [])[0];
     if (!processo) throw new Error(`Processo ${item.numero} não encontrado.`);
@@ -939,7 +941,7 @@ export async function executarImportacaoPauta(
 
   return {
     processosCriados,
-    processosReutilizados: new Set(linhas.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
+    processosReutilizados: new Set(linhasImportaveis.map((l) => normalizarNumeroProcesso(l.numero))).size - processosCriados,
     reusCriados,
     reusAtualizados,
     audienciasCriadas,
