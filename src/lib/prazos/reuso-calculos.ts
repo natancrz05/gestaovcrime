@@ -11,6 +11,16 @@ export type ModalidadeReusoIA = "identificar" | "preventiva" | "temporaria" | "f
 
 const CNJ_GLOBAL = /\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b/g;
 
+/**
+ * Triagem conservadora de sigilo no texto dos autos. Na dúvida, NÃO compartilhar.
+ * Não substitui classificação judicial de sigilo ou controle por processo.
+ */
+export function documentoSinalizaSigilo(texto: string): boolean {
+  const amostra = texto.slice(0, 30000).normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /segredo\s+de\s+justica|processo\s+sigiloso|sigilo\s+total|sigilo\s+judicial|grau\s+de\s+sigilo\s*:\s*[1-9]/.test(amostra);
+}
+
 /** Só usa o número do conteúdo extraído, jamais apenas o nome do arquivo. */
 export function numeroUnicoDoPdf(texto: string): string | null {
   const candidatos = [...new Set(texto.slice(0, 4000).match(CNJ_GLOBAL) ?? [])];
