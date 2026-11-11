@@ -24,6 +24,7 @@ export interface ArquivoAssistente {
 export interface OpcaoLovable {
   instructions: string;
   input: Mensagem[];
+  modelo?: "openai/gpt-6-luna" | "openai/gpt-6-astra";
   arquivos?: ArquivoAssistente[];
   tools?: readonly unknown[];
   executarFerramenta?: (nome: string, argumentos: Record<string, unknown>) => Promise<unknown>;
@@ -124,6 +125,7 @@ async function chamarGateway(
 export async function respostaLovable({
   instructions,
   input,
+  modelo = "openai/gpt-6-astra",
   arquivos = [],
   tools = [],
   executarFerramenta,
@@ -135,11 +137,12 @@ export async function respostaLovable({
 
   for (let rodada = 0; rodada < 6; rodada += 1) {
     const json = await chamarGateway(key, {
-      model: "openai/gpt-6-astra",
+      model: modelo,
       instructions,
       input: itens,
       tools: tools.length ? tools : undefined,
       reasoning: { effort: "low" },
+      max_output_tokens: modelo === "openai/gpt-6-luna" ? 2400 : 7200,
       store: false,
       stream: false,
     });
