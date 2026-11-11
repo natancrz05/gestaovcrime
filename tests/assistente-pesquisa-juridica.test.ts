@@ -78,7 +78,7 @@ describe("ConclusosIA — permissão de pesquisa jurídica externa", () => {
     }) as typeof fetch;
     try {
       const resultado = await executarPesquisaJuridica({ tema: "prescrição penal", quantidade: 3 });
-      expect(chamada).toStartWith("https://www.lexml.gov.br/busca/SRU?");
+      expect(chamada).toMatch(/^https:\/\/www\.lexml\.gov\.br\/busca\/SRU\?/);
       expect(resultado.consultaRealizada).toBe(false);
       expect(resultado.referencias).toHaveLength(0);
       expect(resultado.observacao).toContain("NÃO foi concluída");
