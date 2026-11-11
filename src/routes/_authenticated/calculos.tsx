@@ -13,7 +13,7 @@ import { MarkdownResposta } from "@/components/assistente/MarkdownResposta";
 import { extrairArquivoTexto, type ArquivoExtraido } from "@/lib/assistente-arquivos";
 import { perguntarAoAssistente } from "@/lib/assistente";
 import { abrirAnaliseCompartilhada, consultarAnalisesRecentes } from "@/lib/calculos-reuso.functions";
-import { numeroUnicoDoPdf, type ReferenciaRelatorio } from "@/lib/prazos/reuso-calculos";
+import { documentoSinalizaSigilo, numeroUnicoDoPdf, type ReferenciaRelatorio } from "@/lib/prazos/reuso-calculos";
 import { criarConversaAssistente, listarMensagensAssistente, salvarMensagemUsuario } from "@/lib/assistente-historico";
 import { historicosDoMesmoProcesso, listarHistoricoCalculos, nomeReuCandidatoPdf, numeroCandidatoPdf, paginarHistorico, tituloHistoricoCalculo, tituloVisivelHistorico } from "@/lib/calculos-historico";
 import { usePode, useSessao } from "@/lib/sessao";
@@ -408,7 +408,7 @@ function CalculadoraIA() {
   const [conversaCriada, setConversaCriada] = useState("");
   const [relatorioCompartilhado, setRelatorioCompartilhado] = useState(false);
   const [consultasRecentes, setConsultasRecentes] = useState<ReferenciaRelatorio[]>([]);
-  const [situacaoReuso, setSituacaoReuso] = useState<"aguardando" | "verificando" | "concluido" | "sem-numero" | "erro">("aguardando");
+  const [situacaoReuso, setSituacaoReuso] = useState<"aguardando" | "verificando" | "concluido" | "sem-numero" | "sigiloso" | "erro">("aguardando");
   const [liberarNovaAvaliacao, setLiberarNovaAvaliacao] = useState(false);
   const [abrindoCompartilhado, setAbrindoCompartilhado] = useState<string | null>(null);
   const [versaoVerificacao, setVersaoVerificacao] = useState(0);
@@ -423,7 +423,8 @@ function CalculadoraIA() {
   const indice = useMemo(() => arquivo ? indexarReferenciasPdf(arquivo.texto) : null, [arquivo]);
   const textoParcial = Boolean(arquivo?.truncado || arquivo?.paginasSemTexto?.length);
   const numeroIndicativo = useMemo(() => arquivo ? numeroCandidatoPdf(arquivo.nome, arquivo.texto) : null, [arquivo]);
-  const numeroSeguroReuso = useMemo(() => arquivo ? numeroUnicoDoPdf(arquivo.texto) : null, [arquivo]);
+  const sigiloDetectado = useMemo(() => arquivo ? documentoSinalizaSigilo(arquivo.texto) : false, [arquivo]);
+  const numeroSeguroReuso = useMemo(() => arquivo && !sigiloDetectado ? numeroUnicoDoPdf(arquivo.texto) : null, [arquivo, sigiloDetectado]);
   const nomeReuIndicativo = useMemo(() => arquivo ? nomeReuCandidatoPdf(arquivo.texto) : null, [arquivo]);
   const quantidadeAnteriores = useMemo(() => historicosDoMesmoProcesso(historico, numeroIndicativo), [historico, numeroIndicativo]);
   const historicoFiltrado = useMemo(() => historico.filter((item) =>
@@ -439,6 +440,10 @@ function CalculadoraIA() {
     setLiberarNovaAvaliacao(false);
     if (!arquivo) {
       setSituacaoReuso("aguardando");
+      return () => { cancelada = true; };
+    }
+    if (sigiloDetectado) {
+      setSituacaoReuso("sigiloso");
       return () => { cancelada = true; };
     }
     if (!numeroSeguroReuso) {
@@ -460,7 +465,7 @@ function CalculadoraIA() {
       setSituacaoReuso("erro");
     });
     return () => { cancelada = true; };
-  }, [arquivo, numeroSeguroReuso, tipo, modalidadePrisao, nomeReuIndicativo, dataReferencia, versaoVerificacao]);
+  }, [arquivo, numeroSeguroReuso, sigiloDetectado, tipo, modalidadePrisao, nomeReuIndicativo, dataReferencia, versaoVerificacao]);
 
   const abrirRelatorioInstitucional = async (id: string) => {
     if (!numeroSeguroReuso || abrindoCompartilhado || analisando) return;
@@ -759,7 +764,12 @@ function CalculadoraIA() {
               {liberarNovaAvaliacao ? <p className="mt-2 font-medium">Uma nova análise poderá consumir recursos sem confirmação do histórico institucional.</p> : null}
             </div>
           ) : null}
-          {arquivo && !numeroSeguroReuso ? (
+          {arquivo && sigiloDetectado ? (
+            <p role="status" className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
+              Os autos apresentam indicação de sigilo. Nenhum relatório de outro usuário será pesquisado e a resposta não será incluída no acervo institucional; a análise ficará no histórico privado do servidor.
+            </p>
+          ) : null}
+          {arquivo && !numeroSeguroReuso && !sigiloDetectado ? (
             <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
               Não foi possível identificar um número CNJ único no texto inicial do PDF. Não será possível localizar análises recentes com segurança.
               Confira se o arquivo pertence ao processo correto; nenhuma consulta automática por nome de arquivo será feita.
