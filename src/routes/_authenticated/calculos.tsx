@@ -411,6 +411,7 @@ function CalculadoraIA() {
   const [situacaoReuso, setSituacaoReuso] = useState<"aguardando" | "verificando" | "concluido" | "sem-numero" | "erro">("aguardando");
   const [liberarNovaAvaliacao, setLiberarNovaAvaliacao] = useState(false);
   const [abrindoCompartilhado, setAbrindoCompartilhado] = useState<string | null>(null);
+  const [versaoVerificacao, setVersaoVerificacao] = useState(0);
   const [historico, setHistorico] = useState<Awaited<ReturnType<typeof listarHistoricoCalculos>>>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(true);
   const [abrindoHistorico, setAbrindoHistorico] = useState<string | null>(null);
@@ -459,7 +460,7 @@ function CalculadoraIA() {
       setSituacaoReuso("erro");
     });
     return () => { cancelada = true; };
-  }, [arquivo, numeroSeguroReuso, tipo, modalidadePrisao, nomeReuIndicativo, dataReferencia]);
+  }, [arquivo, numeroSeguroReuso, tipo, modalidadePrisao, nomeReuIndicativo, dataReferencia, versaoVerificacao]);
 
   const abrirRelatorioInstitucional = async (id: string) => {
     if (!numeroSeguroReuso || abrindoCompartilhado || analisando) return;
@@ -738,6 +739,62 @@ function CalculadoraIA() {
               Confira o histórico pessoal acima antes de solicitar uma nova análise. O processo e a atualidade das peças devem ser confirmados nos autos.
             </p>
           ) : null}
+          {arquivo && numeroSeguroReuso && situacaoReuso === "verificando" ? (
+            <p role="status" className="rounded-lg border border-border bg-muted/15 p-3 text-xs">
+              <Loader2 className="mr-2 inline size-3.5 animate-spin" />
+              Verificando se há análise recente do processo {numeroSeguroReuso}…
+            </p>
+          ) : null}
+          {arquivo && numeroSeguroReuso && situacaoReuso === "erro" ? (
+            <div role="alert" className="rounded-lg border border-destructive/30 p-3 text-xs">
+              <p>Não foi possível conferir o acervo de relatórios recentes. Para evitar consultas repetidas, a nova análise está bloqueada até a verificação.</p>
+              <button type="button" className="mt-2 rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+                onClick={() => setVersaoVerificacao((v) => v + 1)}>Tentar verificar novamente</button>
+            </div>
+          ) : null}
+          {arquivo && !numeroSeguroReuso ? (
+            <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
+              Não foi possível identificar um número CNJ único no texto inicial do PDF. Não será possível localizar análises recentes com segurança.
+              Confira se o arquivo pertence ao processo correto; nenhuma consulta automática por nome de arquivo será feita.
+            </p>
+          ) : null}
+          {arquivo && situacaoReuso === "concluido" && consultasRecentes.length > 0 ? (
+            <section className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3" aria-label="Avaliações recentes encontradas">
+              <div>
+                <p className="text-sm font-semibold">Já existe uma avaliação recente deste processo</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Consulte o relatório produzido nos últimos 30 dias para evitar repetição. O relatório pode estar desatualizado por decisões ou movimentações posteriores.
+                  Confira o réu, a data de referência e os autos atuais.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {consultasRecentes.map((item) => (
+                  <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+                    <div>
+                      <p className="font-semibold">{item.processo_numero}{item.nome_reu ? " — " + item.nome_reu : ""}</p>
+                      <p className="text-muted-foreground">Realizada em {new Date(item.criado_em).toLocaleDateString("pt-BR")} · Referência {formatarData(item.data_referencia)}</p>
+                      {nomeReuIndicativo && !item.nome_reu ? (
+                        <p className="text-amber-700 dark:text-amber-400">O relatório anterior não identifica o réu. Confira a pertinência antes de utilizá-lo.</p>
+                      ) : null}
+                    </div>
+                    <button type="button" disabled={!!abrindoCompartilhado || analisando}
+                      className="rounded-lg border border-primary/30 bg-background px-3 py-2 font-medium text-primary hover:bg-muted disabled:opacity-50"
+                      onClick={() => void abrirRelatorioInstitucional(item.id)}>
+                      {abrindoCompartilhado === item.id ? "Abrindo…" : "Ver avaliação anterior"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => {
+                setLiberarNovaAvaliacao(true);
+                setRelatorioCompartilhado(false);
+                setResposta("");
+                setConversaCriada("");
+              }} disabled={analisando} className="text-xs font-semibold text-primary underline underline-offset-2 disabled:opacity-50">
+                {liberarNovaAvaliacao ? "Nova avaliação autorizada: use o botão Analisar com IA abaixo" : "Fazer nova avaliação mesmo assim"}
+              </button>
+            </section>
+          ) : null}
           {arquivo?.truncado ? <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">O arquivo ultrapassa o limite de texto analisável por requisição. O resultado será parcial e não deve fundamentar uma conclusão definitiva.</p> : null}
           {arquivo?.paginasSemTexto?.length ? (
             <p className="rounded-lg border border-amber-300/40 p-3 text-xs leading-5 text-amber-700 dark:text-amber-400">
@@ -756,10 +813,11 @@ function CalculadoraIA() {
             </details>
           ) : null}
           {erro ? <p role="alert" className="rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">{erro}</p> : null}
-          <button type="button" onClick={() => void analisar()} disabled={!arquivo || lendo || analisando}
+          <button type="button" onClick={() => void analisar()}
+            disabled={!arquivo || lendo || analisando || (Boolean(numeroSeguroReuso) && situacaoReuso !== "concluido") || (consultasRecentes.length > 0 && !liberarNovaAvaliacao)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
             {analisando ? <Loader2 className="size-4 animate-spin" /> : <BrainCircuit className="size-4" />}
-            {analisando ? "Analisando autos e consultando o acervo…" : "Analisar com IA"}
+            {analisando ? "Analisando os autos…" : liberarNovaAvaliacao ? "Analisar com IA — nova avaliação" : "Analisar com IA"}
           </button>
         </div>
         <aside className="rounded-xl border border-border bg-card p-5 text-xs leading-5 text-muted-foreground">
@@ -767,14 +825,17 @@ function CalculadoraIA() {
           <h3 className="text-sm font-semibold text-foreground">Como funciona</h3>
           <p className="mt-2">O PDF é extraído no navegador; apenas o texto analisável é enviado ao GPT através do gateway Lovable AI.</p>
           <p className="mt-2">Não há busca automática no acervo por número de processo; a análise parte dos autos importados.</p>
-          <p className="mt-2">A análise é registrada no histórico privado do usuário. O PDF original não é guardado.</p>
+          <p className="mt-2">O chat e o histórico permanecem privados por usuário. Para evitar repetição, apenas o relatório final pode ser disponibilizado aos servidores autorizados; o PDF original não é guardado.</p>
           <p className="mt-2 font-medium text-foreground">Uso responsável: utilize a análise por IA somente quando necessária à atividade cartorária. Evite consultas repetitivas ou desnecessárias e confira os resultados antes de utilizá-los nos autos.</p>
         </aside>
       </section>
       {resposta ? (
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-live="polite">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-            <h3 className="font-semibold">Resultado da análise — {tituloResposta || opcao.titulo}</h3>
+            <div>
+              <h3 className="font-semibold">Resultado da análise — {tituloResposta || opcao.titulo}</h3>
+              {relatorioCompartilhado ? <p className="mt-1 text-xs text-muted-foreground">Relatório institucional reaproveitado, sem acesso ao chat de outro servidor. Confirme atualidade e marcos processuais.</p> : null}
+            </div>
             <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted"
               onClick={() => void navigator.clipboard.writeText(resposta).then(() => toast.success("Análise copiada."), () => toast.error("Não foi possível copiar."))}>
               <ClipboardCopy className="mr-1 inline size-3.5" /> Copiar análise
