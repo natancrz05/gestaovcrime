@@ -407,6 +407,7 @@ function CalculadoraIA() {
   const [tituloResposta, setTituloResposta] = useState("");
   const [conversaCriada, setConversaCriada] = useState("");
   const [relatorioCompartilhado, setRelatorioCompartilhado] = useState(false);
+  const [compartilharRelatorio, setCompartilharRelatorio] = useState(false);
   const [consultasRecentes, setConsultasRecentes] = useState<ReferenciaRelatorio[]>([]);
   const [situacaoReuso, setSituacaoReuso] = useState<"aguardando" | "verificando" | "concluido" | "sem-numero" | "sigiloso" | "erro">("aguardando");
   const [liberarNovaAvaliacao, setLiberarNovaAvaliacao] = useState(false);
@@ -426,6 +427,11 @@ function CalculadoraIA() {
   const sigiloDetectado = useMemo(() => arquivo ? documentoSinalizaSigilo(arquivo.texto) : false, [arquivo]);
   const numeroSeguroReuso = useMemo(() => arquivo && !sigiloDetectado ? numeroUnicoDoPdf(arquivo.texto) : null, [arquivo, sigiloDetectado]);
   const nomeReuIndicativo = useMemo(() => arquivo ? nomeReuCandidatoPdf(arquivo.texto) : null, [arquivo]);
+  const documentoCompartilhavel = Boolean(
+    arquivo && numeroSeguroReuso && nomeReuIndicativo &&
+    !arquivo.truncado && !arquivo.paginasSemTexto?.length &&
+    arquivo.paginas !== undefined && arquivo.paginasLidas === arquivo.paginas
+  );
   const quantidadeAnteriores = useMemo(() => historicosDoMesmoProcesso(historico, numeroIndicativo), [historico, numeroIndicativo]);
   const historicoFiltrado = useMemo(() => historico.filter((item) =>
     normalizarPesquisa(tituloVisivelHistorico(item.titulo)).includes(normalizarPesquisa(buscaHistorico))
@@ -522,6 +528,7 @@ function CalculadoraIA() {
       if (!ultimaResposta) throw new Error("Esta análise ainda não possui uma resposta salva. Confira o histórico no Assistente.");
       const item = historico.find((conversa) => conversa.id === id);
       setResposta(ultimaResposta.conteudo);
+      setCompartilharRelatorio(false);
       setTituloResposta(item ? tituloVisivelHistorico(item.titulo) : "Análise anterior");
       setConversaCriada(id);
       setRelatorioCompartilhado(false);
@@ -540,6 +547,7 @@ function CalculadoraIA() {
     setLendo(true);
     setErro("");
     setArquivo(null);
+    setCompartilharRelatorio(false);
     setResposta("");
     setRelatorioCompartilhado(false);
     setTituloResposta("");
@@ -616,7 +624,9 @@ function CalculadoraIA() {
         { conversaId: chat.id, respostaId: crypto.randomUUID() },
         { tipoAnalise: tipo, dataReferencia,
           ...(tipo === "prisao_provisoria" ? { modalidadePrisao } : {}),
-          ...(liberarNovaAvaliacao ? { novaAvaliacao: true } : {}) },
+          ...(liberarNovaAvaliacao ? { novaAvaliacao: true } : {}),
+          ...(documentoCompartilhavel && compartilharRelatorio ? { compartilharRelatorio: true } : {}),
+        },
       );
       setResposta(gerada.resposta);
       setTituloResposta(opcao.titulo);
@@ -627,7 +637,7 @@ function CalculadoraIA() {
           .catch(() => toast.warning("A análise foi salva, mas a lista do histórico não pôde ser atualizada."));
       }
       if (!gerada.persistida) toast.warning("A resposta foi gerada, mas o registro do histórico não foi confirmado.");
-      else if (!gerada.compartilhada) toast.warning("Análise salva em seu histórico privado. O relatório não foi incluído no reuso institucional.");
+      else if (!gerada.compartilhada) toast.success("Análise salva no seu histórico privado. O relatório não foi compartilhado.");
       else toast.success("Análise concluída, salva no histórico privado e disponível para reuso autorizado.");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível realizar a análise.");
@@ -691,7 +701,7 @@ function CalculadoraIA() {
           {OPCOES_IA.map((item) => {
             const Icone = item.icone;
             return (
-              <button key={item.id} type="button" onClick={() => { setTipo(item.id); setResposta(""); setTituloResposta(""); setConversaCriada(""); }} disabled={analisando}
+              <button key={item.id} type="button" onClick={() => { setTipo(item.id); setResposta(""); setTituloResposta(""); setConversaCriada(""); setCompartilharRelatorio(false); }} disabled={analisando}
                 className={cn("min-h-[145px] rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/50 disabled:opacity-50", tipo === item.id ? "border-primary ring-1 ring-primary/25" : "border-border")}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold tracking-wider text-muted-foreground">{item.numero}</span>
@@ -714,7 +724,7 @@ function CalculadoraIA() {
             <label>
               <span className={TITULO}>Modalidade de prisão provisória</span>
               <select className={CAMPO} value={modalidadePrisao}
-                onChange={(e) => { setModalidadePrisao(e.target.value as ModalidadePrisao); setResposta(""); setTituloResposta(""); setConversaCriada(""); }}
+                onChange={(e) => { setModalidadePrisao(e.target.value as ModalidadePrisao); setResposta(""); setTituloResposta(""); setConversaCriada(""); setCompartilharRelatorio(false); }}
                 disabled={analisando}>
                 {MODALIDADES_PRISAO.map((item) => (
                   <option key={item.valor} value={item.valor}>{item.rotulo}</option>
@@ -727,7 +737,7 @@ function CalculadoraIA() {
           ) : null}
           <label>
             <span className={TITULO}>Data de referência da análise</span>
-            <input type="date" required value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} disabled={analisando} className={CAMPO} />
+            <input type="date" required value={dataReferencia} onChange={(e) => { setDataReferencia(e.target.value); setCompartilharRelatorio(false); }} disabled={analisando} className={CAMPO} />
             <span className="mt-1 block text-[11px] text-muted-foreground">Utilizada para calcular os lapsos e avaliar a situação na data selecionada.</span>
           </label>
           <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-muted/15 px-5 py-6 text-center hover:border-primary/40">
@@ -830,6 +840,27 @@ function CalculadoraIA() {
             </details>
           ) : null}
           {erro ? <p role="alert" className="rounded-lg border border-destructive/20 px-3 py-2 text-sm text-destructive">{erro}</p> : null}
+          <div className="rounded-lg border border-border bg-muted/10 p-3 text-xs leading-5">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" className="mt-1 size-4 shrink-0 accent-primary"
+                checked={compartilharRelatorio} disabled={!documentoCompartilhavel || analisando}
+                onChange={(e) => setCompartilharRelatorio(e.target.checked)} />
+              <span>
+                <strong>Compartilhar relatório final com servidores autorizados (opcional)</strong>
+                <span className="mt-1 block text-muted-foreground">
+                  Desmarcado por padrão. Autorize somente se tiver confirmado que o processo não está sob sigilo,
+                  restrição de acesso ou outro impedimento institucional. Apenas o relatório final será compartilhado;
+                  seu chat e o PDF permanecerão privados.
+                </span>
+              </span>
+            </label>
+            {!documentoCompartilhavel ? (
+              <p className="mt-2 text-muted-foreground">
+                Compartilhamento indisponível: exige identificação inequívoca do processo e do réu,
+                PDF integralmente extraído e ausência de sinalização de sigilo.
+              </p>
+            ) : null}
+          </div>
           <button type="button" onClick={() => void analisar()}
             disabled={!arquivo || lendo || analisando || (Boolean(numeroSeguroReuso) && situacaoReuso !== "concluido" && !(situacaoReuso === "erro" && liberarNovaAvaliacao)) || (consultasRecentes.length > 0 && !liberarNovaAvaliacao)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
@@ -857,7 +888,7 @@ function CalculadoraIA() {
               onClick={() => void navigator.clipboard.writeText(resposta).then(() => toast.success("Análise copiada."), () => toast.error("Não foi possível copiar."))}>
               <ClipboardCopy className="mr-1 inline size-3.5" /> Copiar análise
             </button>
-            {conversaCriada ? <Link to="/assistente" className="text-xs font-medium text-primary underline underline-offset-2">Abrir histórico no Assistente</Link> : null}
+            {conversaCriada ? <Link to="/assistente" className="text-xs font-medium text-primary underline underline-offset-2">Abrir histórico no ConclusosIA</Link> : null}
           </div>
           <div className="min-w-0 rounded-lg bg-background/40 px-1 py-2"><MarkdownResposta texto={resposta} /></div>
         </section>
@@ -874,13 +905,13 @@ function PaginaCalculos() {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Gestão de prazos</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Cálculos Processuais</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cálculo administrativo de prazos e análises documentais com o Assistente da Vara.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Cálculo administrativo de prazos e análises documentais com o ConclusosIA.</p>
       </div>
       <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
         <button type="button" onClick={() => setAba("manual")} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium", aba === "manual" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
           <CalendarDays className="size-4" /> Calculadora manual
         </button>
-        <button type="button" onClick={() => setAba("ia")} disabled={!podeUsarAssistente} title={!podeUsarAssistente ? "Disponível somente para perfis autorizados ao Assistente." : undefined} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40", aba === "ia" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+        <button type="button" onClick={() => setAba("ia")} disabled={!podeUsarAssistente} title={!podeUsarAssistente ? "Disponível somente para perfis autorizados ao ConclusosIA." : undefined} className={cn("inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40", aba === "ia" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
           <BrainCircuit className="size-4" /> Calculadora por IA
         </button>
       </div>

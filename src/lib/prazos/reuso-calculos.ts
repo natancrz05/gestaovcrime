@@ -18,13 +18,36 @@ const CNJ_GLOBAL = /\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b/g;
 export function documentoSinalizaSigilo(texto: string): boolean {
   const amostra = texto.slice(0, 30000).normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return /segredo\s+de\s+justica|processo\s+sigiloso|sigilo\s+total|sigilo\s+judicial|grau\s+de\s+sigilo\s*:\s*[1-9]/.test(amostra);
+  return /segredo\s+de\s+justica|tramit[a-z]*\s+em\s+segredo|autos\s+sigilosos?|processo\s+sigiloso|sigilo\s+total|sigilo\s+judicial|sigilo\s*:\s*(?:sim|total|[1-9])|grau\s+de\s+sigilo\s*:\s*[1-9]|classe\s+de\s+sigilo\s*:\s*[1-9]/.test(amostra);
 }
 
 /** Só usa o número do conteúdo extraído, jamais apenas o nome do arquivo. */
 export function numeroUnicoDoPdf(texto: string): string | null {
   const candidatos = [...new Set(texto.slice(0, 4000).match(CNJ_GLOBAL) ?? [])];
   return candidatos.length === 1 ? candidatos[0]! : null;
+}
+
+/**
+ * O compartilhamento é desabilitado por padrão e condicionado a autorização
+ * explícita. OCR incompleto, identificação ausente ou indicação de sigilo
+ * impedem a publicação no repositório institucional.
+ */
+export function autorizacaoParaReuso(dados: {
+  consentimento: boolean;
+  texto: string;
+  numero: string | null;
+  nomeReu: string | null;
+  truncado: boolean;
+  paginasSemTexto: number[];
+  paginas?: number;
+  paginasLidas?: number;
+}) {
+  if (!dados.consentimento || dados.truncado || dados.paginasSemTexto.length > 0) return false;
+  if (documentoSinalizaSigilo(dados.texto)) return false;
+  if (!dados.numero || numeroUnicoDoPdf(dados.texto) !== dados.numero) return false;
+  if (!dados.nomeReu?.trim()) return false;
+  if (!dados.paginas || dados.paginasLidas !== dados.paginas) return false;
+  return true;
 }
 
 export interface ReferenciaRelatorio {
@@ -64,6 +87,8 @@ export function elegivelParaReuso(
   if (!Number.isFinite(dias) || dias < 0 || dias > DIAS_REUSO_IA * 86400000) return false;
   const antigo = nomeComparavel(registro.nome_reu);
   const atual = nomeComparavel(params.nomeReu);
-  if (antigo && atual && antigo !== atual) return false;
+  // Em feitos com mais de um réu, identidade ausente é ambígua. Falhe fechado.
+  // A numeração do processo, isoladamente, NÃO autoriza reutilizar relatório de outra pessoa.
+  if (!antigo || !atual || antigo !== atual) return false;
   return true;
 }

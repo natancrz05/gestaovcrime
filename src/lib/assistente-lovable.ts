@@ -100,6 +100,7 @@ async function chamarGateway(
 ): Promise<RespostaGateway> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: {
       "Content-Type": "application/json",
       "Lovable-API-Key": key,
@@ -110,8 +111,8 @@ async function chamarGateway(
   });
 
   if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    console.error("AI gateway", res.status, t);
+    // Nunca registre o corpo da resposta de erro: o provedor pode refletir partes dos autos ou do prompt.
+    console.error("AI gateway: status HTTP", res.status);
     if (res.status === 429) throw new Error("Muitas solicitações. Aguarde um instante e tente novamente.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados no workspace Lovable.");
     throw new Error("O serviço de IA não respondeu. Tente novamente.");

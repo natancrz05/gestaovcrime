@@ -8,9 +8,9 @@ import { executarMedicaoIntervalo, FERRAMENTA_INTERVALO } from "./assistente-int
 import { ORIENTACAO_REVISAO_PRISAO, orientacaoPorModalidade } from "./prazos/revisao-prisao";
 import { FERRAMENTA_PRAZO_TEMPORARIA, executarPrazoTemporaria } from "./assistente-temporaria";
 import { nomeReuCandidatoPdf } from "./prazos/historico-calculos";
-import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, documentoSinalizaSigilo, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
+import { DIAS_REUSO_IA, TIPOS_REUSO_IA, UNIDADE_REUSO_IA, autorizacaoParaReuso, documentoSinalizaSigilo, elegivelParaReuso, numeroUnicoDoPdf } from "./prazos/reuso-calculos";
 
-const INSTRUCOES = `Você é o Assistente da Vara, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
+const INSTRUCOES = `Você é o ConclusosIA, assistente interno de apoio à serventia de uma Vara Criminal brasileira.
 
 CAPACIDADES:
 - responder perguntas gerais e explicar conceitos jurídicos de forma prática;
@@ -66,6 +66,7 @@ const Entrada = z.object({
   modalidadePrisao: z.enum(["identificar", "preventiva", "temporaria", "flagrante", "outra"]).optional(),
   dataReferencia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   novaAvaliacao: z.boolean().optional(),
+  compartilharRelatorio: z.boolean().optional(),
 }).refine((data) => Boolean(data.conversaId) === Boolean(data.respostaId), {
   message: "Identificação incompleta da conversa.",
 });
@@ -212,7 +213,16 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
     // PDFs incompletos e processos não identificados inequivocamente não entram no reuso.
     let compartilhada = false;
     if (tipoReuso && numeroConfirmado && data.dataReferencia && arquivoAnalise &&
-        !arquivoAnalise.truncado && !(arquivoAnalise.paginasSemTexto?.length) &&
+        autorizacaoParaReuso({
+          consentimento: data.compartilharRelatorio === true,
+          texto: arquivoAnalise.texto,
+          numero: numeroConfirmado,
+          nomeReu,
+          truncado: arquivoAnalise.truncado === true,
+          paginasSemTexto: arquivoAnalise.paginasSemTexto ?? [],
+          ...(arquivoAnalise.paginas !== undefined ? { paginas: arquivoAnalise.paginas } : {}),
+          ...(arquivoAnalise.paginasLidas !== undefined ? { paginasLidas: arquivoAnalise.paginasLidas } : {}),
+        }) &&
         resposta.length >= 40 && resposta.length <= 100000) {
       const { error: erroCompartilhar } = await sb.from("calculos_ia_relatorios")
         .insert({
@@ -223,6 +233,7 @@ export const perguntarAssistente = createServerFn({ method: "POST" })
           nome_reu: nomeReu,
           data_referencia: data.dataReferencia,
           relatorio: resposta,
+          compartilhamento_autorizado: true,
         });
       if (erroCompartilhar) {
         // Falha no reuso não retira o relatório do histórico PRIVADO do autor.

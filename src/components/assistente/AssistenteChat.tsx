@@ -511,14 +511,14 @@ export function AssistenteChat() {
           <p>Os arquivos PDF não ficam armazenados; reanexe-os para novas análises.</p>
         </div>
       </aside>
-      <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o Assistente da Vara">
+      <section className="flex h-[calc(100dvh-13rem)] min-h-[540px] max-h-[960px] flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm" aria-label="Conversa com o ConclusosIA">
       <header className="flex items-center justify-between gap-3 border-b border-border/70 bg-card px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Sparkles className="size-5" strokeWidth={1.8} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold">Assistente da Vara</h2>
+            <h2 className="truncate text-sm font-semibold">ConclusosIA</h2>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               GPT via Lovable AI · consultas e leitura de documentos
             </p>
