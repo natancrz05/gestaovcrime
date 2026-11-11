@@ -304,7 +304,7 @@ function limitesCabecalho(itens: ItemPdf[]): number[] | null {
   return limites;
 }
 
-function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha?: LinhaPautaAudiencia; erro?: ProblemaPauta } {
+export function montarLinhaPauta(pagina: number, colunas: Record<Coluna, string[]>): { linha?: LinhaPautaAudiencia; erro?: ProblemaPauta } {
   const dataHora = limparTexto(colunas.data.join(" "));
   const dm = dataHora.match(/(\d{2}\/\d{2}\/(?:\d{2}|\d{4}))\s+(\d{2}:\d{2})/);
   const data = dm ? paraIso(dm[1]!) : null;
@@ -428,7 +428,7 @@ export async function lerPautaAudiencias(arquivo: File): Promise<{ linhas: Linha
         const coluna = colunaDe(item.x, limites);
         colunas[coluna].push(item.str);
       }
-      const r = montarLinha(pagina, colunas);
+      const r = montarLinhaPauta(pagina, colunas);
       if (r.linha) linhas.push(r.linha);
       if (r.erro) erros.push(r.erro);
     }
