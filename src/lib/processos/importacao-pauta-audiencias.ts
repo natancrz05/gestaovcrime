@@ -21,7 +21,7 @@ import {
   type AudienciaEntrada,
   type NovoProcessoEntrada,
 } from "./repositorio";
-import { TIPOS_AUDIENCIA, devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
+import { devePreservarSituacaoFinalNaImportacao, situacaoAudienciaFinal, tipoAudienciaCanonico } from "./audiencias";
 import { audienciaOcupaHorario, avaliarColisaoHorarioPauta } from "./colisoes-audiencias";
 import { papelEhReu } from "./papeis-pauta";
 import { orgaoPertenceUnidade } from "./orgaos-pauta";
@@ -314,7 +314,7 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
   const orgao = limparTexto(colunas.orgao.join(" "));
   const tipoOriginal = limparTexto(colunas.tipo.join(" ")).replace(/[.\s]+$/g, "").trim();
   const tipo = tipoAudienciaCanonico(tipoOriginal);
-  const tipoReconhecido = (TIPOS_AUDIENCIA as readonly string[]).includes(tipo);
+  // Finalidades não catalogadas no PJe devem ser preservadas.
   const salaOriginal = limparTexto(colunas.sala.join(" "));
   const situacaoOriginal = limparTexto(colunas.situacao.join(" "));
   const situacao = situacaoCanonica(situacaoOriginal);
@@ -335,20 +335,20 @@ function montarLinha(pagina: number, colunas: Record<Coluna, string[]>): { linha
 
   const faltas: string[] = [];
   if (!data) faltas.push("data inválida");
-  if (!/^\d{2}:\d{2}$/.test(horario)) faltas.push("horário inválido");
+  if (!/^\d{2}:\d{2}$/.test(horario) || Number(horario.slice(0, 2)) > 23 || Number(horario.slice(3, 5)) > 59) faltas.push("horário inválido");
   if (digitos.length !== 20) faltas.push("número CNJ inválido");
-  if (!classe) faltas.push("classe não identificada");
-  if (!tipoOriginal || !tipoReconhecido) faltas.push(`tipo de audiência não reconhecido ("${tipoOriginal || "vazio"}")`);
+  // Classe pode não estar preenchida no PDF.
+  if (!tipoOriginal) faltas.push("finalidade da audiência ausente");
+  if (tipoOriginal.length > 180) faltas.push("finalidade excessivamente longa; conferir extração");
   if (!situacao) faltas.push(`situação não reconhecida ("${situacaoOriginal || "vazia"}")`);
   if (!orgao) faltas.push("órgão julgador não identificado");
-  if (!sala) faltas.push("sala/local não identificado");
-  if (!reus.length) faltas.push("nenhum réu/autor do fato identificado nas Partes");
+  // Sem sala ou réu, registrar sem inventar pessoas; outros campos identificam o ato.
   if (faltas.length) return { erro: { pagina, numero: numero || undefined, motivo: faltas.join("; ") } };
 
   return {
     linha: {
-      pagina, data: data!, horario, numero, orgao, classe,
-      tipo, tipoOriginal, salaOriginal, local: sala!.local, modalidade: sala!.modalidade,
+      pagina, data: data!, horario, numero, orgao, classe: classe || "Classe não informada na pauta",
+      tipo, tipoOriginal, salaOriginal, local: sala?.local ?? "Outro", modalidade: sala?.modalidade ?? "Presencial",
       situacao: situacao!, situacaoOriginal, pessoas, reus,
     },
   };
