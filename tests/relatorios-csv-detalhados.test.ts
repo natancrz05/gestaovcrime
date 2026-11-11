@@ -113,6 +113,17 @@ describe("CSV detalhado dos oito relatórios da Vara", () => {
     expect(r.linhas[0]?.[r.colunas.indexOf("Data de próxima revisão registrada")]).toBe("30/01/2027");
   });
 
+  test("aceita datas brasileiras da planilha e identifica dias de custódia sem estimativa", () => {
+    const fontesBR = {
+      ...fontes,
+      presos: [{ ...fontes.presos[0], dados_planilha: { "Término do prazo": "21/11/2026" } }],
+      reavaliacoes: [],
+    } as unknown as FontesDetalhesCSV;
+    const r = enriquecerRelatorioCSV("presos-provisorios", ["Processo"], [{ chave: "r1", processoId: "p1", celulas: [numero] }], fontesBR);
+    expect(r.linhas[0]?.[r.colunas.indexOf("Término da temporária informado")]).toBe("21/11/2026");
+    expect(typeof r.linhas[0]?.[r.colunas.indexOf("Dias em custódia (contagem administrativa)")]).toBe("number");
+  });
+
   test("exporta histórico de redesignações e local da audiência", () => {
     const r = enriquecerRelatorioCSV("audiencias", ["Processo"], [{ chave: "a1", celulas: [numero] }], fontes);
     expect(r.linhas[0]?.[r.colunas.indexOf("Local / sala")]).toBe("Sala do Júri");
