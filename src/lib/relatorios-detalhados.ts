@@ -24,10 +24,22 @@ export interface FontesDetalhesCSV {
   reavaliacoes?: readonly ReavaliacaoBeta[];
 }
 
-const data = (iso: string | null | undefined): string =>
-  /^\d{4}-\d{2}-\d{2}/.test(iso ?? "")
-    ? (iso ?? "").slice(0, 10).split("-").reverse().join("/")
-    : "";
+function data(valor: string | null | undefined): string {
+  const textoData = valor?.trim() ?? "";
+  if (!textoData) return "";
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(textoData)
+    ? textoData.slice(0, 10)
+    : /^\d{2}\/\d{2}\/\d{4}$/.test(textoData)
+      ? textoData.slice(6) + "-" + textoData.slice(3, 5) + "-" + textoData.slice(0, 2)
+      : "";
+  if (!iso) return "";
+  const ano = Number(iso.slice(0, 4));
+  const mes = Number(iso.slice(5, 7));
+  const dia = Number(iso.slice(8, 10));
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  if (d.getUTCFullYear() !== ano || d.getUTCMonth() + 1 !== mes || d.getUTCDate() !== dia) return "";
+  return String(dia).padStart(2, "0") + "/" + String(mes).padStart(2, "0") + "/" + ano;
+}
 
 const texto = (v: unknown): string =>
   v === null || v === undefined || v === "—" ? "" : String(v);
@@ -66,7 +78,7 @@ export const COLUNAS_CSV_EXTRAS: Record<TipoRelatorioCSV, readonly string[]> = {
   "presos-provisorios": [
     "Espécie cautelar informada", "Data da última reavaliação registrada",
     "Data de próxima revisão registrada", "Término da temporária informado",
-    "Situação cadastral do réu", "Observações da prisão", "Cadastro do processo",
+    "Situação cadastral do réu", "Dias em custódia (contagem administrativa)", "Observações da prisão", "Cadastro do processo",
   ],
   "sem-movimentacao": [
     "Classe", "Assunto", "Status processual", "Fase", "Responsável", "Réus cadastrados",
@@ -146,7 +158,7 @@ export function enriquecerRelatorioCSV(
           data(ultima?.data_reavaliacao ?? campoPlanilha(dp, ["Última reavaliação", "Data da última reavaliação"])),
           data(ultima?.proxima_data),
           data(campoPlanilha(dp, ["Término de eventual prazo", "Término do prazo", "Termino do prazo"])),
-          p.situacao, p.observacoes, data(processo?.criado_em),
+          p.situacao, p.data_prisao ? -Number(diasAte(p.data_prisao)) : "", p.observacoes, data(processo?.criado_em),
         ] : Array(COLUNAS_CSV_EXTRAS[tipo].length).fill("");
         break;
       }
