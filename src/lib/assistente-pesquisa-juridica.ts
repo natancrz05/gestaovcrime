@@ -45,7 +45,7 @@ export function validarTemaExterno(dado: unknown) {
   const entrada = Entrada.parse(dado);
   const tema = entrada.tema.replace(/\s+/g, " ").trim();
   if (CNJ.test(tema) || CPF.test(tema) || DADOS_SENSIVEIS.test(tema) ||
-      INSTRUCOES_EM_TEMA.test(tema) || /(?:https?:\/\/|@|[{}\[\]<>])/.test(tema) ||
+      INSTRUCOES_EM_TEMA.test(tema) || /(?:https?:\/\/|@|[{}<>])/.test(tema) || tema.includes("[") || tema.includes("]") ||
       /\b\d{11,20}\b/.test(tema)) {
     throw new Error("A pesquisa externa aceita somente temas jurídicos gerais, sem identificação de processos, partes ou dados sensíveis.");
   }
