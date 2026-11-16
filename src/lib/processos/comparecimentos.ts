@@ -372,6 +372,33 @@ export async function registrarComparecimento(id: string, data: string, obs: str
   return r as string;
 }
 
+/**
+ * Um comparecimento físico atende 2+ vínculos SEM várias chamadas sucessivas.
+ * A RPC de banco grava todos numa única transação e devolve o id do evento.
+ */
+export async function registrarAssinaturaConjunta(
+  ids: string[], data: string, observacao: string, cpf: string,
+) {
+  const unicos = [...new Set(ids)];
+  if (unicos.length !== ids.length || unicos.length < 2 || unicos.length > 20) {
+    throw new Error("Selecione de 2 a 20 processos distintos para assinatura conjunta.");
+  }
+  const documento = cpfPessoa(cpf);
+  if (!documento) throw new Error("Confirme o CPF de 11 dígitos antes da assinatura conjunta.");
+  const { data: grupoId, error } = await supabase.rpc("registrar_comparecimentos_multiplos", {
+    p_ids: unicos,
+    p_data: data,
+    p_obs: observacao.slice(0, 1000),
+    p_cpf: documento,
+  });
+  if (error) throw new Error(
+    error.message.includes("Could not find the function")
+      ? "Assinatura conjunta ainda não habilitada neste banco. A migração precisa ser aplicada pela administração."
+      : error.message,
+  );
+  return grupoId;
+}
+
 export async function encerrarComparecimento(id: string) {
   const { error } = await supabase.from("comparecimentos").update({ situacao: "Encerrado" }).eq("id", id);
   if (error) throw new Error(error.message);
