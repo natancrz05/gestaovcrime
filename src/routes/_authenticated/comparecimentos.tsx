@@ -350,12 +350,81 @@ function Pagina() {
         )}
       </Secao>
 
+      {pendentesVinculo.length ? (
+        <Secao titulo={`Pendências de vínculo processual (${pendentesVinculo.length})`}>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Processos desvinculados administrativamente, sem arquivamento do cadastro nem exclusão do histórico.
+            Clique para conferir a pendência, adicionar outro processo ou restaurar o vínculo.
+          </p>
+          <div className="space-y-2">
+            {pendentesVinculo.map((c) => (
+              <button key={c.id} type="button" className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-alerta/30 p-3 text-left text-sm hover:bg-muted/30"
+                onClick={() => void abrir(c.id)}>
+                <span><strong>{c.pessoa}</strong> · <span className="numero-processo">{c.numero}</span></span>
+                <span className="text-xs text-alerta">Pendência de vínculo · Abrir cadastro</span>
+              </button>
+            ))}
+          </div>
+        </Secao>
+      ) : null}
+
       <Dialog open={!!detalhe} onOpenChange={(o) => !o && navigate({ search: (p) => ({ ...p, id: "" }) })}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
           <DialogHeader><DialogTitle>Comparecimento — {detalhe?.pessoa}</DialogTitle></DialogHeader>
           {detalhe ? (
             <div className="space-y-4 text-sm">
-              <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
+              <div className="rounded-lg border border-border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold">Vínculos processuais da pessoa ({vinculosDetalhe.length})</p>
+                  {podeEditar ? <button type="button" className={BOTAO_SEC}
+                    onClick={() => adicionarVinculo(detalhe)}><Plus className="size-3.5" /> Adicionar outro processo</button> : null}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Os vínculos são reunidos apenas por CPF confirmado. Cada processo conserva sua periodicidade e histórico.
+                  Desvincular não arquiva a pessoa nem apaga assinaturas.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {vinculosDetalhe.map((v) => (
+                    <div key={v.id} className={cn("rounded-md border bg-background p-2", v.id === detalhe.id ? "border-primary/60" : "border-border")}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <button type="button" className="text-left text-xs font-semibold text-primary hover:underline"
+                          onClick={() => void abrir(v.id)}>{v.numero}</button>
+                        <span className={cn("text-xs font-medium", v.situacao === SITUACAO_VINCULO_REMOVIDO ? "text-alerta" : "text-foreground")}>
+                          {v.situacao === SITUACAO_VINCULO_REMOVIDO ? "Desvinculado — pendente" : v.situacao}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {v.periodicidade} · Próximo: {formatarData(v.proximo)}
+                      </p>
+                      {v.situacao === SITUACAO_VINCULO_REMOVIDO ? (
+                        <p className="mt-1 text-xs text-alerta">{v.motivo_conferencia || "Pendente de conferência do vínculo."}</p>
+                      ) : null}
+                      {podeEditar ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {v.situacao === "Ativo" ? (
+                            <>
+                              <button type="button" className={BOTAO_SEC} onClick={() => editarVinculo(v)}>
+                                <Pencil className="size-3" /> Editar processo
+                              </button>
+                              <button type="button" className={BOTAO_SEC} onClick={() => void desvincular(v)}>
+                                <Link2Off className="size-3" /> Remover vínculo
+                              </button>
+                            </>
+                          ) : null}
+                          {v.situacao === SITUACAO_VINCULO_REMOVIDO ? (
+                            <button type="button" className={BOTAO_SEC} onClick={() => void restaurar(v)}>
+                              <RotateCcw className="size-3" /> Restaurar vínculo
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {detalhe.situacao === "Ativo" ? (
+                <p className="text-base font-semibold">Próximo comparecimento neste processo: {formatarData(detalhe.proximo)} <EtiquetaComparecimento s={detalhe.status} /></p>
+              ) : <p className="rounded-md border border-alerta/30 bg-alerta-suave p-2 text-sm text-alerta">Este vínculo está desvinculado e possui pendência administrativa. Não é possível registrar novas assinaturas nele.</p>}
               {(() => {
                 const processoEtiquetaId = processoIdParaEtiquetas(detalhe);
                 const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
@@ -375,7 +444,7 @@ function Pagina() {
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Observação</dt><dd>{detalhe.observacao || "—"}</dd></div>
               </dl>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico</p>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico exclusivo deste processo</p>
                 {historicoDetalhe.isLoading ? (
                   <p className="text-muted-foreground">Carregando histórico…</p>
                 ) : historicoDetalhe.isError ? (
@@ -397,8 +466,8 @@ function Pagina() {
                 {detalhe.processo_id ? <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link> : <span className="text-muted-foreground">Processo não vinculado — edite para vincular</span>}
                 {podeEditar ? (
                   <div className="flex flex-wrap gap-2">
-                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id ?? "", pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
-                    {detalhe.situacao !== "Encerrado" ? (
+                    {detalhe.situacao === "Ativo" ? <button className={BOTAO_SEC} onClick={() => editarVinculo(detalhe)}><Pencil className="size-3.5" /> Editar</button> : null}
+                    {detalhe.situacao === "Ativo" ? (
                       <>
                         <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button>
                         <button className={BOTAO_SEC} onClick={() => void encerrar(detalhe.id)} title="Retirar este cadastro dos comparecimentos ativos"><XCircle className="size-3.5" /> Encerrar comparecimento</button>
@@ -415,7 +484,12 @@ function Pagina() {
       <Dialog open={!!edicao} onOpenChange={(o) => !o && setEdicao(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{edicao?.id ? "Editar comparecimento" : "Novo comparecimento"}</DialogTitle></DialogHeader>
-          {edicao ? <FormComparecimento inicial={edicao.valores} processos={processos.map((p) => ({ id: p.id, numero: p.numero }))} onSalvar={async (v) => { await salvarComparecimento(v, edicao.id); await recarregar(); setEdicao(null); }} /> : null}
+          {edicao ? <FormComparecimento inicial={edicao.valores} processos={processos.map((p) => ({ id: p.id, numero: p.numero }))} onSalvar={async (v) => {
+            await salvarComparecimento(v, edicao.id);
+            await recarregar();
+            setEdicao(null);
+            toast.success(edicao.id ? "Vínculo atualizado." : "Novo processo vinculado à pessoa.");
+          }} /> : null}
         </DialogContent>
       </Dialog>
 
@@ -635,6 +709,13 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
         />
       </Campo>
       <Campo rotulo="Pessoa"><input className={CLASSE_CAMPO} maxLength={200} value={v.pessoa} onChange={(e) => setV({ ...v, pessoa: e.target.value })} /></Campo>
+      <Campo rotulo="CPF (usado para reunir vínculos da mesma pessoa)">
+        <input inputMode="numeric" autoComplete="off" className={CLASSE_CAMPO} maxLength={14}
+          value={v.cpf ? formatarCpf(v.cpf) : ""}
+          placeholder="000.000.000-00"
+          onChange={(e) => setV({ ...v, cpf: formatarCpf(e.target.value) })} />
+        <span className="text-[11px] text-muted-foreground">Não serão agrupadas pessoas apenas pelo nome.</span>
+      </Campo>
       <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => recalcular({ ...v, data_inicio: e.target.value })} /></Campo>
       <Campo rotulo="Periodicidade">
         <select className={CLASSE_CAMPO} value={v.periodicidade} onChange={(e) => recalcular({ ...v, periodicidade: e.target.value })}>
@@ -647,7 +728,7 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
       <Campo rotulo="Próximo comparecimento"><input type="date" className={CLASSE_CAMPO} value={v.proximo} onChange={(e) => setV({ ...v, proximo: e.target.value })} /></Campo>
       <Campo rotulo="Situação do cadastro"><select className={CLASSE_CAMPO} value={v.situacao} onChange={(e) => setV({ ...v, situacao: e.target.value })}><option>Ativo</option><option>Encerrado</option></select></Campo>
       <div className="md:col-span-2"><Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={v.observacao} onChange={(e) => setV({ ...v, observacao: e.target.value })} /></Campo></div>
-      <p className="text-xs text-muted-foreground md:col-span-2">A periodicidade é o intervalo definido para este processo (decisão, acordo ou medida aplicável). Regular, Vencendo ou Vencido é calculado automaticamente pela data do próximo comparecimento.</p>
+      <p className="text-xs text-muted-foreground md:col-span-2">Cada processo conserva seu próprio prazo. Se já houver assinaturas, a troca de processo será bloqueada para preservar o histórico: crie outro vínculo e desvincule o anterior.</p>
       {erro ? <p className="text-sm text-urgente md:col-span-2">{erro}</p> : null}
       <div className="flex justify-end md:col-span-2"><button className={BOTAO} disabled={salvando}>{salvando ? "Salvando…" : "Salvar comparecimento"}</button></div>
     </form>
