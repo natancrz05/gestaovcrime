@@ -39,3 +39,106 @@ before insert on public.comparecimento_registros
 for each row execute function public.validar_registro_comparecimento_ativo();
 
 -- RLS pré-existente permanece. Nenhum DELETE, CASCADE ou migração de histórico.
+
+
+-- Uma presença física pode produzir mais de um cumprimento processual.
+-- O identificador compartilhado permite contar 1 presença e N obrigações.
+alter table public.comparecimento_registros
+  add column if not exists assinatura_grupo_id uuid;
+
+create index if not exists comparecimento_registros_assinatura_grupo_id_idx
+  on public.comparecimento_registros (assinatura_grupo_id)
+  where assinatura_grupo_id is not null;
+
+-- RPC transacional: se qualquer vínculo falhar, NENHUM registro é gravado.
+-- Não altera o histórico da RPC individual já existente.
+create or replace function public.registrar_comparecimentos_multiplos(
+  p_ids uuid[], p_data date, p_obs text, p_cpf text
+) returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_cpf text := regexp_replace(coalesce(p_cpf, ''), '[^0-9]', '', 'g');
+  v_grupo uuid := gen_random_uuid();
+  v_contagem integer := 0;
+  v_processos uuid[] := array[]::uuid[];
+  v_linha record;
+  v_novo date;
+  v_nome text := public.auditoria_nome(auth.uid());
+begin
+  if not public.pode_editar(auth.uid()) then
+    raise exception 'Sem permissão para registrar comparecimentos';
+  end if;
+  if p_data is null or p_data > current_date then
+    raise exception 'Informe uma data de comparecimento válida, não futura';
+  end if;
+  if length(v_cpf) <> 11 then
+    raise exception 'Confirme os 11 dígitos do CPF da pessoa';
+  end if;
+  if p_ids is null or cardinality(p_ids) < 2 or cardinality(p_ids) > 20 then
+    raise exception 'Selecione entre 2 e 20 vínculos processuais';
+  end if;
+  if (select count(distinct x) from unnest(p_ids) as x) <> cardinality(p_ids) then
+    raise exception 'Há vínculos repetidos na seleção';
+  end if;
+
+  -- Ordem fixa de bloqueio evita deadlocks entre servidores concorrentes.
+  for v_linha in
+    select c.id, c.processo_id, c.proximo, c.intervalo_meses,
+           c.pessoa, c.cpf, c.situacao, p.numero
+      from public.comparecimentos c
+      join public.processos p on p.id = c.processo_id
+     where c.id = any(p_ids)
+     order by c.id
+     for update of c
+  loop
+    v_contagem := v_contagem + 1;
+    if v_linha.situacao <> 'Ativo' then
+      raise exception 'Todos os vínculos selecionados devem estar ativos';
+    end if;
+    if v_linha.processo_id = any(v_processos) then
+      raise exception 'A mesma pessoa não pode cumprir duas vezes a mesma obrigação processual neste evento';
+    end if;
+    v_processos := array_append(v_processos, v_linha.processo_id);
+    if nullif(regexp_replace(coalesce(v_linha.cpf, ''), '[^0-9]', '', 'g'), '') is not null
+       and regexp_replace(v_linha.cpf, '[^0-9]', '', 'g') <> v_cpf then
+      raise exception 'CPF divergente entre os vínculos; não é seguro reunir as assinaturas';
+    end if;
+    if exists (
+      select 1 from public.comparecimento_registros r
+      where r.comparecimento_id = v_linha.id and r.data_realizada = p_data
+    ) then
+      raise exception 'Já existe assinatura nesta data em um dos vínculos';
+    end if;
+    v_novo := (p_data + make_interval(months => v_linha.intervalo_meses))::date;
+    insert into public.comparecimento_registros
+      (comparecimento_id, processo_id, data_prevista, data_realizada, situacao,
+       observacao, assinatura_grupo_id)
+    values
+      (v_linha.id, v_linha.processo_id, v_linha.proximo, p_data,
+       case when p_data > v_linha.proximo then 'Realizado com atraso' else 'Realizado' end,
+       left(coalesce(p_obs, ''), 1000), v_grupo);
+    update public.comparecimentos
+       set proximo = v_novo, cpf = v_cpf
+     where id = v_linha.id;
+    insert into public.auditoria
+      (usuario_id, usuario_nome, acao, modulo, registro_id, processo_id,
+       processo_numero, descricao)
+    values
+      (auth.uid(), v_nome, 'Concluído', 'Comparecimentos', v_linha.id,
+       v_linha.processo_id, coalesce(v_linha.numero, ''),
+       'Assinatura conjunta de ' || v_linha.pessoa ||
+       ' em ' || to_char(p_data,'DD/MM/YYYY') || '; identificador ' || v_grupo::text);
+  end loop;
+  if v_contagem <> cardinality(p_ids) then
+    raise exception 'Um ou mais vínculos não foram encontrados. Nada foi registrado.';
+  end if;
+  return v_grupo;
+end;
+$$;
+revoke execute on function public.registrar_comparecimentos_multiplos(uuid[],date,text,text)
+  from public, anon;
+grant execute on function public.registrar_comparecimentos_multiplos(uuid[],date,text,text)
+  to authenticated;
