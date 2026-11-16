@@ -65,7 +65,7 @@ describe("Assinatura física única com efeitos nos processos selecionados", () 
     expect(html).toContain("Processos nº:");
     expect(html).toContain("8000001-11.2026.8.05.0067");
     expect(html).toContain("8000002-22.2026.8.05.0067");
-    expect(html).toContain("uma apresentação presencial" /* avoid requirement specific text? */);
+    expect(html).toContain("às determinações de comparecimento dos processos relacionados");
   });
   test("migração preserva históricos existentes e tem transação única", () => {
     const sql=readFileSync(new URL("../supabase/migrations/20261116110000_comparecimentos_vinculo_desvinculado.sql",import.meta.url),"utf8");
