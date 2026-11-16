@@ -30,6 +30,7 @@ import {
   comparecimentoHistoricoQuery,
   preparar,
   registrarComparecimento,
+  registrarAssinaturaConjunta,
   mensagemProcessoAusenteComparecimento,
   salvarComparecimento,
   encerrarComparecimento,
@@ -181,7 +182,7 @@ function Pagina() {
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
-  const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string } | null>(null);
+  const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] } | null>(null);
   const [importar, setImportar] = useState(false);
   const editarVinculo = (c: ComparecimentoListado) => setEdicao({
     id: c.id,
@@ -499,6 +500,7 @@ function Pagina() {
           {registro ? (
             <FormRegistro
               c={registro}
+              vinculos={vinculosDaPessoa(lista, registro).filter((v) => v.situacao === "Ativo" && Boolean(v.processo_id))}
               onFeito={async (dados) => {
                 await recarregar();
                 setRegistro(null);
@@ -521,36 +523,69 @@ function Pagina() {
 
 function FormRegistro({
   c,
+  vinculos,
   onFeito,
 }: {
   c: ComparecimentoListado;
-  onFeito: (dados: { comparecimento: ComparecimentoListado; data: string; cpf: string }) => Promise<void>;
+  vinculos: ComparecimentoListado[];
+  onFeito: (dados: { comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] }) => Promise<void>;
 }) {
   const [data, setData] = useState(hojeISO());
   const [obs, setObs] = useState("");
   const [cpf, setCpf] = useState(c.cpf ? formatarCpf(c.cpf) : "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [selecionadosIds, setSelecionadosIds] = useState<string[]>([c.id]);
+  const selecionados = vinculos.filter((v) => selecionadosIds.includes(v.id));
   const precisaCpf = !cpfTemOnzeDigitos(c.cpf);
 
   return (
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
-      if (!c.processo_id) return setErro(mensagemProcessoAusenteComparecimento(c.pessoa));
+      if (!selecionados.length || selecionados.some((v) => !v.processo_id)) {
+        return setErro(mensagemProcessoAusenteComparecimento(c.pessoa));
+      }
       if (!data) return setErro("Informe a data do comparecimento.");
+      if (data > hojeISO()) return setErro("A data do comparecimento não pode ser futura.");
       if (precisaCpf && !cpfTemOnzeDigitos(cpf)) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
 
       const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
       try {
-        await registrarComparecimento(c.id, data, obs, precisaCpf ? cpfFinal : undefined);
-        await onFeito({ comparecimento: { ...c, cpf: cpfFinal }, data, cpf: cpfFinal });
+        if (selecionados.length > 1) {
+          await registrarAssinaturaConjunta(selecionados.map((v) => v.id), data, obs, cpfFinal);
+        } else {
+          const selecionado = selecionados[0]!;
+          await registrarComparecimento(selecionado.id, data, obs, precisaCpf ? cpfFinal : undefined);
+        }
+        await onFeito({
+          comparecimento: { ...selecionados[0]!, cpf: cpfFinal },
+          data, cpf: cpfFinal, numeros: selecionados.map((v) => v.numero),
+        });
       } catch (err) {
         setErro(err instanceof Error ? err.message : "Erro ao registrar.");
         setSalvando(false);
       }
     }}>
-      <p className="text-sm">{c.pessoa} · <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>
+      <p className="text-sm font-medium">{c.pessoa} · uma apresentação presencial</p>
+      {vinculos.length > 1 ? (
+        <fieldset className="space-y-2 rounded-lg border border-border p-3">
+          <legend className="px-1 text-sm font-semibold">Processos atendidos por esta assinatura</legend>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Selecione apenas processos cujas determinações permitem considerar esta apresentação como cumprimento da obrigação.
+            Os prazos e históricos continuarão separados.
+          </p>
+          {vinculos.map((v) => (
+            <label key={v.id} className="flex items-start gap-2 text-xs">
+              <input type="checkbox" className="mt-0.5 size-4" checked={selecionadosIds.includes(v.id)}
+                onChange={(e) => setSelecionadosIds((ids) =>
+                  e.target.checked ? [...ids, v.id] : ids.filter((id) => id !== v.id))} />
+              <span><strong className="numero-processo">{v.numero}</strong> · previsto: {formatarData(v.proximo)} · {v.periodicidade}</span>
+            </label>
+          ))}
+          <p className="font-medium text-primary">{selecionados.length} obrigação(ões) selecionada(s) · 1 presença física</p>
+        </fieldset>
+      ) : <p className="text-sm">Processo <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>}
 
       {!c.processo_id ? (
         <div className="rounded-md border border-urgente/30 bg-urgente-suave p-3 text-sm text-urgente">
@@ -592,9 +627,14 @@ function FormRegistro({
         <textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={obs} onChange={(e) => setObs(e.target.value)} />
       </Campo>
 
-      {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
+      {data ? <div className="text-xs text-muted-foreground">
+        <p className="font-medium">Próximas datas por processo (conforme periodicidade cadastrada):</p>
+        {selecionados.map((v) => (
+          <p key={v.id} className="mt-1"><span className="numero-processo">{v.numero}</span> — {formatarData(somarMeses(data, v.intervalo_meses))}</p>
+        ))}
+      </div> : null}
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
-      <div className="flex justify-end"><button className={BOTAO} disabled={salvando || !c.processo_id}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
+      <div className="flex justify-end"><button className={BOTAO} disabled={salvando || selecionados.length === 0}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
     </form>
   );
 }
@@ -603,7 +643,7 @@ function FormCertidao({
   dados,
   onFechar,
 }: {
-  dados: { comparecimento: ComparecimentoListado; data: string; cpf: string };
+  dados: { comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] };
   onFechar: () => void;
 }) {
   const [analista, setAnalista] = useState("");
@@ -621,6 +661,7 @@ function FormCertidao({
     janela.document.write(
       montarHtmlCertidaoComparecimento({
         numero: dados.comparecimento.numero,
+        numeros: dados.numeros,
         pessoa: dados.comparecimento.pessoa,
         cpf: dados.cpf,
         data: dados.data,
@@ -637,7 +678,7 @@ function FormCertidao({
     <div className="space-y-4">
       <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
         <p className="font-medium">{dados.comparecimento.pessoa}</p>
-        <p className="numero-processo text-xs text-muted-foreground">{dados.comparecimento.numero}</p>
+        <p className="numero-processo text-xs text-muted-foreground">{dados.numeros.join(" · ")}</p>
         <p className="mt-1 text-xs text-muted-foreground">CPF {formatarCpf(dados.cpf)} · comparecimento em {formatarData(dados.data)}</p>
       </div>
 
