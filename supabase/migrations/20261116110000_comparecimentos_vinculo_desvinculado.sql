@@ -46,7 +46,7 @@ for each row execute function public.validar_registro_comparecimento_ativo();
 create or replace function public.proteger_processo_comparecimento_historico()
 returns trigger language plpgsql security invoker
 set search_path = public
-as $
+as $$
 begin
   if old.processo_id is distinct from new.processo_id
      and exists (
@@ -58,7 +58,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 revoke execute on function public.proteger_processo_comparecimento_historico()
   from public, anon, authenticated;
 
