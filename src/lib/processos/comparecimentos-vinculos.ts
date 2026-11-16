@@ -14,7 +14,15 @@ export interface VinculoPessoa {
 
 export function cpfPessoa(cpf: string | null | undefined): string | null {
   const digitos = (cpf ?? "").replace(/\D/g, "");
-  return digitos.length === 11 ? digitos : null;
+  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return null;
+  // Evita unir pessoas por documento apenas aparentemente válido.
+  const n = [...digitos].map(Number);
+  for (let tamanho = 9; tamanho <= 10; tamanho++) {
+    const valor = n.slice(0, tamanho).reduce((acc, digito, i) => acc + digito * (tamanho + 1 - i), 0);
+    const verificador = (valor * 10) % 11;
+    if (n[tamanho] !== (verificador === 10 ? 0 : verificador)) return null;
+  }
+  return digitos;
 }
 
 export function mesmoTitular(a: Pick<VinculoPessoa, "cpf">, b: Pick<VinculoPessoa, "cpf">): boolean {
