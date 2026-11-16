@@ -8,7 +8,6 @@ export const SITUACAO_VINCULO_REMOVIDO = "Desvinculado";
 export interface VinculoPessoa {
   id: string;
   cpf: string;
-  pessoa: string;
   processo_id: string | null;
   situacao: string;
 }
