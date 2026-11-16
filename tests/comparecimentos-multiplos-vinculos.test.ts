@@ -20,6 +20,8 @@ describe("Uma pessoa, vários vínculos processuais independentes", () => {
   test("agrupa somente pelo CPF completo; nomes iguais e sem CPF não são fundidos", () => {
     expect(cpfPessoa("013.541.375-31")).toBe("01354137531");
     expect(cpfPessoa("123")).toBeNull();
+    expect(cpfPessoa("00000000000")).toBeNull();
+    expect(cpfPessoa("01354137530")).toBeNull();
     expect(mesmoTitular(pessoas[0]!, pessoas[1]!)).toBe(true);
     expect(mesmoTitular(pessoas[0]!, pessoas[5]!)).toBe(false);
     expect(agruparPessoas(pessoas)).toHaveLength(4);
