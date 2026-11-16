@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import { lazy, Suspense, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { Archive, CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Pencil, Plus, Upload, XCircle, Link2Off, RotateCcw } from "lucide-react";
 const ImportarComparecimentos = lazy(() =>
   import("@/components/processos/ImportarComparecimentos").then((modulo) => ({
     default: modulo.ImportarComparecimentos,
@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { cpfTemOnzeDigitos, formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
+import { agruparPessoas, cpfPessoa, SITUACAO_VINCULO_REMOVIDO, vinculosDaPessoa } from "@/lib/processos/comparecimentos-vinculos";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
@@ -32,6 +33,8 @@ import {
   mensagemProcessoAusenteComparecimento,
   salvarComparecimento,
   encerrarComparecimento,
+  desvincularProcessoComparecimento,
+  restaurarVinculoComparecimento,
   somarMeses,
   mesesDe,
   PERIODICIDADES,
@@ -66,7 +69,8 @@ function Pagina() {
   const navigate = Route.useNavigate();
   const hoje = hojeISO();
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
-  const ativos = useMemo(() => lista.filter((c) => c.situacao !== "Encerrado"), [lista]);
+  const ativos = useMemo(() => lista.filter((c) => c.situacao === "Ativo"), [lista]);
+  const pendentesVinculo = useMemo(() => lista.filter((c) => c.situacao === SITUACAO_VINCULO_REMOVIDO), [lista]);
   const encerrados = useMemo(() => lista.filter((c) => c.situacao === "Encerrado"), [lista]);
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
@@ -131,14 +135,17 @@ function Pagina() {
   }, [lista]);
   const exibidos = useMemo(() => {
     const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (!t) return porSituacao;
     const d = t.replace(/\D/g, "");
-    return porSituacao.filter((comparecimento) => {
-      const indice = indiceBusca.get(comparecimento.id);
-      if (!indice) return false;
-      return indice.texto.includes(t) || (d.length >= 3 && indice.digitos.includes(d));
+    // Busca por nome, CPF e qualquer processo da pessoa, sem unir nomes iguais.
+    const encontrados = !t ? porSituacao : porSituacao.filter((comparecimento) => {
+      const vinculos = vinculosDaPessoa(lista, comparecimento);
+      return vinculos.some((item) => {
+        const indice = indiceBusca.get(item.id);
+        return !!indice && (indice.texto.includes(t) || (d.length >= 3 && indice.digitos.includes(d)));
+      });
     });
-  }, [porSituacao, termo, indiceBusca]);
+    return agruparPessoas(encontrados).map((grupo) => grupo.principal);
+  }, [porSituacao, termo, indiceBusca, lista]);
 
   const contagensSituacao = useMemo(() => {
     const contagens = new Map<SituacaoComparecimento, number>();
@@ -168,13 +175,60 @@ function Pagina() {
     }
   };
 
-  const detalhe = ativos.find((c) => c.id === busca.id) ?? null;
+  const detalhe = lista.find((c) => c.id === busca.id && c.situacao !== "Encerrado") ?? null;
+  const vinculosDetalhe = useMemo(() => detalhe ? vinculosDaPessoa(lista, detalhe) : [], [lista, detalhe]);
   const historicoDetalhe = useQuery(comparecimentoHistoricoQuery(detalhe?.id ?? null));
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
   const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string } | null>(null);
   const [importar, setImportar] = useState(false);
+  const editarVinculo = (c: ComparecimentoListado) => setEdicao({
+    id: c.id,
+    valores: {
+      cpf: c.cpf, processo_id: c.processo_id ?? "", pessoa: c.pessoa,
+      data_inicio: c.data_inicio, periodicidade: c.periodicidade,
+      intervalo_meses: c.intervalo_meses, proximo: c.proximo,
+      observacao: c.observacao, situacao: c.situacao,
+    },
+  });
+  const adicionarVinculo = (c: ComparecimentoListado) => {
+    if (!cpfPessoa(c.cpf)) {
+      toast.warning("Identifique o CPF da pessoa para adicionar outro processo com segurança.");
+      return;
+    }
+    setEdicao({
+      valores: {
+        cpf: c.cpf, processo_id: "", pessoa: c.pessoa, data_inicio: hoje,
+        periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1),
+        observacao: "", situacao: "Ativo",
+      },
+    });
+  };
+  const desvincular = async (c: ComparecimentoListado) => {
+    const motivo = window.prompt(
+      "Informe a pendência ou o motivo da desvinculação. As assinaturas já registradas continuarão vinculadas ao processo original. Nenhum cadastro será arquivado.",
+      "",
+    );
+    if (motivo === null) return;
+    try {
+      await desvincularProcessoComparecimento(c.id, motivo);
+      toast.success("Vínculo removido das obrigações ativas e preservado com pendência de conferência.");
+      await recarregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível desvincular o processo.");
+    }
+  };
+  const restaurar = async (c: ComparecimentoListado) => {
+    if (!window.confirm("Restaurar o vínculo com o processo original? Confira se a obrigação cautelar continua vigente.")) return;
+    try {
+      await restaurarVinculoComparecimento(c.id);
+      toast.success("Vínculo restaurado para conferência. Confira a periodicidade determinada.");
+      await recarregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível restaurar o vínculo.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -185,7 +239,7 @@ function Pagina() {
       ) : null}
       <Cabecalho
         titulo="Comparecimentos"
-        subtitulo={`${ativos.length} cadastros ativos`}
+        subtitulo={`${agruparPessoas(ativos).length} pessoa(s) · ${ativos.length} vínculo(s) processuais ativos`}
         acao={
           <div className="flex flex-wrap gap-2">
             <Link to="/comparecimentos/encerrados" className={BOTAO_SEC + " h-9"}>
@@ -241,7 +295,14 @@ function Pagina() {
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">{c.pessoa}{c.conferir ? (
+                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">
+                      {c.pessoa}
+                      {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").length > 1 ? (
+                        <span className="ml-2 rounded border border-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").length} processos
+                        </span>
+                      ) : null}
+                      {c.conferir ? (
                       <span className="group/selo relative ml-2 inline-flex align-middle" title={c.motivo_conferencia}>
                         <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span>
                         {podeEditar ? (
@@ -261,14 +322,9 @@ function Pagina() {
                         const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
                         return (
                           <>
-                            {c.processo_id ? (
-                              <span className="numero-processo break-words">{c.numero}</span>
-                            ) : (
-                              <>
-                                Não vinculado
-                                {c.numeros_informados?.length ? <span className="block break-words text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
-                              </>
-                            )}
+                            {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").map((v) => (
+                              <span className="numero-processo block break-words" key={v.id}>{v.numero}</span>
+                            ))}
                             {etiquetas.length ? (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {etiquetas.map((e) => (
