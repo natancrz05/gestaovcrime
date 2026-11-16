@@ -41,6 +41,32 @@ for each row execute function public.validar_registro_comparecimento_ativo();
 -- RLS pré-existente permanece. Nenhum DELETE, CASCADE ou migração de histórico.
 
 
+-- Impede que uma alteração direta pela API do banco faça assinaturas antigas
+-- parecerem pertencer a outro processo. Vale também fora da interface.
+create or replace function public.proteger_processo_comparecimento_historico()
+returns trigger language plpgsql security invoker
+set search_path = public
+as $
+begin
+  if old.processo_id is distinct from new.processo_id
+     and exists (
+       select 1 from public.comparecimento_registros r
+       where r.comparecimento_id = old.id
+     ) then
+    raise exception 'Há assinaturas no vínculo original. Crie outro vínculo sem reatribuir o histórico.'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$;
+revoke execute on function public.proteger_processo_comparecimento_historico()
+  from public, anon, authenticated;
+
+drop trigger if exists protege_processo_do_historico_comparecimento on public.comparecimentos;
+create trigger protege_processo_do_historico_comparecimento
+before update of processo_id on public.comparecimentos
+for each row execute function public.proteger_processo_comparecimento_historico();
+
 -- Uma presença física pode produzir mais de um cumprimento processual.
 -- O identificador compartilhado permite contar 1 presença e N obrigações.
 alter table public.comparecimento_registros
@@ -67,6 +93,8 @@ declare
   v_linha record;
   v_novo date;
   v_nome text := public.auditoria_nome(auth.uid());
+  v_pessoa_comparavel text := null;
+  v_nome_atual text;
 begin
   if not public.pode_editar(auth.uid()) then
     raise exception 'Sem permissão para registrar comparecimentos';
@@ -97,6 +125,14 @@ begin
     v_contagem := v_contagem + 1;
     if v_linha.situacao <> 'Ativo' then
       raise exception 'Todos os vínculos selecionados devem estar ativos';
+    end if;
+    -- CPF coincidente com nomes diferentes é pendência de conferência,
+    -- não permissão automática para misturar os históricos.
+    v_nome_atual := upper(regexp_replace(public.unaccent_safe(trim(v_linha.pessoa)), '[[:space:]]+', ' ', 'g'));
+    if v_pessoa_comparavel is null then
+      v_pessoa_comparavel := v_nome_atual;
+    elsif v_nome_atual <> v_pessoa_comparavel then
+      raise exception 'Os nomes nos vínculos diferem. Corrija a identidade antes de registrar uma assinatura conjunta.';
     end if;
     if v_linha.processo_id = any(v_processos) then
       raise exception 'A mesma pessoa não pode cumprir duas vezes a mesma obrigação processual neste evento';
