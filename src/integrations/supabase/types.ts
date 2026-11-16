@@ -32,99 +32,57 @@ export type Database = {
         }
         Relationships: []
       }
-      calculos_ia_relatorios: {
-        Row: {
-          id: string
-          autor_id: string
-          processo_numero: string
-          tipo_analise: string
-          modalidade_prisao: string | null
-          nome_reu: string | null
-          data_referencia: string
-          relatorio: string
-          compartilhamento_autorizado: boolean
-          unidade: string
-          criado_em: string
-        }
-        Insert: {
-          id?: string
-          autor_id: string
-          processo_numero: string
-          tipo_analise: string
-          modalidade_prisao?: string | null
-          nome_reu?: string | null
-          data_referencia: string
-          relatorio: string
-          compartilhamento_autorizado?: boolean
-          unidade?: string
-          criado_em?: string
-        }
-        Update: {
-          id?: string
-          autor_id?: string
-          processo_numero?: string
-          tipo_analise?: string
-          modalidade_prisao?: string | null
-          nome_reu?: string | null
-          data_referencia?: string
-          relatorio?: string
-          compartilhamento_autorizado?: boolean
-          unidade?: string
-          criado_em?: string
-        }
-        Relationships: []
-      }
       assistente_conversas: {
         Row: {
-          id: string
-          usuario_id: string
-          titulo: string
-          criado_em: string
           atualizado_em: string
+          criado_em: string
+          id: string
+          titulo: string
+          usuario_id: string
         }
         Insert: {
-          id?: string
-          usuario_id: string
-          titulo?: string
-          criado_em?: string
           atualizado_em?: string
+          criado_em?: string
+          id?: string
+          titulo?: string
+          usuario_id: string
         }
         Update: {
-          id?: string
-          usuario_id?: string
-          titulo?: string
-          criado_em?: string
           atualizado_em?: string
+          criado_em?: string
+          id?: string
+          titulo?: string
+          usuario_id?: string
         }
         Relationships: []
       }
       assistente_mensagens: {
         Row: {
-          id: string
-          conversa_id: string
-          usuario_id: string
-          papel: string
-          conteudo: string
           anexos: string[]
+          conteudo: string
+          conversa_id: string
           criado_em: string
+          id: string
+          papel: string
+          usuario_id: string
         }
         Insert: {
-          id?: string
-          conversa_id: string
-          usuario_id: string
-          papel: string
-          conteudo: string
           anexos?: string[]
+          conteudo: string
+          conversa_id: string
           criado_em?: string
+          id?: string
+          papel: string
+          usuario_id: string
         }
         Update: {
-          id?: string
-          conversa_id?: string
-          usuario_id?: string
-          papel?: string
-          conteudo?: string
           anexos?: string[]
+          conteudo?: string
+          conversa_id?: string
           criado_em?: string
+          id?: string
+          papel?: string
+          usuario_id?: string
         }
         Relationships: [
           {
@@ -252,7 +210,6 @@ export type Database = {
           id: string
           observacao: string
           processo_id: string
-          assinatura_grupo_id: string | null
           situacao: string
         }
         Insert: {
@@ -263,7 +220,6 @@ export type Database = {
           id?: string
           observacao?: string
           processo_id: string
-          assinatura_grupo_id?: string | null
           situacao: string
         }
         Update: {
@@ -274,7 +230,6 @@ export type Database = {
           id?: string
           observacao?: string
           processo_id?: string
-          assinatura_grupo_id?: string | null
           situacao?: string
         }
         Relationships: [
@@ -1181,10 +1136,10 @@ export type Database = {
           nome: string
           recusado_em: string | null
           recusado_por: string | null
-          solicitado_em: string | null
-          status_cadastro: string
           senha_temporaria_em: string | null
           senha_temporaria_por: string | null
+          solicitado_em: string | null
+          status_cadastro: string
           troca_senha_obrigatoria: boolean
         }
         Insert: {
@@ -1197,10 +1152,10 @@ export type Database = {
           nome?: string
           recusado_em?: string | null
           recusado_por?: string | null
-          solicitado_em?: string | null
-          status_cadastro?: string
           senha_temporaria_em?: string | null
           senha_temporaria_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
           troca_senha_obrigatoria?: boolean
         }
         Update: {
@@ -1213,10 +1168,10 @@ export type Database = {
           nome?: string
           recusado_em?: string | null
           recusado_por?: string | null
-          solicitado_em?: string | null
-          status_cadastro?: string
           senha_temporaria_em?: string | null
           senha_temporaria_por?: string | null
+          solicitado_em?: string | null
+          status_cadastro?: string
           troca_senha_obrigatoria?: boolean
         }
         Relationships: []
@@ -1296,6 +1251,7 @@ export type Database = {
         }
         Returns: Json
       }
+      limpar_auditoria_expirada: { Args: never; Returns: number }
       pode_editar: { Args: { _user_id: string }; Returns: boolean }
       proximo_numero_controle_oficio: {
         Args: { p_ano: number }
@@ -1303,10 +1259,6 @@ export type Database = {
       }
       registrar_comparecimento: {
         Args: { p_data: string; p_id: string; p_obs: string }
-        Returns: string
-      }
-      registrar_comparecimentos_multiplos: {
-        Args: { p_ids: string[]; p_data: string; p_obs: string; p_cpf: string }
         Returns: string
       }
       registrar_reavaliacao: {
@@ -1319,6 +1271,21 @@ export type Database = {
         Returns: undefined
       }
       rotulo_campo_importacao: { Args: { _c: string }; Returns: string }
+      salvar_audiencia_importada: {
+        Args: {
+          p_aguardando_nova_data: boolean
+          p_data: string
+          p_horario: string
+          p_id: string
+          p_local: string
+          p_modalidade: string
+          p_observacao: string
+          p_processo_id: string
+          p_situacao: string
+          p_tipo: string
+        }
+        Returns: string
+      }
       unaccent_safe: { Args: { t: string }; Returns: string }
       usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
