@@ -2,6 +2,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { diasEntre, hojeISO } from "./modelo";
+import { cpfPessoa, podeVincularProcesso, SITUACAO_VINCULO_REMOVIDO } from "./comparecimentos-vinculos";
 
 export const CONFIG_COMPARECIMENTOS = { diasVencendo: 7 };
 
@@ -166,8 +167,9 @@ export function preparar(lista: Comparecimento[], hoje = hojeISO()): Comparecime
       };
     })
     .sort((a, b) => {
-      // Cadastros encerrados vão para o fim da lista.
-      const e = Number(a.situacao === "Encerrado") - Number(b.situacao === "Encerrado");
+      // Obrigações ativas primeiro; desvinculados pendentes e encerrados no fim.
+      const ordem = (s: string) => s === "Ativo" ? 0 : s === "Desvinculado" ? 1 : 2;
+      const e = ordem(a.situacao) - ordem(b.situacao);
       return e || ORDEM[a.status] - ORDEM[b.status] || a.proximo.localeCompare(b.proximo);
     });
 }
@@ -206,7 +208,7 @@ export function inadimplenciaCriticaComparecimento(
   comparecimento: Pick<Comparecimento, "situacao" | "proximo" | "comparecimento_registros">,
   hoje = hojeISO(),
 ): { proximo: string; disparo: string; atraso: number } | null {
-  if (comparecimento.situacao === "Encerrado") return null;
+  if (comparecimento.situacao !== "Ativo") return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(comparecimento.proximo)) return null;
   if (situacaoPorData(comparecimento.proximo, hoje) !== "vencido") return null;
 
@@ -236,14 +238,106 @@ export interface ComparecimentoEntrada {
   proximo: string;
   observacao: string;
   situacao: string;
+  cpf?: string;
 }
 
 export async function salvarComparecimento(v: ComparecimentoEntrada, id?: string) {
-  const dados = { ...v, ...(v.processo_id ? { conferir: false, motivo_conferencia: "" } : {}), pessoa: v.pessoa.trim().slice(0, 200), observacao: v.observacao.slice(0, 1000), intervalo_meses: mesesDe(v.periodicidade, v.intervalo_meses) };
+  const cpf = cpfPessoa(v.cpf) ?? null;
+  if (v.cpf?.trim() && !cpf) throw new Error("Confira os 11 dígitos do CPF antes de salvar.");
+  const processoId = v.processo_id || null;
+  if (!processoId) throw new Error("Selecione um processo para o vínculo. Use Desvincular para preservar o cadastro sem obrigação ativa.");
+
+  // Protege a identidade: CPF une visualmente a pessoa, não duplica vínculo
+  // ativo com o mesmo processo.
+  if (cpf) {
+    const { data: semelhantes, error: erroPessoas } = await supabase
+      .from("comparecimentos")
+      .select("id,cpf,processo_id,situacao")
+      .eq("processo_id", processoId)
+      .eq("situacao", "Ativo");
+    if (erroPessoas) throw new Error(erroPessoas.message);
+    if (!podeVincularProcesso(semelhantes ?? [], cpf, processoId, id)) {
+      throw new Error("Já existe vínculo ativo desta pessoa com este processo. Abra o cadastro existente.");
+    }
+  }
+
+  if (id) {
+    const { data: anterior, error: erroCadastro } = await supabase
+      .from("comparecimentos").select("processo_id,situacao").eq("id", id).single();
+    if (erroCadastro || !anterior) throw new Error("Cadastro não encontrado ou sem permissão.");
+    if (anterior.situacao === SITUACAO_VINCULO_REMOVIDO) {
+      throw new Error("Este vínculo está desvinculado. Restaure-o explicitamente ou adicione outro processo.");
+    }
+    if (anterior.processo_id !== processoId) {
+      const { data: registros, error: erroRegistros } = await supabase
+        .from("comparecimento_registros").select("id").eq("comparecimento_id", id).limit(1);
+      if (erroRegistros) throw new Error(erroRegistros.message);
+      if (registros?.length) {
+        throw new Error("Este vínculo possui assinaturas. Para manter o histórico correto, adicione o novo processo e desvincule o anterior separadamente.");
+      }
+    }
+  }
+  const dados = {
+    processo_id: processoId,
+    pessoa: v.pessoa.trim().slice(0, 200),
+    data_inicio: v.data_inicio,
+    periodicidade: v.periodicidade,
+    intervalo_meses: mesesDe(v.periodicidade, v.intervalo_meses),
+    proximo: v.proximo,
+    observacao: v.observacao.slice(0, 1000),
+    situacao: v.situacao,
+    ...(cpf ? { cpf } : {}),
+    ...(processoId ? { conferir: false, motivo_conferencia: "" } : {}),
+  };
   const { error } = id
     ? await supabase.from("comparecimentos").update(dados).eq("id", id)
     : await supabase.from("comparecimentos").insert(dados);
   if (error) throw new Error(error.message);
+}
+
+/** Remove somente a vigência do vínculo, preservando o processo original e TODAS as assinaturas. */
+export async function desvincularProcessoComparecimento(id: string, motivo: string) {
+  const justificativa = motivo.trim();
+  if (justificativa.length < 8) throw new Error("Informe o motivo da desvinculação ou a pendência a conferir (mínimo de 8 caracteres).");
+  const { data: atual, error: erroLeitura } = await supabase
+    .from("comparecimentos").select("situacao,processo_id").eq("id", id).single();
+  if (erroLeitura || !atual) throw new Error("Vínculo não encontrado ou sem permissão.");
+  if (atual.situacao !== "Ativo" || !atual.processo_id) {
+    throw new Error("Somente vínculos ativos podem ser desvinculados. O cadastro e o histórico permanecem preservados.");
+  }
+  const { data, error } = await supabase.from("comparecimentos").update({
+    situacao: SITUACAO_VINCULO_REMOVIDO,
+    conferir: true,
+    motivo_conferencia: "Vínculo desvinculado; pendência de conferência: " + justificativa.slice(0, 350),
+  }).eq("id", id).eq("situacao", "Ativo").select("id");
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("O vínculo foi alterado por outro servidor. Atualize a página antes de tentar novamente.");
+}
+
+/** Reativa SOMENTE o mesmo processo original após conferência humana. */
+export async function restaurarVinculoComparecimento(id: string) {
+  const { data: atual, error } = await supabase.from("comparecimentos")
+    .select("id,cpf,processo_id,situacao")
+    .eq("id", id).single();
+  if (error || !atual || atual.situacao !== SITUACAO_VINCULO_REMOVIDO || !atual.processo_id) {
+    throw new Error("Vínculo desvinculado não encontrado ou sem permissão.");
+  }
+  const cpf = cpfPessoa(atual.cpf);
+  if (cpf) {
+    const { data: outros, error: erroOutros } = await supabase.from("comparecimentos")
+      .select("id,cpf,processo_id,situacao")
+      .eq("processo_id", atual.processo_id).eq("situacao", "Ativo");
+    if (erroOutros) throw new Error(erroOutros.message);
+    if (!podeVincularProcesso(outros ?? [], cpf, atual.processo_id, id)) {
+      throw new Error("Já existe outro vínculo ativo desta pessoa com o processo. Confira antes de restaurar.");
+    }
+  }
+  const { data: salvos, error: erroSalvar } = await supabase.from("comparecimentos")
+    .update({ situacao: "Ativo", conferir: true,
+      motivo_conferencia: "Vínculo restaurado administrativamente; conferir decisão e periodicidade aplicáveis." })
+    .eq("id", id).eq("situacao", SITUACAO_VINCULO_REMOVIDO).select("id");
+  if (erroSalvar) throw new Error(erroSalvar.message);
+  if (!salvos?.length) throw new Error("O vínculo foi alterado por outro servidor. Atualize a página.");
 }
 
 export function mensagemProcessoAusenteComparecimento(pessoa?: string) {
@@ -254,11 +348,14 @@ export function mensagemProcessoAusenteComparecimento(pessoa?: string) {
 export async function registrarComparecimento(id: string, data: string, obs: string, cpf?: string) {
   const { data: cadastro, error: cadastroError } = await supabase
     .from("comparecimentos")
-    .select("processo_id, pessoa")
+    .select("processo_id, pessoa, situacao")
     .eq("id", id)
     .single();
 
   if (cadastroError) throw new Error(cadastroError.message);
+  if (cadastro?.situacao !== "Ativo") {
+    throw new Error("O vínculo não está ativo. Confira a situação antes de registrar assinatura.");
+  }
   if (!cadastro?.processo_id) {
     throw new Error(mensagemProcessoAusenteComparecimento(cadastro?.pessoa));
   }
@@ -274,6 +371,33 @@ export async function registrarComparecimento(id: string, data: string, obs: str
   const { data: r, error } = await supabase.rpc("registrar_comparecimento", { p_id: id, p_data: data, p_obs: obs });
   if (error) throw new Error(error.message);
   return r as string;
+}
+
+/**
+ * Um comparecimento físico atende 2+ vínculos SEM várias chamadas sucessivas.
+ * A RPC de banco grava todos numa única transação e devolve o id do evento.
+ */
+export async function registrarAssinaturaConjunta(
+  ids: string[], data: string, observacao: string, cpf: string,
+) {
+  const unicos = [...new Set(ids)];
+  if (unicos.length !== ids.length || unicos.length < 2 || unicos.length > 20) {
+    throw new Error("Selecione de 2 a 20 processos distintos para assinatura conjunta.");
+  }
+  const documento = cpfPessoa(cpf);
+  if (!documento) throw new Error("Confirme o CPF de 11 dígitos antes da assinatura conjunta.");
+  const { data: grupoId, error } = await supabase.rpc("registrar_comparecimentos_multiplos", {
+    p_ids: unicos,
+    p_data: data,
+    p_obs: observacao.slice(0, 1000),
+    p_cpf: documento,
+  });
+  if (error) throw new Error(
+    error.message.includes("Could not find the function")
+      ? "Assinatura conjunta ainda não habilitada neste banco. A migração precisa ser aplicada pela administração."
+      : error.message,
+  );
+  return grupoId;
 }
 
 export async function encerrarComparecimento(id: string) {

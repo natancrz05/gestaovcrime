@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-quer
 import { lazy, Suspense, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { Archive, CheckCircle2, Pencil, Plus, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Pencil, Plus, Upload, XCircle, Link2Off, RotateCcw } from "lucide-react";
 const ImportarComparecimentos = lazy(() =>
   import("@/components/processos/ImportarComparecimentos").then((modulo) => ({
     default: modulo.ImportarComparecimentos,
@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { cpfTemOnzeDigitos, formatarCpf, montarHtmlCertidaoComparecimento } from "@/lib/processos/certidao-comparecimento";
+import { agruparPessoas, cpfPessoa, SITUACAO_VINCULO_REMOVIDO, vinculosDaPessoa } from "@/lib/processos/comparecimentos-vinculos";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
 import { EtiquetaProcesso } from "@/components/processos/EtiquetaProcesso";
 import {
@@ -29,9 +30,12 @@ import {
   comparecimentoHistoricoQuery,
   preparar,
   registrarComparecimento,
+  registrarAssinaturaConjunta,
   mensagemProcessoAusenteComparecimento,
   salvarComparecimento,
   encerrarComparecimento,
+  desvincularProcessoComparecimento,
+  restaurarVinculoComparecimento,
   somarMeses,
   mesesDe,
   PERIODICIDADES,
@@ -66,7 +70,8 @@ function Pagina() {
   const navigate = Route.useNavigate();
   const hoje = hojeISO();
   const lista = useMemo(() => preparar(data, hoje), [data, hoje]);
-  const ativos = useMemo(() => lista.filter((c) => c.situacao !== "Encerrado"), [lista]);
+  const ativos = useMemo(() => lista.filter((c) => c.situacao === "Ativo"), [lista]);
+  const pendentesVinculo = useMemo(() => lista.filter((c) => c.situacao === SITUACAO_VINCULO_REMOVIDO), [lista]);
   const encerrados = useMemo(() => lista.filter((c) => c.situacao === "Encerrado"), [lista]);
   const filtro = SITUACOES_COMP.some((s) => s.chave === busca.situacao) ? (busca.situacao as SituacaoComparecimento) : null;
   const [termo, setTermo] = useState("");
@@ -131,14 +136,17 @@ function Pagina() {
   }, [lista]);
   const exibidos = useMemo(() => {
     const t = termo.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (!t) return porSituacao;
     const d = t.replace(/\D/g, "");
-    return porSituacao.filter((comparecimento) => {
-      const indice = indiceBusca.get(comparecimento.id);
-      if (!indice) return false;
-      return indice.texto.includes(t) || (d.length >= 3 && indice.digitos.includes(d));
+    // Busca por nome, CPF e qualquer processo da pessoa, sem unir nomes iguais.
+    const encontrados = !t ? porSituacao : porSituacao.filter((comparecimento) => {
+      const vinculos = vinculosDaPessoa(lista, comparecimento);
+      return vinculos.some((item) => {
+        const indice = indiceBusca.get(item.id);
+        return !!indice && (indice.texto.includes(t) || (d.length >= 3 && indice.digitos.includes(d)));
+      });
     });
-  }, [porSituacao, termo, indiceBusca]);
+    return agruparPessoas(encontrados).map((grupo) => grupo.principal);
+  }, [porSituacao, termo, indiceBusca, lista]);
 
   const contagensSituacao = useMemo(() => {
     const contagens = new Map<SituacaoComparecimento, number>();
@@ -168,13 +176,60 @@ function Pagina() {
     }
   };
 
-  const detalhe = ativos.find((c) => c.id === busca.id) ?? null;
+  const detalhe = lista.find((c) => c.id === busca.id && c.situacao !== "Encerrado") ?? null;
+  const vinculosDetalhe = useMemo(() => detalhe ? vinculosDaPessoa(lista, detalhe) : [], [lista, detalhe]);
   const historicoDetalhe = useQuery(comparecimentoHistoricoQuery(detalhe?.id ?? null));
   const abrir = (id: string) => navigate({ search: (p) => ({ ...p, id }) });
   const [edicao, setEdicao] = useState<{ id?: string; valores: ComparecimentoEntrada } | null>(null);
   const [registro, setRegistro] = useState<ComparecimentoListado | null>(null);
-  const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string } | null>(null);
+  const [certidao, setCertidao] = useState<{ comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] } | null>(null);
   const [importar, setImportar] = useState(false);
+  const editarVinculo = (c: ComparecimentoListado) => setEdicao({
+    id: c.id,
+    valores: {
+      cpf: c.cpf, processo_id: c.processo_id ?? "", pessoa: c.pessoa,
+      data_inicio: c.data_inicio, periodicidade: c.periodicidade,
+      intervalo_meses: c.intervalo_meses, proximo: c.proximo,
+      observacao: c.observacao, situacao: c.situacao,
+    },
+  });
+  const adicionarVinculo = (c: ComparecimentoListado) => {
+    if (!cpfPessoa(c.cpf)) {
+      toast.warning("Identifique o CPF da pessoa para adicionar outro processo com segurança.");
+      return;
+    }
+    setEdicao({
+      valores: {
+        cpf: c.cpf, processo_id: "", pessoa: c.pessoa, data_inicio: hoje,
+        periodicidade: "Mensal", intervalo_meses: 1, proximo: somarMeses(hoje, 1),
+        observacao: "", situacao: "Ativo",
+      },
+    });
+  };
+  const desvincular = async (c: ComparecimentoListado) => {
+    const motivo = window.prompt(
+      "Informe a pendência ou o motivo da desvinculação. As assinaturas já registradas continuarão vinculadas ao processo original. Nenhum cadastro será arquivado.",
+      "",
+    );
+    if (motivo === null) return;
+    try {
+      await desvincularProcessoComparecimento(c.id, motivo);
+      toast.success("Vínculo removido das obrigações ativas e preservado com pendência de conferência.");
+      await recarregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível desvincular o processo.");
+    }
+  };
+  const restaurar = async (c: ComparecimentoListado) => {
+    if (!window.confirm("Restaurar o vínculo com o processo original? Confira se a obrigação cautelar continua vigente.")) return;
+    try {
+      await restaurarVinculoComparecimento(c.id);
+      toast.success("Vínculo restaurado para conferência. Confira a periodicidade determinada.");
+      await recarregar();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível restaurar o vínculo.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -185,7 +240,7 @@ function Pagina() {
       ) : null}
       <Cabecalho
         titulo="Comparecimentos"
-        subtitulo={`${ativos.length} cadastros ativos`}
+        subtitulo={`${agruparPessoas(ativos).length} pessoa(s) · ${ativos.length} vínculo(s) processuais ativos`}
         acao={
           <div className="flex flex-wrap gap-2">
             <Link to="/comparecimentos/encerrados" className={BOTAO_SEC + " h-9"}>
@@ -241,7 +296,14 @@ function Pagina() {
               <tbody className="divide-y divide-border">
                 {exibidos.map((c) => (
                   <tr key={c.id} className={cn("cursor-pointer hover:bg-muted/40", c.situacao === "Encerrado" && "text-muted-foreground")} onClick={() => abrir(c.id)}>
-                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">{c.pessoa}{c.conferir ? (
+                    <td className="break-words px-2 py-2 align-top leading-snug font-medium">
+                      {c.pessoa}
+                      {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").length > 1 ? (
+                        <span className="ml-2 rounded border border-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").length} processos
+                        </span>
+                      ) : null}
+                      {c.conferir ? (
                       <span className="group/selo relative ml-2 inline-flex align-middle" title={c.motivo_conferencia}>
                         <span className="rounded border border-alerta/30 bg-alerta-suave px-1.5 py-0.5 text-[10px] font-medium text-alerta">Conferir</span>
                         {podeEditar ? (
@@ -261,14 +323,9 @@ function Pagina() {
                         const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
                         return (
                           <>
-                            {c.processo_id ? (
-                              <span className="numero-processo break-words">{c.numero}</span>
-                            ) : (
-                              <>
-                                Não vinculado
-                                {c.numeros_informados?.length ? <span className="block break-words text-[11px]">{c.numeros_informados.join(" / ")}</span> : null}
-                              </>
-                            )}
+                            {vinculosDaPessoa(lista, c).filter((v) => v.situacao === "Ativo").map((v) => (
+                              <span className="numero-processo block break-words" key={v.id}>{v.numero}</span>
+                            ))}
                             {etiquetas.length ? (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {etiquetas.map((e) => (
@@ -294,12 +351,81 @@ function Pagina() {
         )}
       </Secao>
 
+      {pendentesVinculo.length ? (
+        <Secao titulo={`Pendências de vínculo processual (${pendentesVinculo.length})`}>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Processos desvinculados administrativamente, sem arquivamento do cadastro nem exclusão do histórico.
+            Clique para conferir a pendência, adicionar outro processo ou restaurar o vínculo.
+          </p>
+          <div className="space-y-2">
+            {pendentesVinculo.map((c) => (
+              <button key={c.id} type="button" className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-alerta/30 p-3 text-left text-sm hover:bg-muted/30"
+                onClick={() => void abrir(c.id)}>
+                <span><strong>{c.pessoa}</strong> · <span className="numero-processo">{c.numero}</span></span>
+                <span className="text-xs text-alerta">Pendência de vínculo · Abrir cadastro</span>
+              </button>
+            ))}
+          </div>
+        </Secao>
+      ) : null}
+
       <Dialog open={!!detalhe} onOpenChange={(o) => !o && navigate({ search: (p) => ({ ...p, id: "" }) })}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
           <DialogHeader><DialogTitle>Comparecimento — {detalhe?.pessoa}</DialogTitle></DialogHeader>
           {detalhe ? (
             <div className="space-y-4 text-sm">
-              <p className="text-base font-semibold">Próximo comparecimento: {formatarData(detalhe.proximo)} {detalhe.situacao !== "Encerrado" ? <EtiquetaComparecimento s={detalhe.status} /> : null}</p>
+              <div className="rounded-lg border border-border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold">Vínculos processuais da pessoa ({vinculosDetalhe.length})</p>
+                  {podeEditar ? <button type="button" className={BOTAO_SEC}
+                    onClick={() => adicionarVinculo(detalhe)}><Plus className="size-3.5" /> Adicionar outro processo</button> : null}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Os vínculos são reunidos apenas por CPF confirmado. Cada processo conserva sua periodicidade e histórico.
+                  Desvincular não arquiva a pessoa nem apaga assinaturas.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {vinculosDetalhe.map((v) => (
+                    <div key={v.id} className={cn("rounded-md border bg-background p-2", v.id === detalhe.id ? "border-primary/60" : "border-border")}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <button type="button" className="text-left text-xs font-semibold text-primary hover:underline"
+                          onClick={() => void abrir(v.id)}>{v.numero}</button>
+                        <span className={cn("text-xs font-medium", v.situacao === SITUACAO_VINCULO_REMOVIDO ? "text-alerta" : "text-foreground")}>
+                          {v.situacao === SITUACAO_VINCULO_REMOVIDO ? "Desvinculado — pendente" : v.situacao}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {v.periodicidade} · Próximo: {formatarData(v.proximo)}
+                      </p>
+                      {v.situacao === SITUACAO_VINCULO_REMOVIDO ? (
+                        <p className="mt-1 text-xs text-alerta">{v.motivo_conferencia || "Pendente de conferência do vínculo."}</p>
+                      ) : null}
+                      {podeEditar ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {v.situacao === "Ativo" ? (
+                            <>
+                              <button type="button" className={BOTAO_SEC} onClick={() => editarVinculo(v)}>
+                                <Pencil className="size-3" /> Editar processo
+                              </button>
+                              <button type="button" className={BOTAO_SEC} onClick={() => void desvincular(v)}>
+                                <Link2Off className="size-3" /> Remover vínculo
+                              </button>
+                            </>
+                          ) : null}
+                          {v.situacao === SITUACAO_VINCULO_REMOVIDO ? (
+                            <button type="button" className={BOTAO_SEC} onClick={() => void restaurar(v)}>
+                              <RotateCcw className="size-3" /> Restaurar vínculo
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {detalhe.situacao === "Ativo" ? (
+                <p className="text-base font-semibold">Próximo comparecimento neste processo: {formatarData(detalhe.proximo)} <EtiquetaComparecimento s={detalhe.status} /></p>
+              ) : <p className="rounded-md border border-alerta/30 bg-alerta-suave p-2 text-sm text-alerta">Este vínculo está desvinculado e possui pendência administrativa. Não é possível registrar novas assinaturas nele.</p>}
               {(() => {
                 const processoEtiquetaId = processoIdParaEtiquetas(detalhe);
                 const etiquetas = processoEtiquetaId ? (etiquetasPorProcesso[processoEtiquetaId] ?? []) : [];
@@ -319,7 +445,7 @@ function Pagina() {
                 <div className="col-span-2"><dt className="text-xs text-muted-foreground">Observação</dt><dd>{detalhe.observacao || "—"}</dd></div>
               </dl>
               <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico</p>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico exclusivo deste processo</p>
                 {historicoDetalhe.isLoading ? (
                   <p className="text-muted-foreground">Carregando histórico…</p>
                 ) : historicoDetalhe.isError ? (
@@ -341,8 +467,8 @@ function Pagina() {
                 {detalhe.processo_id ? <Link to="/processos/$id" params={{ id: detalhe.processo_id }} className="font-medium text-primary hover:underline">Abrir ficha do processo</Link> : <span className="text-muted-foreground">Processo não vinculado — edite para vincular</span>}
                 {podeEditar ? (
                   <div className="flex flex-wrap gap-2">
-                    <button className={BOTAO_SEC} onClick={() => setEdicao({ id: detalhe.id, valores: { processo_id: detalhe.processo_id ?? "", pessoa: detalhe.pessoa, data_inicio: detalhe.data_inicio, periodicidade: detalhe.periodicidade, intervalo_meses: detalhe.intervalo_meses, proximo: detalhe.proximo, observacao: detalhe.observacao, situacao: detalhe.situacao } })}><Pencil className="size-3.5" /> Editar</button>
-                    {detalhe.situacao !== "Encerrado" ? (
+                    {detalhe.situacao === "Ativo" ? <button className={BOTAO_SEC} onClick={() => editarVinculo(detalhe)}><Pencil className="size-3.5" /> Editar</button> : null}
+                    {detalhe.situacao === "Ativo" ? (
                       <>
                         <button className={BOTAO_SEC} onClick={() => setRegistro(detalhe)}><CheckCircle2 className="size-3.5" /> Registrar comparecimento</button>
                         <button className={BOTAO_SEC} onClick={() => void encerrar(detalhe.id)} title="Retirar este cadastro dos comparecimentos ativos"><XCircle className="size-3.5" /> Encerrar comparecimento</button>
@@ -359,7 +485,12 @@ function Pagina() {
       <Dialog open={!!edicao} onOpenChange={(o) => !o && setEdicao(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{edicao?.id ? "Editar comparecimento" : "Novo comparecimento"}</DialogTitle></DialogHeader>
-          {edicao ? <FormComparecimento inicial={edicao.valores} processos={processos.map((p) => ({ id: p.id, numero: p.numero }))} onSalvar={async (v) => { await salvarComparecimento(v, edicao.id); await recarregar(); setEdicao(null); }} /> : null}
+          {edicao ? <FormComparecimento inicial={edicao.valores} processos={processos.map((p) => ({ id: p.id, numero: p.numero }))} onSalvar={async (v) => {
+            await salvarComparecimento(v, edicao.id);
+            await recarregar();
+            setEdicao(null);
+            toast.success(edicao.id ? "Vínculo atualizado." : "Novo processo vinculado à pessoa.");
+          }} /> : null}
         </DialogContent>
       </Dialog>
 
@@ -369,6 +500,7 @@ function Pagina() {
           {registro ? (
             <FormRegistro
               c={registro}
+              vinculos={vinculosDaPessoa(lista, registro).filter((v) => v.situacao === "Ativo" && Boolean(v.processo_id))}
               onFeito={async (dados) => {
                 await recarregar();
                 setRegistro(null);
@@ -391,36 +523,69 @@ function Pagina() {
 
 function FormRegistro({
   c,
+  vinculos,
   onFeito,
 }: {
   c: ComparecimentoListado;
-  onFeito: (dados: { comparecimento: ComparecimentoListado; data: string; cpf: string }) => Promise<void>;
+  vinculos: ComparecimentoListado[];
+  onFeito: (dados: { comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] }) => Promise<void>;
 }) {
   const [data, setData] = useState(hojeISO());
   const [obs, setObs] = useState("");
   const [cpf, setCpf] = useState(c.cpf ? formatarCpf(c.cpf) : "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [selecionadosIds, setSelecionadosIds] = useState<string[]>([c.id]);
+  const selecionados = vinculos.filter((v) => selecionadosIds.includes(v.id));
   const precisaCpf = !cpfTemOnzeDigitos(c.cpf);
 
   return (
     <form className="space-y-3" onSubmit={async (e) => {
       e.preventDefault();
-      if (!c.processo_id) return setErro(mensagemProcessoAusenteComparecimento(c.pessoa));
+      if (!selecionados.length || selecionados.some((v) => !v.processo_id)) {
+        return setErro(mensagemProcessoAusenteComparecimento(c.pessoa));
+      }
       if (!data) return setErro("Informe a data do comparecimento.");
+      if (data > hojeISO()) return setErro("A data do comparecimento não pode ser futura.");
       if (precisaCpf && !cpfTemOnzeDigitos(cpf)) return setErro("Informe os 11 dígitos do CPF para emitir a certidão.");
 
       const cpfFinal = formatarCpf(precisaCpf ? cpf : c.cpf);
       setSalvando(true); setErro("");
       try {
-        await registrarComparecimento(c.id, data, obs, precisaCpf ? cpfFinal : undefined);
-        await onFeito({ comparecimento: { ...c, cpf: cpfFinal }, data, cpf: cpfFinal });
+        if (selecionados.length > 1) {
+          await registrarAssinaturaConjunta(selecionados.map((v) => v.id), data, obs, cpfFinal);
+        } else {
+          const selecionado = selecionados[0]!;
+          await registrarComparecimento(selecionado.id, data, obs, precisaCpf ? cpfFinal : undefined);
+        }
+        await onFeito({
+          comparecimento: { ...selecionados[0]!, cpf: cpfFinal },
+          data, cpf: cpfFinal, numeros: selecionados.map((v) => v.numero),
+        });
       } catch (err) {
         setErro(err instanceof Error ? err.message : "Erro ao registrar.");
         setSalvando(false);
       }
     }}>
-      <p className="text-sm">{c.pessoa} · <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>
+      <p className="text-sm font-medium">{c.pessoa} · uma apresentação presencial</p>
+      {vinculos.length > 1 ? (
+        <fieldset className="space-y-2 rounded-lg border border-border p-3">
+          <legend className="px-1 text-sm font-semibold">Processos atendidos por esta assinatura</legend>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Selecione apenas processos cujas determinações permitem considerar esta apresentação como cumprimento da obrigação.
+            Os prazos e históricos continuarão separados.
+          </p>
+          {vinculos.map((v) => (
+            <label key={v.id} className="flex items-start gap-2 text-xs">
+              <input type="checkbox" className="mt-0.5 size-4" checked={selecionadosIds.includes(v.id)}
+                onChange={(e) => setSelecionadosIds((ids) =>
+                  e.target.checked ? [...ids, v.id] : ids.filter((id) => id !== v.id))} />
+              <span><strong className="numero-processo">{v.numero}</strong> · previsto: {formatarData(v.proximo)} · {v.periodicidade}</span>
+            </label>
+          ))}
+          <p className="font-medium text-primary">{selecionados.length} obrigação(ões) selecionada(s) · 1 presença física</p>
+        </fieldset>
+      ) : <p className="text-sm">Processo <span className="numero-processo">{c.numero}</span> · previsto para {formatarData(c.proximo)}</p>}
 
       {!c.processo_id ? (
         <div className="rounded-md border border-urgente/30 bg-urgente-suave p-3 text-sm text-urgente">
@@ -462,9 +627,14 @@ function FormRegistro({
         <textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={obs} onChange={(e) => setObs(e.target.value)} />
       </Campo>
 
-      {data ? <p className="text-sm text-muted-foreground">Próximo comparecimento: <span className="font-semibold text-foreground">{formatarData(somarMeses(data, c.intervalo_meses))}</span></p> : null}
+      {data ? <div className="text-xs text-muted-foreground">
+        <p className="font-medium">Próximas datas por processo (conforme periodicidade cadastrada):</p>
+        {selecionados.map((v) => (
+          <p key={v.id} className="mt-1"><span className="numero-processo">{v.numero}</span> — {formatarData(somarMeses(data, v.intervalo_meses))}</p>
+        ))}
+      </div> : null}
       {erro ? <p className="text-sm text-urgente">{erro}</p> : null}
-      <div className="flex justify-end"><button className={BOTAO} disabled={salvando || !c.processo_id}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
+      <div className="flex justify-end"><button className={BOTAO} disabled={salvando || selecionados.length === 0}>{salvando ? "Registrando…" : "Registrar e emitir certidão"}</button></div>
     </form>
   );
 }
@@ -473,7 +643,7 @@ function FormCertidao({
   dados,
   onFechar,
 }: {
-  dados: { comparecimento: ComparecimentoListado; data: string; cpf: string };
+  dados: { comparecimento: ComparecimentoListado; data: string; cpf: string; numeros: string[] };
   onFechar: () => void;
 }) {
   const [analista, setAnalista] = useState("");
@@ -491,6 +661,7 @@ function FormCertidao({
     janela.document.write(
       montarHtmlCertidaoComparecimento({
         numero: dados.comparecimento.numero,
+        numeros: dados.numeros,
         pessoa: dados.comparecimento.pessoa,
         cpf: dados.cpf,
         data: dados.data,
@@ -507,7 +678,7 @@ function FormCertidao({
     <div className="space-y-4">
       <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
         <p className="font-medium">{dados.comparecimento.pessoa}</p>
-        <p className="numero-processo text-xs text-muted-foreground">{dados.comparecimento.numero}</p>
+        <p className="numero-processo text-xs text-muted-foreground">{dados.numeros.join(" · ")}</p>
         <p className="mt-1 text-xs text-muted-foreground">CPF {formatarCpf(dados.cpf)} · comparecimento em {formatarData(dados.data)}</p>
       </div>
 
@@ -579,6 +750,13 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
         />
       </Campo>
       <Campo rotulo="Pessoa"><input className={CLASSE_CAMPO} maxLength={200} value={v.pessoa} onChange={(e) => setV({ ...v, pessoa: e.target.value })} /></Campo>
+      <Campo rotulo="CPF (usado para reunir vínculos da mesma pessoa)">
+        <input inputMode="numeric" autoComplete="off" className={CLASSE_CAMPO} maxLength={14}
+          value={v.cpf ? formatarCpf(v.cpf) : ""}
+          placeholder="000.000.000-00"
+          onChange={(e) => setV({ ...v, cpf: formatarCpf(e.target.value) })} />
+        <span className="text-[11px] text-muted-foreground">Não serão agrupadas pessoas apenas pelo nome.</span>
+      </Campo>
       <Campo rotulo="Data de início"><input type="date" className={CLASSE_CAMPO} value={v.data_inicio} onChange={(e) => recalcular({ ...v, data_inicio: e.target.value })} /></Campo>
       <Campo rotulo="Periodicidade">
         <select className={CLASSE_CAMPO} value={v.periodicidade} onChange={(e) => recalcular({ ...v, periodicidade: e.target.value })}>
@@ -591,7 +769,7 @@ function FormComparecimento({ inicial, processos, onSalvar }: { inicial: Compare
       <Campo rotulo="Próximo comparecimento"><input type="date" className={CLASSE_CAMPO} value={v.proximo} onChange={(e) => setV({ ...v, proximo: e.target.value })} /></Campo>
       <Campo rotulo="Situação do cadastro"><select className={CLASSE_CAMPO} value={v.situacao} onChange={(e) => setV({ ...v, situacao: e.target.value })}><option>Ativo</option><option>Encerrado</option></select></Campo>
       <div className="md:col-span-2"><Campo rotulo="Observação"><textarea className={`${CLASSE_CAMPO} h-20 py-2`} maxLength={1000} value={v.observacao} onChange={(e) => setV({ ...v, observacao: e.target.value })} /></Campo></div>
-      <p className="text-xs text-muted-foreground md:col-span-2">A periodicidade é o intervalo definido para este processo (decisão, acordo ou medida aplicável). Regular, Vencendo ou Vencido é calculado automaticamente pela data do próximo comparecimento.</p>
+      <p className="text-xs text-muted-foreground md:col-span-2">Cada processo conserva seu próprio prazo. Se já houver assinaturas, a troca de processo será bloqueada para preservar o histórico: crie outro vínculo e desvincule o anterior.</p>
       {erro ? <p className="text-sm text-urgente md:col-span-2">{erro}</p> : null}
       <div className="flex justify-end md:col-span-2"><button className={BOTAO} disabled={salvando}>{salvando ? "Salvando…" : "Salvar comparecimento"}</button></div>
     </form>

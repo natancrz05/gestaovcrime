@@ -575,6 +575,7 @@ function Relatorio({
           set={s("cadastroComp")}
           opcoes={[
             { v: "Ativo", r: "Ativo" },
+            { v: "Desvinculado", r: "Desvinculado (pendente)" },
             { v: "Encerrado", r: "Encerrado" },
           ]}
         />
@@ -597,7 +598,7 @@ function Relatorio({
         chave: c.id,
         processoId: c.processo_id,
         destaque:
-          c.situacao !== "Encerrado" && c.status === "vencido"
+          c.situacao === "Ativo" && c.status === "vencido"
             ? ("urgente" as Linha["destaque"])
             : undefined,
         celulas: [
@@ -606,7 +607,7 @@ function Relatorio({
           c.processo_id ? etiquetasDo(c.processo_id) : "—",
           fmt(c.ultimo),
           fmt(c.proximo),
-          SITUACOES_COMP.find((x) => x.chave === c.status)?.rotulo ?? c.status,
+          c.situacao === "Ativo" ? (SITUACOES_COMP.find((x) => x.chave === c.status)?.rotulo ?? c.status) : "Sem contagem ativa",
           c.periodicidade,
           c.situacao,
         ],

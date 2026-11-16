@@ -252,6 +252,7 @@ export type Database = {
           id: string
           observacao: string
           processo_id: string
+          assinatura_grupo_id: string | null
           situacao: string
         }
         Insert: {
@@ -262,6 +263,7 @@ export type Database = {
           id?: string
           observacao?: string
           processo_id: string
+          assinatura_grupo_id?: string | null
           situacao: string
         }
         Update: {
@@ -272,6 +274,7 @@ export type Database = {
           id?: string
           observacao?: string
           processo_id?: string
+          assinatura_grupo_id?: string | null
           situacao?: string
         }
         Relationships: [
@@ -1300,6 +1303,10 @@ export type Database = {
       }
       registrar_comparecimento: {
         Args: { p_data: string; p_id: string; p_obs: string }
+        Returns: string
+      }
+      registrar_comparecimentos_multiplos: {
+        Args: { p_ids: string[]; p_data: string; p_obs: string; p_cpf: string }
         Returns: string
       }
       registrar_reavaliacao: {
