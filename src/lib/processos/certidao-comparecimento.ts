@@ -1,5 +1,6 @@
 export interface DadosCertidaoComparecimento {
   numero: string;
+  numeros?: string[];
   pessoa: string;
   cpf: string;
   data: string;
@@ -46,7 +47,9 @@ const escaparHtml = (valor: string) =>
   });
 
 export function montarHtmlCertidaoComparecimento(dados: DadosCertidaoComparecimento): string {
-  const numero = escaparHtml(dados.numero);
+  const numeros = [...new Set((dados.numeros?.length ? dados.numeros : [dados.numero]).filter(Boolean))];
+  const numero = escaparHtml(numeros.join(" / "));
+  const multiplos = numeros.length > 1;
   const pessoa = escaparHtml(dados.pessoa.toUpperCase());
   const cpf = escaparHtml(formatarCpf(dados.cpf));
   const data = escaparHtml(dataPorExtenso(dados.data));
@@ -61,12 +64,12 @@ export function montarHtmlCertidaoComparecimento(dados: DadosCertidaoComparecime
 
       <div class="titulo">CERTIDÃO DE COMPARECIMENTO</div>
 
-      <p class="processo"><strong>Processo nº:</strong> ${numero}</p>
+      <p class="processo"><strong>${multiplos ? "Processos nº:" : "Processo nº:"}</strong> ${numero}</p>
 
       <p class="texto">
         CERTIFICO para os devidos fins que o(a) Sr(a) <strong>${pessoa}</strong>,
         portador do CPF nº <strong>${cpf}</strong>, compareceu nesta comarca em
-        cumprimento ao quanto determinado nos autos. O referido é verdade e dou fé.
+        cumprimento ${multiplos ? "às determinações de comparecimento dos processos relacionados acima, conforme conferência realizada pela serventia" : "ao quanto determinado nos autos"}. O referido é verdade e dou fé.
         Coração de Maria/BA, ${data}. Eu, _______ <strong>${analista}</strong>,
         Analista Judiciário.
       </p>
