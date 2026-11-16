@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -56,7 +57,7 @@ export const Route = createFileRoute("/_authenticated/comparecimentos")({
   }),
   loader: ({ context }) =>
     Promise.all([context.queryClient.ensureQueryData(comparecimentosQuery()), context.queryClient.ensureQueryData(processosReferenciaQuery())]),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar comparecimentos" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar comparecimentos" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

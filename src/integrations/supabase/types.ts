@@ -201,8 +201,51 @@ export type Database = {
         }
         Relationships: []
       }
+      calculos_ia_relatorios: {
+        Row: {
+          autor_id: string
+          compartilhamento_autorizado: boolean
+          criado_em: string
+          data_referencia: string
+          id: string
+          modalidade_prisao: string | null
+          nome_reu: string | null
+          processo_numero: string
+          relatorio: string
+          tipo_analise: string
+          unidade: string
+        }
+        Insert: {
+          autor_id: string
+          compartilhamento_autorizado?: boolean
+          criado_em?: string
+          data_referencia: string
+          id?: string
+          modalidade_prisao?: string | null
+          nome_reu?: string | null
+          processo_numero: string
+          relatorio: string
+          tipo_analise: string
+          unidade?: string
+        }
+        Update: {
+          autor_id?: string
+          compartilhamento_autorizado?: boolean
+          criado_em?: string
+          data_referencia?: string
+          id?: string
+          modalidade_prisao?: string | null
+          nome_reu?: string | null
+          processo_numero?: string
+          relatorio?: string
+          tipo_analise?: string
+          unidade?: string
+        }
+        Relationships: []
+      }
       comparecimento_registros: {
         Row: {
+          assinatura_grupo_id: string | null
           comparecimento_id: string
           criado_em: string
           data_prevista: string
@@ -213,6 +256,7 @@ export type Database = {
           situacao: string
         }
         Insert: {
+          assinatura_grupo_id?: string | null
           comparecimento_id: string
           criado_em?: string
           data_prevista: string
@@ -223,6 +267,7 @@ export type Database = {
           situacao: string
         }
         Update: {
+          assinatura_grupo_id?: string | null
           comparecimento_id?: string
           criado_em?: string
           data_prevista?: string
@@ -1259,6 +1304,10 @@ export type Database = {
       }
       registrar_comparecimento: {
         Args: { p_data: string; p_id: string; p_obs: string }
+        Returns: string
+      }
+      registrar_comparecimentos_multiplos: {
+        Args: { p_cpf: string; p_data: string; p_ids: string[]; p_obs: string }
         Returns: string
       }
       registrar_reavaliacao: {

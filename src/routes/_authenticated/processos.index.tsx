@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -41,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/processos/")({
     return r;
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(processosListaQuery()),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar processos" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar processos" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

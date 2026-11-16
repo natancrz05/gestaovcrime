@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -37,10 +38,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/oficios")({
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(controleOficiosQuery()),
-  errorComponent: ({ error }) => (
+  errorComponent: ({ error }: ErrorComponentProps) => (
     <EstadoVazio
       titulo="Não foi possível carregar o controle de ofícios"
-      descricao={error.message}
+      descricao={(error as Error).message}
     />
   ),
   head: () => ({

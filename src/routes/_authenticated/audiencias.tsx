@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SeletorProcesso } from "@/components/processos/SeletorProcesso";
 import { ImportarPautaAudiencias } from "@/components/processos/ImportarPautaAudiencias";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/audiencias")({
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(processosAudienciasQuery()),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar audiências" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar audiências" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

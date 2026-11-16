@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePode } from "@/lib/sessao";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/pendencias")({
       context.queryClient.ensureQueryData(pendenciasQuery()),
       context.queryClient.ensureQueryData(processosReferenciaQuery()),
     ]),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar pendências" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar pendências" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

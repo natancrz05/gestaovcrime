@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -29,8 +30,8 @@ export const Route = createFileRoute("/_authenticated/comparecimentos_/encerrado
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(comparecimentosQuery()),
-  errorComponent: ({ error }) => (
-    <EstadoVazio titulo="Erro ao carregar comparecimentos encerrados" descricao={error.message} />
+  errorComponent: ({ error }: ErrorComponentProps) => (
+    <EstadoVazio titulo="Erro ao carregar comparecimentos encerrados" descricao={(error as Error).message} />
   ),
   component: Pagina,
 });

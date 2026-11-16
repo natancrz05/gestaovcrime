@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { EstadoVazio } from "@/components/ui-serventia/Cabecalho";
 import { PrioridadesAlertas } from "@/components/processos/PrioridadesAlertasBeta";
@@ -13,6 +14,6 @@ export const Route = createFileRoute("/_authenticated/prioridades")({
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(processosResumoQuery()),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar prioridades e alertas" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar prioridades e alertas" descricao={(error as Error).message} />,
   component: PrioridadesAlertas,
 });

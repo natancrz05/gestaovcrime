@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
@@ -54,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/reus-presos")({
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(presosQuery()),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar presos provisórios" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar presos provisórios" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

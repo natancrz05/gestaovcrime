@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { comparecimentosDoProcessoQuery, preparar } from "@/lib/processos/comparecimentos";
 import { rotaCadastroComparecimento } from "@/lib/processos/comparecimentos-navegacao";
 import { EtiquetaComparecimento } from "@/components/processos/EtiquetaComparecimento";
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/_authenticated/processos/$id")({
   pendingMs: 80,
   pendingMinMs: 300,
   notFoundComponent: () => <EstadoVazio titulo="Processo não encontrado" descricao="Verifique o endereço ou volte à lista de processos." />,
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o processo" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar o processo" descricao={(error as Error).message} />,
   component: Pagina,
 });
 

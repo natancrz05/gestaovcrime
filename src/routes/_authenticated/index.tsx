@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/")({
     ],
   }),
   loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(processosResumoQuery()), context.queryClient.ensureQueryData(presosQuery()), context.queryClient.ensureQueryData(comparecimentosAtivosQuery())]),
-  errorComponent: ({ error }) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={error.message} />,
+  errorComponent: ({ error }: ErrorComponentProps) => <EstadoVazio titulo="Erro ao carregar o painel" descricao={(error as Error).message} />,
   component: Dashboard,
 });
 
