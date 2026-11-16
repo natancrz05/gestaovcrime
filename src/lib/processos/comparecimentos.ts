@@ -167,8 +167,9 @@ export function preparar(lista: Comparecimento[], hoje = hojeISO()): Comparecime
       };
     })
     .sort((a, b) => {
-      // Cadastros encerrados vão para o fim da lista.
-      const e = Number(a.situacao === "Encerrado") - Number(b.situacao === "Encerrado");
+      // Obrigações ativas primeiro; desvinculados pendentes e encerrados no fim.
+      const ordem = (s: string) => s === "Ativo" ? 0 : s === "Desvinculado" ? 1 : 2;
+      const e = ordem(a.situacao) - ordem(b.situacao);
       return e || ORDEM[a.status] - ORDEM[b.status] || a.proximo.localeCompare(b.proximo);
     });
 }
